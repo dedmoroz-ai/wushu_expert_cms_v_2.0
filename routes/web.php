@@ -17,6 +17,13 @@ Route::get('/', function () {
 // Публичное табло
 Route::get('/scoreboard', Scoreboard::class)->name('scoreboard');
 
+// Публичная страница результатов
+Route::get('/results/{token?}', \App\Livewire\PublicResults::class)->name('public.results');
+
+// Генерация QR-кода
+Route::get('/competition/{competition}/qr-code', [\App\Http\Controllers\QrCodeController::class, 'generate'])
+    ->name('competition.qr-code');
+
 // --- ГЕНЕРАЦИЯ PDF ПРОТОКОЛОВ ---
 Route::get('/competition/{competition}/start-list', [CompetitionPdfController::class, 'startList'])
     ->name('competition.start-list');

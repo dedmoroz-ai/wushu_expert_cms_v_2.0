@@ -2,19 +2,20 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>—Ú‡ÚÓ‚˚È ÔÓÚÓÍÓÎ</title>
     <style>
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; }
 
-        /* === –ù–ê–°–¢–†–û–ô–ö–ò –°–¢–†–ê–ù–ò–¶–´ === */
+        /* === Õ¿—“–Œ… » —“–¿Õ»÷€ === */
         @page {
             /* 
-               –í–µ—Ä—Ö: 180px (–ø–æ–¥ —à–∞–ø–∫—É)
-               –ù–∏–∑: 200px (–£–í–ï–õ–ò–ß–ò–õ–ò, —á—Ç–æ–±—ã —Ç–∞–±–ª–∏—Ü–∞ –Ω–µ –Ω–∞–µ–∑–∂–∞–ª–∞ –Ω–∞ –±–æ–ª—å—à—É—é –ø–µ—á–∞—Ç—å)
+               ¬Âı: 180px (ÔÓ‰ ¯‡ÔÍÛ)
+               ÕËÁ: 200px (‰Îˇ ÔÓ‰‚‡Î‡ Ò ÔÂ˜‡ÚˇÏË)
             */
             margin: 180px 30px 200px 30px; 
         }
 
-        /* === –®–ê–ü–ö–ê === */
+        /* === ÿ¿œ ¿ === */
         header {
             position: fixed;
             top: -160px; 
@@ -23,20 +24,19 @@
             height: 145px; 
         }
 
-        /* === –§–£–¢–ï–† === */
+        /* === ‘”“≈– === */
         footer {
             position: fixed; 
-            /* –û–ø—É—Å–∫–∞–µ–º —Ñ—É—Ç–µ—Ä –≤ –æ–±–ª–∞—Å—Ç—å –Ω–∏–∂–Ω–µ–≥–æ –æ—Ç—Å—Ç—É–ø–∞ */
             bottom: -195px; 
             left: 0px; 
             right: 0px;
-            height: 140px; /* –£–≤–µ–ª–∏—á–∏–ª–∏ –≤—ã—Å–æ—Ç—É –±–ª–æ–∫–∞ —Ñ—É—Ç–µ—Ä–∞ */
+            height: 140px; 
         }
 
-        /* === –ù–û–ú–ï–† –°–¢–†–ê–ù–ò–¶–´ === */
+        /* === ÕŒÃ≈– —“–¿Õ»÷€ === */
         .page-number {
             position: fixed;
-            bottom: -180px; /* –í —Å–∞–º–æ–º –Ω–∏–∑—É */
+            bottom: -180px;
             left: 0;
             right: 0;
             text-align: center;
@@ -45,12 +45,9 @@
         }
         .page-number:before {
             content: "-- " counter(page) " --";
-        }        /* –ú–∞–≥–∏—è CSS –¥–ª—è –∞–≤—Ç–æ–Ω—É–º–µ—Ä–∞—Ü–∏–∏ */
-        .page-number:before {
-            content: "-- " counter(page) " --";
         }
 
-        /* === –¢–í–û–ò –°–¢–ò–õ–ò === */
+        /* === “¬Œ» —“»À» === */
         .header-table { width: 100%; border-collapse: collapse; border: none; }
         .header-logo-cell { width: 130px; vertical-align: top; text-align: left; }
         .header-logo-cell img { max-width: 130px; max-height: 130px; }
@@ -87,7 +84,7 @@
             font-weight: bold;
         }
 
-        /* === –¢–ê–ë–õ–ò–¶–ê === */
+        /* === “¿¡À»÷¿ === */
         .group-wrap {
             page-break-inside: avoid;
             margin-bottom: 15px;
@@ -104,7 +101,7 @@
             text-align: center; border: 1px solid black; border-bottom: none; 
         }
 
-        /* === –ü–û–î–í–ê–õ (–ü–æ–¥–ø–∏—Å–∏) === */
+        /* === œŒƒ¬¿À (œÓ‰ÔËÒË) === */
         .footer-tbl { width: 100%; border: none; }
         .footer-tbl td { border: none; vertical-align: bottom; height: 90px; position: relative; }
         .sign-box { width: 40%; text-align: center; position: relative; }
@@ -118,7 +115,7 @@
 </head>
 <body>
 
-    {{-- 1. –®–ê–ü–ö–ê (–í –±–ª–æ–∫–µ header, —á—Ç–æ–±—ã –ø–æ–≤—Ç–æ—Ä—è–ª–∞—Å—å) --}}
+    {{-- 1. ÿ¿œ ¿ --}}
     <header>
         <table class="header-table">
             <tr>
@@ -130,19 +127,19 @@
                 <td class="header-info-cell">
                     <div class="organizer-name">{{ $organizerName }}</div>
                     <div class="comp-name">{{ $competition->name }}</div>
-                    <div class="protocol-title">–°–¢–ê–†–¢–û–í–´–ô –ü–†–û–¢–û–ö–û–õ</div>
+                    <div class="protocol-title">—“¿–“Œ¬€… œ–Œ“Œ ŒÀ</div>
                     <div class="date-addr">{{ $formattedDate }} | {{ $address }}</div>
                 </td>
             </tr>
         </table>
     </header>
 
-    {{-- 2. –ü–û–î–í–ê–õ (–ü–æ–¥–ø–∏—Å–∏) --}}
+    {{-- 2. œŒƒ¬¿À (œÓ‰ÔËÒË) --}}
     <footer>
         <table class="footer-tbl">
             <tr>
                 <td class="sign-box">
-                    <div class="role">–ì–ª–∞–≤–Ω—ã–π —Å—É–¥—å—è</div>
+                    <div class="role">√Î‡‚Ì˚È ÒÛ‰¸ˇ</div>
                     @if($judgeSignBase64)
                         <img class="sign-img" src="{{ $judgeSignBase64 }}">
                     @endif
@@ -155,7 +152,7 @@
                     @endif
                 </td>
                 <td class="sign-box">
-                    <div class="role">–ì–ª–∞–≤–Ω—ã–π —Å–µ–∫—Ä–µ—Ç–∞—Ä—å</div>
+                    <div class="role">√Î‡‚Ì˚È ÒÂÍÂÚ‡¸</div>
                     @if($secSignBase64)
                         <img class="sign-img" src="{{ $secSignBase64 }}">
                     @endif
@@ -166,20 +163,20 @@
         </table>
     </footer>
 
-    {{-- 3. –ù–û–ú–ï–† –°–¢–†–ê–ù–ò–¶–´ --}}
+    {{-- 3. ÕŒÃ≈– —“–¿Õ»÷€ --}}
     <div class="page-number"></div>
 
-    {{-- 4. –ö–û–ù–¢–ï–ù–¢ (–¢–∞–±–ª–∏—Ü—ã) --}}
+    {{-- 4.  ŒÕ“≈Õ“ (“‡·ÎËˆ˚) --}}
     @foreach($grouped as $groupName => $items)
         <div class="group-wrap">
             <div class="group-head">{{ $groupName }}</div>
             <table class="data-tbl">
                 <thead>
                     <tr>
-                        <th width="30">‚Ññ</th>
-                        <th class="text-left">–§–ò–û –£—á–∞—Å—Ç–Ω–∏–∫–∞</th>
-                        <th class="text-left">–ö–æ–º–∞–Ω–¥–∞</th>
-                        <th width="60">–û—Ü–µ–Ω–∫–∞</th>
+                        <th width="30">π</th>
+                        <th class="text-left">‘»Œ ”˜‡ÒÚÌËÍ‡</th>
+                        <th class="text-left"> ÓÏ‡Ì‰‡</th>
+                        <th width="60">ŒˆÂÌÍ‡</th>
                     </tr>
                 </thead>
                 <tbody>

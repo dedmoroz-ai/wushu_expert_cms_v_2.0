@@ -7,6 +7,7 @@ use App\Models\Competition;
 use App\Models\Registration;
 use App\Models\Score;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class Scoreboard extends Component
 {
@@ -101,12 +102,42 @@ class Scoreboard extends Component
             }
         }
 
+        // Генерируем URL для публичной страницы и QR-кода (если соревнование в паузе)
+        $publicUrl = null;
+        $qrCodeUrl = null;
+        
+        if ($competition && $competition->status_code == 2) {
+            // Проверяем наличие колонки (для совместимости)
+            try {
+                $hasPublicTokenColumn = Schema::hasColumn('competitions', 'public_token');
+            
+            if ($hasPublicTokenColumn) {
+                // Генерируем токен, если его нет
+                if (!$competition->public_token) {
+                    $competition->public_token = \Illuminate\Support\Str::random(32);
+                    $competition->save();
+                }
+                $publicUrl = route('public.results', ['token' => $competition->public_token]);
+            } else {
+                    // Если колонки нет, используем ID соревнования
+                    $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
+                }
+            } catch (\Exception $e) {
+                // Fallback: используем ID соревнования
+                $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
+            }
+            
+            $qrCodeUrl = route('competition.qr-code', $competition);
+        }
+
         return view('livewire.scoreboard', [
             'competition' => $competition,
             'current' => $activeReg,
             'next' => $nextReg,
             'scores' => $judgesScores,
             'showFinal' => $showFinal,
+            'publicUrl' => $publicUrl,
+            'qrCodeUrl' => $qrCodeUrl,
         ])->layout('components.layouts.base');
     }
 }

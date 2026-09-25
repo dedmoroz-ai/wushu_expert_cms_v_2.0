@@ -211,16 +211,34 @@
 
                 {{-- СУДЬИ --}}
                 <div class="judges-row">
+                    {{-- Правило 8.4: карточки только судей бригады этого турнира --}}
                     @foreach($judgesScores as $j)
                         <div class="judge-card">
-                            <div class="judge-label">{{ $j['name'] }}</div>
+                            <div class="judge-label">
+                                {{-- Правило R-4.18: функция судьи в сценарии A/B --}}
+                                @if($scheme === 'ab')
+                                    <span style="color: {{ $j['panel'] ? '#a78bfa' : '#fca5a5' }};">[{{ $j['panel'] ?? '?' }}]</span>
+                                @endif
+                                {{ $j['name'] }}
+                            </div>
                             <div class="judge-val text-white">{{ $j['score'] ?? '...' }}</div>
+
+                            {{-- Правило 8.7: снять оценку судьи для перевыставления --}}
+                            @if(!is_null($j['score']))
+                                <button wire:click="resetJudgeScore({{ $j['id'] }})"
+                                        onclick="return confirm('Снять оценку судьи {{ $j['name'] }}? Он выставит её заново.')"
+                                        style="margin-top: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #fca5a5; background: transparent; border: 1px solid #7f1d1d; border-radius: 6px; padding: 2px 8px; cursor: pointer;">
+                                    Снять
+                                </button>
+                            @endif
                         </div>
                     @endforeach
                     
                     {{-- Я --}}
                     <div class="judge-card me">
-                        <div class="judge-label" style="color: #60a5fa;">Я (Гл. Судья)</div>
+                        <div class="judge-label" style="color: #60a5fa;">
+                            Я (Гл. Судья)@if($scheme === 'ab') [{{ $myPanel ?? 'без функции' }}]@endif
+                        </div>
                         <div class="judge-val">
                             @if(!$myScoreSaved)
                                 {{ $myScore }}<span class="blink"></span>
@@ -228,8 +246,79 @@
                                 {{ $myScore }}
                             @endif
                         </div>
+
+                        {{-- Правило 8.7: исправить свою оценку --}}
+                        @if($myScoreSaved && $canScoreSelf)
+                            <button wire:click="editMyScore"
+                                    onclick="return confirm('Исправить свою оценку?')"
+                                    style="margin-top: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #fcd34d; background: transparent; border: 1px solid #92400e; border-radius: 6px; padding: 2px 8px; cursor: pointer;">
+                                Исправить
+                            </button>
+                        @endif
                     </div>
                 </div>
+
+                {{-- Правила 8.2, 8.3, 8.4: диапазон и готовность бригады --}}
+                <div style="margin-top: -20px; margin-bottom: 30px; text-align: center; font-size: 0.9rem; color: #94a3b8; letter-spacing: 1px;">
+                    @if($scoreRangeLabel)
+                        <span>ДИАПАЗОН: <b style="color:#e2e8f0;">{{ $scoreRangeLabel }}</b></span>
+                    @endif
+                    @if($scheme === 'ab')
+                        {{-- Правила R-4.18, R-4.19: счётчики по панелям --}}
+                        <span style="margin-left: 20px;">
+                            A: <b style="color:#e2e8f0;">{{ $receivedA }} / {{ $expectedA }}</b>
+                        </span>
+                        <span style="margin-left: 20px;">
+                            B: <b style="color:#e2e8f0;">{{ $receivedB }} / {{ $expectedB }}</b>
+                        </span>
+                        @if($totalRangeLabel)
+                            <span style="margin-left: 20px;">ИТОГ: <b style="color:#e2e8f0;">{{ $totalRangeLabel }}</b></span>
+                        @endif
+                        @if($unassignedJudges > 0)
+                            <span style="margin-left: 20px; color: #fca5a5;">
+                                БЕЗ ФУНКЦИИ: {{ $unassignedJudges }} — назначьте A/B в бригаде
+                            </span>
+                        @endif
+                        @if($expectedA === 0 || $expectedB === 0)
+                            <span style="margin-left: 20px; color: #fca5a5;">
+                                НУЖНЫ СУДЬИ В ОБЕИХ ПАНЕЛЯХ (A и B)
+                            </span>
+                        @endif
+                    @else
+                    <span style="margin-left: 20px;">
+                        ОЦЕНОК: <b style="color:#e2e8f0;">{{ $receivedScoresCount }} / {{ $expectedScoresCount }}</b>
+                    </span>
+                    @endif
+                    @if($expectedScoresCount === 0)
+                        <span style="margin-left: 20px; color: #fca5a5;">
+                            БРИГАДА НЕ НАЗНАЧЕНА — привяжите судей к соревнованию
+                        </span>
+                    @endif
+                </div>
+
+                {{-- Правила R-3.12–R-3.15: старший судья в функции A ставит оценку сбавками --}}
+                @if($myPanel === 'A' && !$myScoreSaved)
+                    <div style="width: 1000px; max-width: 95%; margin-bottom: 20px;">
+                        @if(count($deductionCodes) === 0)
+                            <div style="color:#fca5a5; text-align:center;">Справочник кодов сбавок пуст.</div>
+                        @endif
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+                            @foreach($deductionCodes as $dc)
+                                @php $cnt = $this->pressCounts[$dc['id']] ?? 0; $locked = $cnt >= \App\Support\JudgingCalculator::MAX_CODE_REPEATS; @endphp
+                                <button wire:click="pressCode({{ $dc['id'] }})" @disabled($locked)
+                                        title="{{ $dc['label'] }}{{ $locked ? ' — нажат максимальное число раз' : '' }}"
+                                        style="min-width:90px; padding:8px 10px; border-radius:8px; background:#1e3a5f; color:white; border:2px solid {{ $cnt > 0 ? '#fbbf24' : '#0992B8' }}; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : 'cursor:pointer;' }}">
+                                    <div style="font-weight:900; font-size:1.1rem;">{{ $dc['code'] }}</div>
+                                    <div style="font-size:0.8rem;">−{{ number_format($dc['value'], 3, '.', '') }}{{ $cnt > 0 ? ' ×' . $cnt : '' }}</div>
+                                </button>
+                            @endforeach
+                            <button wire:click="undoLastCode" @disabled(count($pressedCodes) === 0)
+                                    style="padding:8px 14px; border-radius:8px; background:#7f1d1d; color:white; border:none; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : 'cursor:pointer;' }}">
+                                ОТМЕНИТЬ ПОСЛЕДНЮЮ
+                            </button>
+                        </div>
+                    </div>
+                @endif
 
                 {{-- РАСЧЕТ --}}
                 <div class="calc-wrapper">
@@ -245,7 +334,8 @@
                     </div>
                     <div class="calc-box cb-pink">
                         <div class="cb-title" style="color: #f0abfc;">Формула</div>
-                        <div style="font-size: 1.2rem; color: #ccc;">(Сумма - Мин. - Макс.) = Средний</div>
+                        {{-- Правила R-4.16, R-4.20: формула зависит от сценария --}}
+                        <div style="font-size: 1.2rem; color: #ccc;">{{ $formulaText }}</div>
                         <div style="margin-top: 15px; font-size: 0.9rem; color: #94a3b8;">
                             {{ $canFinalize ? 'Авто-расчет завершен' : 'Ожидание...' }}
                         </div>
@@ -256,6 +346,15 @@
                     </div>
                 </div>
 
+                {{-- Правило 8.9: обоснование ручной правки итогового балла --}}
+                @if($canFinalize && $calculatedAvg !== null && $finalScoreInput !== $calculatedAvg)
+                    <div style="width: 1000px; max-width: 95%; margin-bottom: 20px;">
+                        <input type="text" wire:model.live.debounce.500ms="finalScoreReason"
+                               placeholder="Причина отклонения от авто-расчёта (будет записана в журнал)"
+                               style="width: 100%; padding: 12px 16px; border-radius: 10px; background: #0f172a; border: 1px solid #f59e0b; color: white; font-size: 1rem;">
+                    </div>
+                @endif
+
                 {{-- КНОПКА --}}
                 <div style="padding-bottom: 50px;">
                     @if($canFinalize)
@@ -264,13 +363,13 @@
                                 class="btn-green-huge">
                             В ПРОТОКОЛ ↵
                         </button>
-                    @elseif(!$myScoreSaved)
+                    @elseif(!$myScoreSaved && $canScoreSelf)
                         <button wire:click="submitMyScore" class="btn-green-huge">
-                            ПОДТВЕРДИТЬ ОЦЕНКУ ↵
+                            {{ $isEditingMyScore ? 'СОХРАНИТЬ ИСПРАВЛЕНИЕ ↵' : 'ПОДТВЕРДИТЬ ОЦЕНКУ ↵' }}
                         </button>
                     @else
                         <button disabled class="btn-green-huge">
-                            ЖДЕМ СУДЕЙ...
+                            ЖДЕМ СУДЕЙ... ({{ $receivedScoresCount }}/{{ $expectedScoresCount }})
                         </button>
                     @endif
                 </div>

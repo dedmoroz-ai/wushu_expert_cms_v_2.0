@@ -21,29 +21,30 @@ class CreateRegistration extends CreateRecord
         $taolu = $data['events_taolu_virtual'] ?? [];
         $trad = $data['events_trad_virtual'] ?? [];
         
-        // Объединяем выбранные галочки в один массив
         $selectedStyleIds = array_unique(array_merge($taolu, $trad));
 
-        // --- ЛОГИКА ПАРТНЕРА ---
-        $partnerId = $data['partner_id'] ?? null;
+        // --- ЛОГИКА ПАРТНЕРОВ (Берем из разных полей) ---
+        $partnerForDuilian = $data['partner_duilian_virtual'] ?? null;
+        $partnerForDuida   = $data['partner_duida_virtual'] ?? null;
         
-        // Удаляем лишние поля из данных
+        // Удаляем лишние поля, чтобы не мешали при create()
         unset($data['events_taolu_virtual']);
         unset($data['events_trad_virtual']);
         unset($data['events']); 
-        unset($data['partner_id']); // Убираем из общего шаблона
+        unset($data['partner_duilian_virtual']); // Чистим виртуалки
+        unset($data['partner_duida_virtual']);   // Чистим виртуалки
+        // partner_id тоже чистим, так как мы его будем назначать вручную ниже
+        unset($data['partner_id']); 
 
         // 2. ОПРЕДЕЛЕНИЕ ВОЗРАСТНОЙ ГРУППЫ
         $athlete = Athlete::find($data['athlete_id']);
         $competition = Competition::find($data['competition_id']);
         
-        // Значения по умолчанию
         $data['age_group_id'] = null;
         $data['age_group_label'] = 'Не определено';
 
         if ($athlete && $competition && $athlete->birth_date) {
             $age = $competition->start_date->year - $athlete->birth_date->year;
-            
             $dbGroup = $this->findAgeGroupInDb($athlete, $age);
 
             if ($dbGroup) {
@@ -63,23 +64,29 @@ class CreateRegistration extends CreateRecord
         foreach ($selectedStyleIds as $styleId) {
             $singleRowData = $data;
             $singleRowData['style_id'] = $styleId; 
-            
-            // Если записи нет - ставим статус 0. Если есть - статус не трогаем (см. ниже)
             $singleRowData['status'] = 0;
 
-            // --- ПРОВЕРКА НА ДУЙЛЯНЬ ---
+            // --- УМНЫЙ ВЫБОР ПАРТНЕРА ---
             $style = Style::find($styleId);
-            $targetPartnerId = null; // По умолчанию партнер NULL
+            $targetPartnerId = null;
 
-            // Если в названии стиля есть "дуйлянь" — используем выбранного партнера
-            if ($style && str_contains(mb_strtolower($style->name), 'дуйлянь')) {
-                $targetPartnerId = $partnerId;
+            if ($style) {
+                $styleName = mb_strtolower($style->name);
+                
+                // Если это Дуйлянь — берем партнера из поля для Дуйлянь
+                if (str_contains($styleName, 'дуйлянь')) {
+                    $targetPartnerId = $partnerForDuilian;
+                }
+                // Если это Дуйда — берем партнера из поля для Дуйда
+                elseif (str_contains($styleName, 'дуйда')) {
+                    $targetPartnerId = $partnerForDuida;
+                }
             }
             
+            // Присваиваем правильного партнера (или NULL, если вид одиночный)
             $singleRowData['partner_id'] = $targetPartnerId;
             // ---------------------------
 
-            // firstOrCreate: Находит существующую запись ИЛИ создает новую
             $record = static::getModel()::firstOrCreate(
                 [
                     'competition_id' => $singleRowData['competition_id'],
@@ -89,10 +96,7 @@ class CreateRegistration extends CreateRecord
                 $singleRowData
             );
 
-            // ! ВАЖНОЕ ИСПРАВЛЕНИЕ !
-            // Если запись уже существовала (например, создана с ошибкой ранее), 
-            // firstOrCreate её не изменил. 
-            // Мы принудительно обновляем partner_id, чтобы исправить ошибку на скриншоте.
+            // Если запись уже была, но у нее не тот партнер (или его не было), обновляем
             if ($record->partner_id != $targetPartnerId) {
                 $record->update(['partner_id' => $targetPartnerId]);
             }
@@ -104,9 +108,9 @@ class CreateRegistration extends CreateRecord
             }
         }
 
-        // Страховка на случай пустых стилей
+        // Если вообще ничего не выбрали (редкий случай), создаем пустышку
         if (!$record) {
-             $data['partner_id'] = $partnerId;
+             $data['partner_id'] = null;
              $record = static::getModel()::create($data); 
         }
 

@@ -152,8 +152,14 @@
     </main>
     
     <!-- Footer -->
-    <div class="relative z-10 w-full text-center py-4 lg:py-2 text-[10px] text-gray-600 border-t border-white/5 bg-gray-950 shrink-0">
-        &copy; {{ date('Y') }} WUSHU EXPERT CMS
+    <div class="relative z-10 w-full h-[50px] border-t border-white/5 bg-gray-950 shrink-0">
+        <div class="h-full max-w-6xl mx-auto px-4 flex items-center justify-center gap-4 text-[11px] text-gray-400">
+            <span class="inline-flex items-center gap-2">
+                <span>Разработано</span>
+                <img src="{{ asset('images/NMRULOGOWH.svg') }}" alt="NMru" class="h-6 w-auto opacity-100">
+                <span class="ml-2">&copy; 2026</span>
+            </span>
+        </div>
     </div>
 
 </body>

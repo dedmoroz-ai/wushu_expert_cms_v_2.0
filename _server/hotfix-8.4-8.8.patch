@@ -1,0 +1,70 @@
+diff --git a/app/Filament/Pages/SuperJudgePad.php b/app/Filament/Pages/SuperJudgePad.php
+index 2e5d870..bdab577 100644
+--- a/app/Filament/Pages/SuperJudgePad.php
++++ b/app/Filament/Pages/SuperJudgePad.php
+@@ -106,10 +106,15 @@ class SuperJudgePad extends Page
+         // 2. ПОЛУЧЕНИЕ ОЦЕНОК
+         $allScoresDb = Score::where('registration_id', $currentReg->id)->with('judge')->get();
+ 
+-        $allJudgesUsers = User::where('id', '!=', Auth::id())
+-            ->where('role', 'judge')          
+-            ->where('is_active_judge', true)  
+-            ->get(); 
++        // ХОТФИКС 8.4: ожидаемое число оценок считается по бригаде ЭТОГО
++        // турнира (competition_user), а не по всем судьям системы.
++        // Судьи вне бригады остаются в системе, но в расчёте не участвуют.
++        $allJudgesUsers = $competition->judges()
++            ->where('users.id', '!=', Auth::id())
++            ->whereIn('users.role', ['judge', 'head_judge'])
++            ->where('users.is_active_judge', true)
++            ->orderBy('users.name')
++            ->get();
+         
+         $this->judgesScores = [];
+         $scoresForCalc = []; 
+@@ -270,10 +275,15 @@ class SuperJudgePad extends Page
+             
+             Notification::make()->title('Протокол сохранен!')->success()->send();
+ 
++            // ХОТФИКС 8.8: автопереход ТОЛЬКО ВПЕРЁД (sort_order > текущего).
++            // Если у текущего участника нет номера (жеребьёвка не проведена),
++            // работаем по-старому, чтобы не остановить турнир.
+             $nextReg = Registration::where('competition_id', $competition->id)
+                 ->where('is_completed', false)
+                 ->where('id', '!=', $reg->id)
++                ->when(!is_null($reg->sort_order), fn ($q) => $q->where('sort_order', '>', $reg->sort_order))
+                 ->orderBy('sort_order', 'asc')
++                ->orderBy('id', 'asc')
+                 ->first();
+ 
+             if ($nextReg) {
+@@ -290,9 +300,26 @@ class SuperJudgePad extends Page
+             } else {
+                 $competition->current_registration_id = null;
+                 $competition->save();
+-                
+-                $this->resetData('Соревнования завершены!');
+-                Notification::make()->title('Турнир завершен!')->warning()->send();
++
++                // ХОТФИКС 8.8: впереди никого нет. На пропущенных участников
++                // позади НЕ возвращаемся автоматически — только предупреждаем.
++                $skippedCount = Registration::where('competition_id', $competition->id)
++                    ->where('is_completed', false)
++                    ->where('id', '!=', $reg->id)
++                    ->count();
++
++                if ($skippedCount > 0) {
++                    $this->resetData('Список пройден. Не оценено: ' . $skippedCount);
++                    Notification::make()
++                        ->title('Список пройден до конца')
++                        ->body("Остались неоценённые участники: {$skippedCount}. Выберите их вручную в пульте управления.")
++                        ->warning()
++                        ->persistent()
++                        ->send();
++                } else {
++                    $this->resetData('Соревнования завершены!');
++                    Notification::make()->title('Турнир завершен!')->warning()->send();
++                }
+             }
+         }
+     }

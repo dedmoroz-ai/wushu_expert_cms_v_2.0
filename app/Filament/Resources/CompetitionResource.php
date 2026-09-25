@@ -151,6 +151,16 @@ class CompetitionResource extends Resource
                             ->label('Включить дисциплины Дуйлянь')
                             ->inline(false)
                             ->default(false),
+
+                        // Правило R-2.11: сценарий судейства турнира.
+                        Forms\Components\Select::make('judging_scheme')
+                            ->label('Сценарий судейства')
+                            ->options(Competition::schemeLabels())
+                            ->default(Competition::SCHEME_SIMPLE)
+                            ->required()
+                            ->native(false)
+                            ->helperText('A/B: назначьте каждому судье функцию A или B во вкладке «Судейская бригада». Не меняйте сценарий во время турнира.')
+                            ->columnSpanFull(),
                     ])
                     ->columns(2)
                     ->collapsible() 

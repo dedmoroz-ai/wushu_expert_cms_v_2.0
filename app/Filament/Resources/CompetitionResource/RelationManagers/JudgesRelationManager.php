@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CompetitionResource\RelationManagers;
 
+use App\Models\Competition;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -23,7 +24,20 @@ class JudgesRelationManager extends RelationManager
                 Forms\Components\TextInput::make('role_on_tournament')
                     ->label('Роль на турнире')
                     ->placeholder('Например: Рефери, Боковой судья'),
+
+                // Правило R-4.18: функция судьи в сценарии A/B.
+                self::panelSelect(),
             ]);
+    }
+
+    protected static function panelSelect(): Forms\Components\Select
+    {
+        return Forms\Components\Select::make('panel')
+            ->label('Функция судьи (сценарий A/B)')
+            ->options(Competition::panelLabels())
+            ->placeholder('Не назначена')
+            ->native(false)
+            ->helperText('Используется только в турнирах со сценарием A/B. Старший судья тоже может быть A или B.');
     }
 
     public function table(Table $table): Table
@@ -56,6 +70,14 @@ class JudgesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('pivot.role_on_tournament')
                     ->label('Роль на турнире')
                     ->placeholder('По умолчанию'),
+
+                Tables\Columns\TextColumn::make('pivot.panel')
+                    ->label('Функция')
+                    ->badge()
+                    ->color(fn (?string $state): string => $state ? 'primary' : 'gray')
+                    ->formatStateUsing(fn (?string $state): string => $state ? 'Судья ' . $state : '—')
+                    ->placeholder('—')
+                    ->visible(fn (): bool => $this->getOwnerRecord()->isAbScheme()),
             ])
             ->headerActions([
                 // КНОПКА "ПРИВЯЗАТЬ" (Attach)
@@ -70,6 +92,7 @@ class JudgesRelationManager extends RelationManager
                         // При добавлении можно сразу указать роль
                         Forms\Components\TextInput::make('role_on_tournament')
                             ->label('Роль на этом турнире (необязательно)'),
+                        self::panelSelect(),
                     ]),
             ])
             ->actions([

@@ -30,7 +30,6 @@ class RegistrationResource extends Resource
     {
         $query = parent::getEloquentQuery();
 
-        // Если это Тренер (есть club_id) — фильтруем
         if (auth()->check() && auth()->user()->club_id) {
             return $query->whereHas('athlete', function ($q) {
                 $q->where('club_id', auth()->user()->club_id);
@@ -42,7 +41,7 @@ class RegistrationResource extends Resource
 
     public static function form(Form $form): Form
     {
-        // --- ПРАВИЛО ВАЛИДАЦИИ (Лимит видов) ---
+        // --- ПРАВИЛО ВАЛИДАЦИИ (Лимит) ---
         $maxEventsRule = function (Get $get) {
             return function (string $attribute, $value, Closure $fail) use ($get) {
                 $competitionId = $get('competition_id');
@@ -60,6 +59,7 @@ class RegistrationResource extends Resource
                 
                 if (empty($allSelectedIds)) return;
 
+                // Лимит: Дуйлянь не считается
                 $duilianCount = Style::whereIn('id', $allSelectedIds)
                     ->where('name', 'like', '%Дуйлянь%') 
                     ->count();
@@ -100,46 +100,18 @@ class RegistrationResource extends Resource
                             ->helperText('Начните вводить имя...'),
                     ])->columns(2),
 
-                // --- СЕКЦИЯ 1: СПОРТИВНОЕ УШУ ---
+                // --- СЕКЦИЯ 1: ТАОЛУ ---
                 Forms\Components\Section::make('Спортивное Ушу (Таолу)')
                     ->collapsible()
                     ->schema([
                         Forms\Components\CheckboxList::make('events_taolu_virtual')
                             ->hiddenLabel()
-                            // !!! ИСПРАВЛЕНИЕ: Сортируем по sort_order !!!
                             ->options(
                                 Style::where('category', 'taolu')
-                                     ->orderBy('sort_order', 'asc') // Главная сортировка
-                                     ->orderBy('name', 'asc')       // Вторичная (если порядок одинаковый)
-                                     ->pluck('name', 'id')
-                            )
-                            // Отключаем стандартную сетку Filament (ставим 1 колонку)
-                            ->columns(1)
-                            // Включаем CSS Columns (Газетная верстка: заполнение ВНИЗ, потом ВПРАВО)
-                            ->extraAttributes([
-                                'style' => 'column-count: 3; column-gap: 2rem; display: block;',
-                                'class' => '[&_label]:break-inside-avoid [&_label]:mb-2', // Запрет разрыва строк чекбокса
-                            ])
-                            ->bulkToggleable()
-                            ->searchable()
-                            ->live()
-                            ->rules([$maxEventsRule]),
-                    ]),
-
-                // --- СЕКЦИЯ 2: ТРАДИЦИОННОЕ УШУ ---
-                Forms\Components\Section::make('Традиционное Ушу')
-                    ->collapsible()
-                    ->schema([
-                        Forms\Components\CheckboxList::make('events_trad_virtual')
-                            ->hiddenLabel()
-                            // !!! ИСПРАВЛЕНИЕ: Сортируем по sort_order !!!
-                            ->options(
-                                Style::where('category', 'traditional')
                                      ->orderBy('sort_order', 'asc')
                                      ->orderBy('name', 'asc')
                                      ->pluck('name', 'id')
                             )
-                            // CSS Columns (Газетная верстка)
                             ->columns(1)
                             ->extraAttributes([
                                 'style' => 'column-count: 3; column-gap: 2rem; display: block;',
@@ -151,12 +123,34 @@ class RegistrationResource extends Resource
                             ->rules([$maxEventsRule]),
                     ]),
 
-                // --- СЕКЦИЯ: ПАРТНЕР ДЛЯ ДУЙЛЯНЬ ---
-                Forms\Components\Section::make('Парное выступление (Дуйлянь)')
+                // --- СЕКЦИЯ 2: ТРАДИЦИОННОЕ ---
+                Forms\Components\Section::make('Традиционное Ушу')
+                    ->collapsible()
                     ->schema([
-                        Forms\Components\Select::make('partner_id')
-                            ->label('Второй участник (Партнер)')
-                            ->helperText('Укажите второго участника вашей пары.')
+                        Forms\Components\CheckboxList::make('events_trad_virtual')
+                            ->hiddenLabel()
+                            ->options(
+                                Style::where('category', 'traditional')
+                                     ->orderBy('sort_order', 'asc')
+                                     ->orderBy('name', 'asc')
+                                     ->pluck('name', 'id')
+                            )
+                            ->columns(1)
+                            ->extraAttributes([
+                                'style' => 'column-count: 3; column-gap: 2rem; display: block;',
+                                'class' => '[&_label]:break-inside-avoid [&_label]:mb-2',
+                            ])
+                            ->bulkToggleable()
+                            ->searchable()
+                            ->live()
+                            ->rules([$maxEventsRule]),
+                    ]),
+
+                // --- ПОЛЕ 1: ПАРТНЕР ДЛЯ ДУЙЛЯНЬ ---
+                Forms\Components\Section::make('Дуйлянь (Пара)')
+                    ->schema([
+                        Forms\Components\Select::make('partner_duilian_virtual') // УНИКАЛЬНОЕ ИМЯ 1
+                            ->label('Партнер для Дуйлянь')
                             ->required()
                             ->searchable()
                             ->preload()
@@ -179,8 +173,42 @@ class RegistrationResource extends Resource
 
                         if (empty($allSelectedIds)) return false;
 
+                        // Показываем, если есть слово "Дуйлянь"
                         return Style::whereIn('id', $allSelectedIds)
                             ->where('name', 'like', '%Дуйлянь%')
+                            ->exists();
+                    }),
+
+                // --- ПОЛЕ 2: ПАРТНЕР ДЛЯ ГУЙДИН ДУЙДА ---
+                Forms\Components\Section::make('Гуйдин Дуйда (Пара)')
+                    ->schema([
+                        Forms\Components\Select::make('partner_duida_virtual') // УНИКАЛЬНОЕ ИМЯ 2
+                            ->label('Партнер для Гуйдин Дуйда')
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->options(function (Get $get) {
+                                $query = \App\Models\Athlete::query();
+                                if (auth()->check() && auth()->user()->club_id) {
+                                    $query->where('club_id', auth()->user()->club_id);
+                                }
+                                $currentAthleteId = $get('athlete_id');
+                                if ($currentAthleteId) {
+                                    $query->where('id', '!=', $currentAthleteId);
+                                }
+                                return $query->pluck('name', 'id');
+                            }),
+                    ])
+                    ->visible(function (Get $get) {
+                        $taolu = $get('events_taolu_virtual') ?? [];
+                        $trad = $get('events_trad_virtual') ?? [];
+                        $allSelectedIds = array_merge($taolu, $trad);
+
+                        if (empty($allSelectedIds)) return false;
+
+                        // Показываем, если есть слово "Дуйда"
+                        return Style::whereIn('id', $allSelectedIds)
+                            ->where('name', 'like', '%Дуйда%')
                             ->exists();
                     }),
             ]);

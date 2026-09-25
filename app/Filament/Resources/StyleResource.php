@@ -14,9 +14,9 @@ class StyleResource extends Resource
 {
     protected static ?string $model = Style::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-sparkles'; // Иконка
+    protected static ?string $navigationIcon = 'heroicon-o-sparkles';
     
-    protected static ?string $navigationLabel = 'Виды программы'; // Название в меню
+    protected static ?string $navigationLabel = 'Виды программы';
     protected static ?string $modelLabel = 'Вид';
     protected static ?string $pluralModelLabel = 'Виды программы';
     protected static ?string $navigationGroup = 'Справочники';
@@ -33,15 +33,15 @@ class StyleResource extends Resource
                     
                 Forms\Components\Select::make('category')
                     ->options([
+                        // ИЗМЕНЕНИЕ 1: Список опций в форме
                         'taolu' => 'Таолу (Комплексы)',
-                        'sanda' => 'Саньда (Поединки)',
                         'traditional' => 'Традиционное ушу',
+                        'yongchun' => 'Юнчуньцюань', 
                     ])
                     ->required()
                     ->default('taolu')
                     ->label('Категория'),
 
-                // --- НОВОЕ ПОЛЕ ДЛЯ СОРТИРОВКИ ---
                 Forms\Components\TextInput::make('sort_order')
                     ->numeric()
                     ->default(0)
@@ -54,44 +54,43 @@ class StyleResource extends Resource
     {
         return $table
             ->columns([
-                // --- НОВАЯ КОЛОНКА (Чтобы сразу видеть порядок) ---
                 Tables\Columns\TextColumn::make('sort_order')
                     ->label('№ пор.')
                     ->sortable()
                     ->alignCenter()
                     ->width(80),
 
-                // Колонка с названием
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
                     ->label('Вид'),
 
-                // Колонка с категорией (цветной значок)
                 Tables\Columns\TextColumn::make('category')
                     ->badge()
                     ->colors([
+                        // ИЗМЕНЕНИЕ 2: Цвета значков
                         'success' => 'taolu',
-                        'warning' => 'sanda',
                         'info' => 'traditional',
+                        'warning' => 'yongchun', // Дадим Юнчуню желтый/оранжевый цвет
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
+                        // ИЗМЕНЕНИЕ 3: Перевод названия в таблице
                         'taolu' => 'Таолу',
-                        'sanda' => 'Саньда',
                         'traditional' => 'Традиционное',
+                        'yongchun' => 'Юнчуньцюань',
                         default => $state,
                     })
                     ->label('Категория'),
             ])
-            ->defaultSort('sort_order', 'asc') // Сразу сортируем таблицу по порядку выступления
+            ->defaultSort('sort_order', 'asc')
             ->filters([
-                // Фильтр по категории (справа сверху над таблицей)
+                // ИЗМЕНЕНИЕ 4: Фильтр справа
                 Tables\Filters\SelectFilter::make('category')
                     ->options([
                         'taolu' => 'Таолу',
-                        'sanda' => 'Саньда',
                         'traditional' => 'Традиционное',
+                        'yongchun' => 'Юнчуньцюань',
                     ])
                     ->label('Категория'),
             ])

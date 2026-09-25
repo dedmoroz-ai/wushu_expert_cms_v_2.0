@@ -142,6 +142,73 @@
         {{-- КЛАВИАТУРА --}}
         @if($canVote)
             <div class="w-full max-w-md flex-grow">
+                {{-- Правила 8.2, 8.3: допустимый диапазон оценки для этой категории --}}
+                @if($scoreRangeLabel)
+                    <div class="text-center text-sm font-bold uppercase tracking-widest mb-2" style="color: #64748b;">
+                        Диапазон: {{ $scoreRangeLabel }}
+                    </div>
+                @endif
+
+                {{-- Правило 8.7: режим исправления ранее выставленной оценки --}}
+                @if($isEditing)
+                    <div class="text-center text-sm font-bold uppercase tracking-widest mb-2" style="color: #fbbf24;">
+                        Исправление (было: {{ $savedScore }})
+                    </div>
+                @endif
+
+                @if($panel)
+                    <div class="text-center text-sm font-bold uppercase tracking-widest mb-2" style="color: #a78bfa;">
+                        Функция: судья {{ $panel }}
+                    </div>
+                @endif
+
+                @if($inputMode === 'codes')
+                    {{-- Правила R-3.12–R-3.15: судья A — сбавки от 5.000 кнопками кодов --}}
+                    <div class="score-display">
+                        {{ $this->currentAScore }}
+                    </div>
+
+                    @if(count($pressedCodes))
+                        <div class="text-center text-sm mb-3" style="color: #cbd5e1;">
+                            @foreach($pressedCodes as $pid)
+                                @php $pc = collect($deductionCodes)->firstWhere('id', (int) $pid); @endphp
+                                @if($pc)
+                                    <span class="inline-block px-2 py-1 m-1 rounded" style="background:#1e293b;">
+                                        {{ $pc['code'] }} −{{ number_format($pc['value'], 3, '.', '') }}
+                                    </span>
+                                @endif
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if(count($deductionCodes) === 0)
+                        <div class="text-center text-lg font-bold py-6" style="color: #fca5a5;">
+                            Справочник кодов сбавок пуст — обратитесь к администратору.
+                        </div>
+                    @endif
+
+                    <div class="deduction-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        @foreach($deductionCodes as $dc)
+                            @php $cnt = $this->pressCounts[$dc['id']] ?? 0; $locked = $cnt >= \App\Support\JudgingCalculator::MAX_CODE_REPEATS; @endphp
+                            <button wire:click="pressCode({{ $dc['id'] }})"
+                                    @disabled($locked)
+                                    title="{{ $dc['label'] }}{{ $locked ? ' — нажат максимальное число раз' : '' }}"
+                                    class="pad-btn"
+                                    style="height:auto; min-height:70px; flex-direction:column; font-size:1.3rem; padding:6px; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : '' }} {{ $cnt > 0 ? 'border-color:#fbbf24;' : '' }}">
+                                <span>{{ $dc['code'] }}</span>
+                                <span style="font-size:0.85rem; font-weight:500;">−{{ number_format($dc['value'], 3, '.', '') }}{{ $cnt > 0 ? ' ×' . $cnt : '' }}</span>
+                                @if($locked)
+                                    <span style="font-size:0.6rem; font-weight:400;">макс. {{ \App\Support\JudgingCalculator::MAX_CODE_REPEATS }}</span>
+                                @endif
+                            </button>
+                        @endforeach
+                    </div>
+
+                    <button wire:click="undoLastCode" @disabled(count($pressedCodes) === 0)
+                            class="pad-btn btn-red w-full mt-3" style="font-size:1.1rem; height:55px; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : '' }}">
+                        ОТМЕНИТЬ ПОСЛЕДНЮЮ
+                    </button>
+                @else
                 <div class="score-display">
                     {{ $score }}<span class="text-blue-600 animate-pulse">|</span>
                 </div>
@@ -160,6 +227,7 @@
                         </svg>
                     </button>
                 </div>
+                @endif
             </div>
         @else
             @if($statusMessage == 'Оценка принята')
@@ -170,6 +238,30 @@
                         </svg>
                     </div>
                     <div class="text-3xl font-black text-white">ПРИНЯТО</div>
+
+                    {{-- Показываем свою оценку --}}
+                    @if($savedScore !== null)
+                        <div class="text-5xl font-black mt-3" style="color: #38bdf8;">{{ $savedScore }}</div>
+                    @endif
+
+                    {{-- Правило R-3.12: состав оценки судьи A --}}
+                    @if(count($savedDeductions))
+                        <div class="text-sm mt-2" style="color: #94a3b8;">
+                            @foreach($savedDeductions as $sd)
+                                <span class="inline-block px-2 py-1 m-1 rounded" style="background:#1e293b;">{{ $sd['code'] }} −{{ number_format($sd['value'], 3, '.', '') }}</span>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    {{-- Правило 8.7: исправление оценки до утверждения протокола --}}
+                    @if($canEditScore)
+                        <button wire:click="startEditing"
+                                onclick="return confirm('Исправить свою оценку?')"
+                                class="mt-6 px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-white active:scale-95 transition-transform"
+                                style="background-color: #d97706; border-bottom: 4px solid #92400e;">
+                            Исправить оценку
+                        </button>
+                    @endif
                 </div>
             @endif
         @endif
@@ -179,17 +271,27 @@
     @if($canVote)
         <div class="fixed bottom-0 left-0 w-full p-4 z-50" style="background-color: rgba(14, 20, 34, 0.95); border-top: 1px solid #1e293b;">
             <div class="max-w-md mx-auto">
-                @if(strlen($score) >= 3)
+                {{-- Правило 8.2: кнопка активна, когда введено корректное число --}}
+                @if(is_numeric($score) || $inputMode === 'codes')
                     <button wire:click="submitScore" 
                             class="w-full text-white font-black text-xl py-4 rounded-xl shadow-lg uppercase tracking-widest active:scale-95 transition-transform"
                             style="background-color: #16a34a !important; border-bottom: 4px solid #14532d !important;">
-                        ПОДТВЕРДИТЬ
+                        {{ $isEditing ? 'СОХРАНИТЬ ИСПРАВЛЕНИЕ' : 'ПОДТВЕРДИТЬ' }}
                     </button>
                 @else
                     <button disabled 
                             class="w-full text-gray-400 font-bold text-xl py-4 rounded-xl uppercase tracking-widest cursor-not-allowed"
                             style="background-color: #374151 !important; border: 1px solid #4b5563 !important; opacity: 0.5;">
                         ВВЕДИТЕ ОЦЕНКУ
+                    </button>
+                @endif
+
+                {{-- Правило 8.7: выход из режима исправления без сохранения --}}
+                @if($isEditing)
+                    <button wire:click="cancelEditing"
+                            class="w-full mt-3 text-slate-300 font-bold text-base py-3 rounded-xl uppercase tracking-widest"
+                            style="background-color: #1e293b; border: 1px solid #334155;">
+                        Отмена
                     </button>
                 @endif
             </div>

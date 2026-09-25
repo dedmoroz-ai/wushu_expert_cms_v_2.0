@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AgeGroupResource\Pages;
 use App\Models\AgeGroup;
+use App\Support\ScoreRange;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -62,6 +63,59 @@ class AgeGroupResource extends Resource
                             ->label('Макс. возраст')
                             ->suffix('лет'),
                     ]),
+
+                // --- ЛИМИТЫ БАЛЛОВ (правила 8.2, 8.3) ---
+                Forms\Components\Fieldset::make('Лимиты оценок для этой категории')
+                    ->schema([
+                        Forms\Components\TextInput::make('min_score')
+                            ->numeric()
+                            ->step(0.001)
+                            ->minValue(ScoreRange::GLOBAL_MIN)
+                            ->maxValue(ScoreRange::GLOBAL_MAX)
+                            ->label('Мин. балл')
+                            ->placeholder(number_format(ScoreRange::GLOBAL_MIN, 3, '.', ''))
+                            ->helperText('Пусто = общесистемный минимум ' . number_format(ScoreRange::GLOBAL_MIN, 3, '.', '')),
+
+                        Forms\Components\TextInput::make('max_score')
+                            ->numeric()
+                            ->step(0.001)
+                            ->minValue(ScoreRange::GLOBAL_MIN)
+                            ->maxValue(ScoreRange::GLOBAL_MAX)
+                            ->label('Макс. балл')
+                            ->placeholder(number_format(ScoreRange::GLOBAL_MAX, 3, '.', ''))
+                            ->helperText('Пусто = общесистемный максимум ' . number_format(ScoreRange::GLOBAL_MAX, 3, '.', ''))
+                            ->gte('min_score'),
+                    ])
+                    ->columns(2),
+
+                // --- ЛИМИТЫ СУДЕЙ B (правило R-4.19, сценарий A/B) ---
+                Forms\Components\Fieldset::make('Сценарий A/B: лимиты оценок судей B (шкала 0–5)')
+                    ->schema([
+                        Forms\Components\TextInput::make('b_min_score')
+                            ->numeric()
+                            ->step(0.001)
+                            ->minValue(ScoreRange::GLOBAL_MIN)
+                            ->maxValue(ScoreRange::PANEL_MAX)
+                            ->label('Мин. балл судьи B')
+                            ->placeholder(number_format(ScoreRange::GLOBAL_MIN, 3, '.', ''))
+                            ->helperText('Пусто = мин. балл категории (не выше 5.000) или 0.000'),
+
+                        Forms\Components\TextInput::make('b_max_score')
+                            ->numeric()
+                            ->step(0.001)
+                            ->minValue(ScoreRange::GLOBAL_MIN)
+                            ->maxValue(ScoreRange::PANEL_MAX)
+                            ->label('Макс. балл судьи B')
+                            ->placeholder(number_format(ScoreRange::PANEL_MAX, 3, '.', ''))
+                            ->helperText('Пусто = макс. балл категории (не выше 5.000) или 5.000')
+                            ->gte('b_min_score'),
+
+                        Forms\Components\Placeholder::make('a_panel_note')
+                            ->label('Судьи A')
+                            ->content('Всегда от 5.000 вниз по кодам сбавок (0.000–5.000), лимиты категории не применяются.')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
             ]);
     }
 
@@ -102,6 +156,20 @@ class AgeGroupResource extends Resource
 
                 Tables\Columns\TextColumn::make('max_age')
                     ->label('До (возраст)'),
+
+                // Правила 8.2, 8.3: видимые лимиты оценок категории
+                Tables\Columns\TextColumn::make('score_limits')
+                    ->label('Лимит баллов')
+                    ->badge()
+                    ->color('warning')
+                    ->getStateUsing(fn (AgeGroup $record): string => ScoreRange::forAgeGroup($record)->label()),
+
+                Tables\Columns\TextColumn::make('b_score_limits')
+                    ->label('Лимит B (A/B)')
+                    ->badge()
+                    ->color('info')
+                    ->toggleable()
+                    ->getStateUsing(fn (AgeGroup $record): string => ScoreRange::forPanel($record, 'B')->label()),
             ])
             ->defaultSort('sort_order', 'asc') // Сортируем таблицу по этому полю
             ->filters([

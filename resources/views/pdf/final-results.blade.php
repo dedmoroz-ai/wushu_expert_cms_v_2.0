@@ -2,18 +2,14 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Итоговый протокол</title>
     <style>
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; }
 
         @page {
-            /* 
-               Верх: 180px (под шапку)
-               Низ: 200px (УВЕЛИЧИЛИ, чтобы таблица не наезжала на большую печать)
-            */
             margin: 180px 30px 200px 30px; 
         }
 
-        /* === ШАПКА === */
         header {
             position: fixed;
             top: -160px; 
@@ -22,20 +18,17 @@
             height: 145px; 
         }
 
-        /* === ФУТЕР === */
         footer {
             position: fixed; 
-            /* Опускаем футер в область нижнего отступа */
             bottom: -195px; 
             left: 0px; 
             right: 0px;
-            height: 140px; /* Увеличили высоту блока футера */
+            height: 140px; 
         }
 
-        /* === НОМЕР СТРАНИЦЫ === */
         .page-number {
             position: fixed;
-            bottom: -180px; /* В самом низу */
+            bottom: -180px;
             left: 0;
             right: 0;
             text-align: center;
@@ -44,70 +37,31 @@
         }
         .page-number:before {
             content: "-- " counter(page) " --";
-        }        /* Магия CSS для автонумерации */
-        .page-number:before {
-            content: "-- " counter(page) " --";
         }
 
-        /* === ТВОИ СТИЛИ === */
         .header-table { width: 100%; border-collapse: collapse; border: none; }
         .header-logo-cell { width: 130px; vertical-align: top; text-align: left; }
         .header-logo-cell img { max-width: 130px; max-height: 130px; }
         .header-info-cell { vertical-align: top; text-align: center; }
 
-        .organizer-name {
-            font-size: 16px;
-            text-transform: uppercase;
-            font-weight: bold;
-            color: #000000;
-            margin-bottom: 10px;
-        }
-        .comp-name {
-            font-size: 16px;
-            font-weight: 900;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-            line-height: 1.2;
-            color: #000;
-        }
-        .protocol-title {
-            font-size: 18px;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-decoration: underline;
-            margin-bottom: 10px;
-            margin-top: 5px;
-        }
-        .date-addr {
-            font-size: 12px;
-            padding: 5px;
-            display: inline-block;
-            width: 90%;
-            font-weight: bold;
-        }
+        .organizer-name { font-size: 16px; text-transform: uppercase; font-weight: bold; margin-bottom: 10px; }
+        .comp-name { font-size: 16px; font-weight: 900; text-transform: uppercase; margin-bottom: 5px; line-height: 1.2; }
+        .protocol-title { font-size: 18px; font-weight: bold; text-transform: uppercase; text-decoration: underline; margin-bottom: 10px; margin-top: 5px; }
+        .date-addr { font-size: 12px; padding: 5px; display: inline-block; width: 90%; font-weight: bold; }
 
-        /* === ТАБЛИЦА === */
-        .group-wrap {
-            page-break-inside: avoid;
-            margin-bottom: 15px;
-        }
+        .group-wrap { page-break-inside: avoid; margin-bottom: 15px; }
         .data-tbl { width: 100%; border-collapse: collapse; margin-bottom: 0; }
         .data-tbl th, .data-tbl td { border: 1px solid black; padding: 4px; text-align: center; vertical-align: middle; }
         .data-tbl th { background-color: #f0f0f0; }
         .text-left { text-align: left; }
         
-        .group-head { 
-            background: #444444; 
-            color: white; padding: 6px; 
-            font-weight: bold; font-size: 12px; 
-            text-align: center; border: 1px solid black; border-bottom: none; 
-        }
+        .group-head { background:rgb(211, 211, 211); color: black; padding: 6px; font-weight: bold; font-size: 12px; text-align: center; border: 1px solid black; border-bottom: none; }
 
-        .rank-1 { background-color: #fff8b0; } 
-        .rank-2 { background-color: #f0f0f0; } 
-        .rank-3 { background-color: #ffe6cc; } 
+        /* Цвета мест */
+        .rank-1 { background-color:rgb(255, 255, 255); } 
+        .rank-2 { background-color:rgb(255, 255, 255); } 
+        .rank-3 { background-color:rgb(255, 255, 255); } 
 
-        /* === ПОДВАЛ === */
         .footer-tbl { width: 100%; border: none; }
         .footer-tbl td { border: none; vertical-align: bottom; height: 90px; position: relative; }
         .sign-box { width: 40%; text-align: center; position: relative; }
@@ -121,7 +75,6 @@
 </head>
 <body>
 
-    {{-- 1. ШАПКА --}}
     <header>
         <table class="header-table">
             <tr>
@@ -140,7 +93,6 @@
         </table>
     </header>
 
-    {{-- 2. ПОДВАЛ --}}
     <footer>
         <table class="footer-tbl">
             <tr>
@@ -169,13 +121,11 @@
         </table>
     </footer>
 
-    {{-- 3. НОМЕР СТРАНИЦЫ --}}
     <div class="page-number"></div>
 
-    {{-- 4. КОНТЕНТ --}}
     @foreach($grouped as $groupName => $items)
         <div class="group-wrap">
-            <div class="group-head">{{ $groupName }}</div>
+            <div class="group-head">{!! $groupName !!}</div>
             <table class="data-tbl">
                 <thead>
                     <tr>
@@ -186,15 +136,30 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php $rank = 1; $prevScore = null; $count = 0; @endphp
+                    @php 
+                        // Плотная нумерация мест: 1, 2, 2, 3, 4, 4, 5 ...
+                        $rank = 1; 
+                        $prevScore = null; 
+                    @endphp
                     @foreach($items as $reg)
                         @php
-                            if ($prevScore !== $reg->final_score) {
-                                $rank = $count + 1;
+                            $score = (float) ($reg->final_score ?? 0);
+
+                            if ($prevScore === null) {
+                                $rank = 1;
+                            } elseif ($score < $prevScore) {
+                                // Следующее место только если оценка строго ниже предыдущей
+                                $rank++;
                             }
-                            $count++;
-                            $prevScore = $reg->final_score;
-                            $bg = match($rank) { 1 => 'rank-1', 2 => 'rank-2', 3 => 'rank-3', default => '' };
+
+                            $prevScore = $score;
+
+                            $bg = match($rank) { 
+                                1 => 'rank-1', 
+                                2 => 'rank-2', 
+                                3 => 'rank-3', 
+                                default => '' 
+                            };
                         @endphp
                         <tr class="{{ $bg }}">
                             <td><b>{{ $rank }}</b></td>
@@ -206,7 +171,12 @@
                                 @endif
                             </td>
                             <td class="text-left">{{ $reg->athlete->club->city ?? '' }}</td>
-                            <td><b>{{ number_format($reg->final_score, 2) }}</b></td>
+                            
+                            <!-- ЗДЕСЬ ИСПРАВЛЕНИЕ: 3 знака после запятой -->
+                            <td>
+                                <b>{{ number_format((float)$reg->final_score, 3, '.', '') }}</b>
+                            </td>
+                            
                         </tr>
                     @endforeach
                 </tbody>

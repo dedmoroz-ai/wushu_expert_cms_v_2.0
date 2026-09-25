@@ -21,65 +21,63 @@
         }
         .absolute-block {
             position: absolute;
-            width: 80%;       
-            left: 10%;        
+            width: calc(80% - 50px); /* 80% ширины минус 50px */
+            left: 50%;
+            transform: translateX(-50%); /* Центрируем блок по горизонтали */
             text-align: center; 
         }
 
         /* --- Стили блоков (ОПУСТИЛИ НА 30px то, что в красной рамке) --- */
 
         .comp-name {
-            top: 290px; /* Было 260 */
-            font-size: 24px;
+            top: 320px; /* Было 290 */
+            font-size: 16px;
             font-weight: bold;
             text-transform: uppercase;
-            line-height: 1.2;
+            line-height: 1.25;
         }
 
         .awarded-text {
-            top: 430px; /* Было 400 */
+            top: 460px; /* Было 430 */
             font-size: 20px;
             font-style: italic;
             font-family: 'DejaVu Serif', serif;
         }
 
         .athlete-name {
-            top: 470px; /* Было 440 */
+            top: 495px; /* Было 500 - чуть ближе кверху, чтобы увеличить отступ до строки места */
             font-size: 28px;
             font-weight: bold;
             font-style: italic; 
             font-family: 'DejaVu Serif', serif; 
         }
-
+        
         .place-block {
-            top: 540px; /* Было 510 */
-            font-size: 18px;
+            top: 565px; /* Было 540 - увеличили отступ после имени спортсмена */
+            font-size: 20px; /* Было 18 - слегка увеличили размер текста "за ... место" */
         }
         .place-number {
-            font-size: 22px;
+            font-size: 26px; /* Было 22 - сделали номер места более крупным */
             font-weight: bold;
-            text-decoration: underline;
         }
 
         .discipline-block {
-            top: 580px; /* Было 550 */
+            top: 610px; /* Было 580 */
             font-size: 18px;
             font-style: italic;
             font-family: 'DejaVu Serif', serif;
         }
 
         .age-block {
-            top: 620px; /* Было 590 */
+            top: 650px; /* Было 620 */
             font-size: 18px;
             font-style: italic;
             font-family: 'DejaVu Serif', serif;
         }
 
-        /* --- Подвал (ОСТАВИЛИ НА МЕСТЕ, чтобы текст приблизился к печатям) --- */
+        /* --- Подвал (оставили по вертикали, но вписали в общую ширину контента) --- */
         .footer-stamps {
             top: 730px; 
-            width: 90%; 
-            left: 5%;
         }
         .stamp-table { 
             width: 100%; 
@@ -128,7 +126,7 @@
         }
 
         .city-date {
-            top: 960px; 
+            top: 890px; 
             font-size: 14px;
             font-style: italic;
         }

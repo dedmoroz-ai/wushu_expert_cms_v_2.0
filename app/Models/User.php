@@ -87,7 +87,7 @@ class User extends Authenticatable implements FilamentUser
     public function competitions()
     {
         return $this->belongsToMany(Competition::class, 'competition_user')
-                    ->withPivot('role_on_tournament')
+                    ->withPivot('role_on_tournament', 'panel')
                     ->withTimestamps();
     }
 }

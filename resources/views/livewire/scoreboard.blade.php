@@ -92,14 +92,30 @@
         @if($competition && $competition->status_code == 2)
             <div class="flex flex-col items-center justify-center h-full scale-in-center">
                 
-                {{-- Прямоугольник (border-1px) --}}
-                <div class="w-[600px] h-[400px] rounded-3xl bg-[#0f172a] border neon-tricolor flex items-center justify-center mb-12 relative">
-                    <img src="{{ asset('images/logo.png') }}" alt="Logo" class="w-3/4 h-3/4 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] relative z-10">
+                {{-- Квадратная рамка с QR-кодом --}}
+                <div class="w-[500px] h-[500px] rounded-3xl bg-[#0f172a] border neon-tricolor flex items-center justify-center mb-12 relative overflow-hidden p-4">
+                    {{-- Белый фон внутри рамки --}}
+                    <div class="w-full h-full bg-white rounded-2xl flex items-center justify-center">
+                        @if($qrCodeUrl)
+                            <img 
+                                src="{{ $qrCodeUrl }}" 
+                                alt="QR Code" 
+                                class="w-4/5 h-4/5 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.2)]"
+                                onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent('{{ $publicUrl ?? '' }}');"
+                            >
+                        @else
+                            {{-- Fallback на логотип, если QR-код не доступен --}}
+                            <img src="{{ asset('images/logo.png') }}" alt="Logo" class="w-3/4 h-3/4 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.2)]">
+                        @endif
+                    </div>
                 </div>
 
-                <h2 class="text-[8rem] font-black uppercase tracking-widest text-white drop-shadow-[0_0_25px_rgba(255,255,255,0.4)] leading-none">
-                    ПЕРЕРЫВ
-                </h2>
+                             
+                @if($publicUrl)
+                    <p class="text-2xl text-cyan-400 font-bold mt-8 uppercase tracking-wider">
+                        Сканируйте QR-код для просмотра результатов
+                    </p>
+                @endif
             </div>
 
         {{-- АКТИВНЫЙ УЧАСТНИК --}}
@@ -180,7 +196,7 @@
                         <div class="relative z-10 text-center">
                             <div class="text-emerald-400 font-bold uppercase tracking-[0.3em] mb-4 text-sm">Итоговая оценка</div>
                             <div class="text-[9rem] font-black leading-none text-emerald-400 drop-shadow-[0_0_40px_rgba(16,185,129,0.5)]">
-                                {{ number_format($current->final_score ?? 0, 2) }}
+                                {{ number_format((float)($current->final_score ?? 0), 3, '.', '') }}
                             </div>
                         </div>
                     </div>

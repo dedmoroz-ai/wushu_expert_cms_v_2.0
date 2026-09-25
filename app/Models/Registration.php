@@ -9,15 +9,20 @@ class Registration extends Model
 {
     use HasFactory;
 
-    // Разрешаем запись во все поля (удобно для Filament)
     protected $guarded = [];
 
     protected $casts = [
-        'events' => 'array', // Для хранения JSON (если используется)
-        'final_score' => 'decimal:2', // Чтобы оценка всегда была числом (9.50)
+        'events' => 'array',
+        'is_completed' => 'boolean',
+        // ВАЖНО: 'double' заставляет Laravel принимать любые дробные числа без округления
+        'final_score' => 'double', 
+        'score' => 'double', // На всякий случай для второй колонки
+        // Правило R-4.20: средние панелей A и B (сценарий A/B).
+        'score_a' => 'double',
+        'score_b' => 'double',
     ];
 
-    // --- ОСНОВНЫЕ СВЯЗИ ---
+    // --- СВЯЗИ ---
 
     public function competition()
     {
@@ -34,9 +39,6 @@ class Registration extends Model
         return $this->belongsTo(Athlete::class, 'partner_id');
     }
 
-    // --- СВЯЗИ ДЛЯ СОРТИРОВКИ (ОБЯЗАТЕЛЬНЫ) ---
-    // Именно по ним работает твой алгоритм "Вид -> Группа"
-
     public function style()
     {
         return $this->belongsTo(Style::class);
@@ -47,14 +49,25 @@ class Registration extends Model
         return $this->belongsTo(AgeGroup::class);
     }
 
-    // --- СВЯЗЬ ДЛЯ СУДЕЙСТВА ---
-    
-    /**
-     * Связь с оценками судей.
-     * Используем модель Score, которую мы создали ранее.
-     */
     public function scores()
     {
         return $this->hasMany(Score::class);
+    }
+
+    /**
+     * Журнал судейских действий по этой заявке (правило 8.9).
+     */
+    public function judgingLogs()
+    {
+        return $this->hasMany(JudgingLog::class);
+    }
+
+    /**
+     * Правила 8.2, 8.3: диапазон допустимых оценок для этого выступления
+     * (с учётом лимитов возрастной категории).
+     */
+    public function scoreRange(): \App\Support\ScoreRange
+    {
+        return \App\Support\ScoreRange::forRegistration($this);
     }
 }
