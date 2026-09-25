@@ -1,0 +1,98 @@
+# План после турнира №4 (слияние локальной и серверной версий)
+
+Цель: собрать в git всё — локальную работу, правки, сделанные прямо на сервере,
+и хотфиксы 25.09.2026 — и перейти на деплой через git (`docs/DEPLOYMENT.md`).
+
+## 0. До слияния на сервере НЕЛЬЗЯ
+- `docker compose up --build`, `docker compose down`, `docker rm wushu_app` —
+  контейнер пересоздастся из старых файлов, хотфиксы пропадут.
+- `docker compose down -v` — удалит базу.
+- Можно: `docker restart wushu_app`, `php artisan optimize:clear`.
+
+## 1. Что сделано на сервере 25.09.2026 (мимо git)
+
+Установлено через `docker cp` **только в контейнер** `wushu_app`.
+Папка проекта на хосте `/var/www/wushu` **не обновлялась** (шаг 6 пропущен).
+
+| Файл | Было (хост = контейнер до) | Сейчас в контейнере | Сейчас на хосте |
+|---|---|---|---|
+| `app/Filament/Pages/SuperJudgePad.php` | `affdd4a3…` | `943d766c…` (хотфикс 8.4/8.8) | `affdd4a3…` |
+| `resources/views/pdf/diplomas_blank.blade.php` | `801f7af8…` | `8a02127e…` (новый диплом) | `801f7af8…` |
+| `resources/views/pdf/diplomas_blank_old.blade.php` | — | `801f7af8…` (старый диплом) | — |
+
+Бэкапы и снимки:
+- `wushu_app:before_hotfix_2026-09-25` (`5eaa6e41…`) — контейнер до правок.
+- `wushu_app:after_hotfix_2026-09-25` (`cf4cb6d5…`) — контейнер с правками.
+- `/root/hotfix_2026-09-25/backup/`: `db.sql.gz` (дамп 25.09, проверен),
+  `SuperJudgePad.php`, `diplomas_blank.blade.php` (старые версии).
+- `/root/hotfix_2026-09-25/`: `SuperJudgePad.hotfix.php`, `diplomas_blank.new.blade.php`.
+
+Проверено: `php -l` без ошибок, tinker для 8.4 выдал `3`, админка открывается,
+диплом ровно ложится на бланк. Пульт — в бою 26.09 (записать результат ниже).
+
+Особенности сервера, выясненные сегодня:
+- Приложение в контейнере работает от `www-data` (uid 33): `docker exec … cp`
+  в папку проекта запрещён, класть файлы только через `docker cp`.
+- Файлы после `docker cp` принадлежат `root`, права `-rw-r--r--` — это нормально.
+- Контейнеры: `wushu_app`, `wushu_db`, `wushu_redis`, `wushu_caddy`.
+- Свободно на диске ≈ 7 ГБ из 15.
+
+### Результат турнира 26.09 (заполнить)
+- [ ] Счётчик пульта «/ 4»: ______
+- [ ] Переход только вперёд (8.8): ______
+- [ ] Дипломы напечатаны без замечаний: ______
+- [ ] Другие проблемы: ______
+
+## 2. Где что лежит
+
+| Источник | Что в нём |
+|---|---|
+| git `12.x` = `202c36c0` | база, из которой собран сервер |
+| локально, ветка `ab-judging` (не запушена) | `2cf3c17c` A/B-судейство, коды сбавок, журнал, 9 миграций, тесты, docs, скрипты деплоя; `e413fe4f` новый диплом + `_old`; `d991462b` пакет `_server/` |
+| сервер, контейнер | `202c36c0` + правки через WinSCP/`docker cp` (QR, публичные результаты, PDF, Analytics, ScoresSummary, миграция `judge_category`, свой `SuperJudgePad`) + хотфиксы 25.09 |
+
+## 3. Порядок работ
+
+- [ ] **3.1 Снимок сервера.** `bash scripts/deploy/snapshot.sh`, затем
+      `bash scripts/deploy/compare.sh ~/wushu_snapshots/<дата>`; скачать снимок
+      и вывод через WinSCP. (Команды для WinSCP — однострочные.)
+- [ ] **3.2 Ветка `server-snapshot`** от `202c36c0`: код из контейнера + `Dockerfile`,
+      `docker-compose.yml`, `Caddyfile` с хоста. Не коммитить `*.bak`, `*.backup`,
+      `welcome.blade1.php`, `auto_backup.sql`, `.env*`. `git config core.fileMode false`.
+- [ ] **3.3 Слияние `server-snapshot` → `ab-judging`.** Решения по файлам:
+
+| Файл | Решение |
+|---|---|
+| `SuperJudgePad.php` | взять A/B-логику из `ab-judging`, проверить, что 8.4 (бригада турнира) и 8.8 (только вперёд) в ней есть; серверную версию `943d766c…` — как эталон поведения |
+| `diplomas_blank.blade.php` | версия `8a02127e…` (одинакова в `ab-judging` и на сервере) |
+| `diplomas_blank_old.blade.php` | оставить до конца сезона, потом удалить |
+| `CompetitionPdfController.php` | сохранить серверные PDF; удалить или починить мёртвый `diplomas()` |
+| `routes/web.php`, `User`/`UserResource`, `composer.json`/`lock`, `RegistrationsRelationManager` | объединить вручную по выводу `compare.sh` |
+| QR, публичные результаты, Analytics, ScoresSummary | сохранить обязательно |
+
+- [ ] **3.4 Миграции.** Сверить таблицу `migrations` в боевой базе с папкой:
+      добавить в git миграцию `judge_category`; миграции 2026_01_28 и 2026_01_29
+      на сервере, скорее всего, уже выполнены — не дублировать; 6 миграций
+      2026_09_* проверить на копии боевой базы.
+- [ ] **3.5 Репетиция на копии боевой базы** (`db.sql.gz`): `migrate`, все тесты
+      на PostgreSQL (`docs/LOCAL_TESTING.md`), пульты (обычный и A/B), PDF турниров 2–4,
+      дипломы, аналитика, QR, публичные результаты.
+- [ ] **3.6 Деплой.** Проверить, что колонка статуса турнира называется `status_code`
+      (на ней держится защита в `deploy.sh`). `release/<дата>` → push →
+      `bash scripts/deploy/deploy.sh release/<дата>`. Откат — `rollback.sh`.
+
+## 4. Уборка
+- [ ] `DEPLOYMENT_QR_PUBLIC_RESULTS.md`, `WINSCP_DEPLOYMENT_INSTRUCTIONS.md`,
+      `app/TODO_1.md` → `docs/archive/` или удалить (старый способ через WinSCP).
+- [ ] `_server/` удалить после слияния.
+- [ ] `.env.production.backup` держать вне репозитория (уже в `.gitignore`).
+- [ ] Удалить старые снимки `wushu_app:*_hotfix_2026-09-25` после успешного деплоя.
+- [ ] Локально: `pdo_sqlite` (`sudo apt install php8.3-sqlite3`), чтобы шёл дефолтный
+      `phpunit.xml`; включить Docker Desktop WSL-интеграцию.
+
+## 5. Отложенные задачи
+- [ ] Этап 7 (командный зачёт): ждёт 4 ответа — шкала очков, как считать пары,
+      ничьи, где показывать.
+- [ ] `JUDGING_RULES.md`: опечатка «нандý» (п. 8.6), сверить имена методов и данные
+      демо-сидера.
+- [ ] Перенести переменные `.env` в compose (`env_file: .env`) и исключить `.env` из образа.
