@@ -38,7 +38,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding-top: 40px;
+            padding-top: 25px;
             overflow-y: auto;
         }
 
@@ -46,12 +46,12 @@
         
         /* ИМЯ */
         .athlete-name-big {
-            font-size: 3rem; 
+            font-size: 2.5rem; 
             font-weight: 900;
             color: #0992B8;
             text-transform: uppercase;
             line-height: 1.1; /* Чуть увеличил интервал для двух строк */
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
             text-shadow: 0 5px 15px rgba(34, 211, 238, 0.2);
         }
@@ -64,14 +64,14 @@
             font-weight: 400;
             color: white;
             text-transform: uppercase;
-            margin-bottom: 40px; 
+            margin-bottom: 25px; 
         }
 
         /* --- 5. СУДЬИ --- */
         .judges-row {
             display: flex;
             gap: 20px;
-            margin-bottom: 40px;
+            margin-bottom: 25px;
         }
         .judge-card {
             background: #0f3d3e;
@@ -93,16 +93,16 @@
             border: 2px solid #0992B8;
             border-radius: 20px;
             background: rgba(30, 41, 59, 0.5);
-            padding: 20px;
+            padding: 15px;
             display: grid;
             grid-template-columns: 1fr 1.5fr 1fr;
             gap: 20px;
             width: 1000px;
             max-width: 95%;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         .calc-box {
-            height: 200px;
+            min-height: 150px;
             border-radius: 12px;
             display: flex;
             flex-direction: column;
@@ -356,7 +356,7 @@
                 @endif
 
                 {{-- КНОПКА --}}
-                <div style="padding-bottom: 50px;">
+                <div style="padding-bottom: 35px;">
                     @if($canFinalize)
                         <button wire:click="finalizeProtocol" 
                                 onclick="confirm('В ПРОТОКОЛ?') || event.stopImmediatePropagation()"
