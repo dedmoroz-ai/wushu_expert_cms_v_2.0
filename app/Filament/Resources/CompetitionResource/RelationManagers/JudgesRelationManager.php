@@ -66,6 +66,20 @@ class JudgesRelationManager extends RelationManager
                         default => $state,
                     }),
 
+                // НОВАЯ КОЛОНКА: Судейская категория
+                Tables\Columns\TextColumn::make('judge_category')
+                    ->label('Категория')
+                    ->badge()
+                    ->placeholder('—')
+                    ->color(fn (?string $state): string => match ($state) {
+                        'ССВК' => 'success',   // зелёный — высшая
+                        'СС1К' => 'warning',   // оранжевый — первая
+                        'СС2К' => 'info',      // синий — вторая
+                        'СС3К' => 'gray',      // серый — третья
+                        'ЮС'   => 'gray',      // юный судья
+                        default => 'gray',
+                    }),
+
                 // Показываем роль на ЭТОМ турнире
                 Tables\Columns\TextColumn::make('pivot.role_on_tournament')
                     ->label('Роль на турнире')

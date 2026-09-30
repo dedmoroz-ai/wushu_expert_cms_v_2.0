@@ -31,9 +31,18 @@ Route::get('/competition/{competition}/start-list', [CompetitionPdfController::c
 Route::get('/competition/{competition}/final-results', [CompetitionPdfController::class, 'finalResults'])
     ->name('competition.final-results');
 
+// Титульный лист (отдельный PDF)
+Route::get('/competition/{competition}/title-page', [CompetitionPdfController::class, 'titlePage'])
+    ->name('competition.title-page');
+
 // Командный (клубный) зачёт (R-6.14)
 Route::get('/competition/{competition}/team-standings', [CompetitionPdfController::class, 'teamStandings'])
     ->name('competition.team-standings');
+
+// --- СВОДКА ОЦЕНОК (PDF) ---
+Route::get('/competition/{competition}/scores-summary', \App\Http\Controllers\ScoresSummaryPdfController::class)
+    ->middleware('auth')
+    ->name('competition.scores-summary');
 
 // --- ПЕЧАТЬ ДИПЛОМОВ ---
 // Теперь принимаем ID соревнования, вида, возрастную группу и пол

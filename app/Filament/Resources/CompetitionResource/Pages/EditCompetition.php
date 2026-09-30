@@ -22,7 +22,15 @@ class EditCompetition extends EditRecord
                 ->url(fn ($record) => route('competition.start-list', $record))
                 ->openUrlInNewTab(),
 
-            // 2. Кнопка "Итоговый протокол"
+            // 2. Кнопка "Титульный лист"
+            Actions\Action::make('title_page')
+                ->label('Титульный лист (PDF)')
+                ->icon('heroicon-o-document-text')
+                ->color('warning')
+                ->url(fn ($record) => route('competition.title-page', $record))
+                ->openUrlInNewTab(),
+
+            // 3. Кнопка "Итоговый протокол"
             Actions\Action::make('final_protocol')
                 ->label('Итоговый протокол (PDF)')
                 ->icon('heroicon-o-trophy')

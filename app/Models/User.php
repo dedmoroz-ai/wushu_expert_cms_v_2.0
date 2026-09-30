@@ -24,6 +24,7 @@ class User extends Authenticatable implements FilamentUser
         'club_id',
         'role',
         'is_active_judge',
+        'judge_category',
     ];
 
     /**
