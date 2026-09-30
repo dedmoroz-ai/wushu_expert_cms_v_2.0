@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Competition;
+use App\Models\Athlete;
+use App\Models\Club;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -65,7 +68,7 @@ class CompetitionPdfController extends Controller
     private function renderPdfWithCharset($viewName, $data, $orientation = 'portrait')
     {
         $html = view($viewName, $data)->render();
-        
+
         // Принудительно добавляем мета-тег, если его нет
         if (!str_contains($html, 'charset=utf-8')) {
             $html = '<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>' . $html;
@@ -93,7 +96,7 @@ class CompetitionPdfController extends Controller
         $judgeName = $competition->chief_judge_name;
         $secName = $competition->chief_secretary_name;
         $formattedDate = $this->getFormattedDate($competition->start_date);
-        
+
         $locParts = [];
         if ($competition->city) $locParts[] = $competition->city;
         if ($competition->address) $locParts[] = $competition->address;
@@ -106,8 +109,8 @@ class CompetitionPdfController extends Controller
             ->join('athletes', 'registrations.athlete_id', '=', 'athletes.id')
             ->orderBy('styles.sort_order')
             ->orderBy('age_groups.sort_order')
-            ->orderBy('athletes.gender') 
-            ->orderBy('registrations.sort_order') 
+            ->orderBy('athletes.gender')
+            ->orderBy('registrations.sort_order')
             ->select('registrations.*')
             ->get();
 
@@ -127,12 +130,12 @@ class CompetitionPdfController extends Controller
     }
 
     /**
-     * 2. ИТОГОВЫЙ ПРОТОКОЛ
+     * 2. ИТОГОВЫЙ ПРОТОКОЛ (без титульного листа)
      */
     public function finalResults(Competition $competition)
     {
         $organizerName = $competition->federation?->name ?? 'ОРГАНИЗАТОР НЕ УКАЗАН';
-        
+
         $logoBase64 = $this->getImageBase64($competition->organization_logo);
         $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
         $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
@@ -141,12 +144,13 @@ class CompetitionPdfController extends Controller
         $judgeName = $competition->chief_judge_name;
         $secName = $competition->chief_secretary_name;
         $formattedDate = $this->getFormattedDate($competition->start_date);
-        
+
         $locParts = [];
         if ($competition->city) $locParts[] = $competition->city;
         if ($competition->address) $locParts[] = $competition->address;
         $address = implode(', ', $locParts);
 
+        // ===== ОСНОВНЫЕ РЕГИСТРАЦИИ ДЛЯ ПРОТОКОЛА =====
         $registrations = $competition->registrations()
             ->with(['athlete', 'athlete.club', 'style', 'ageGroup', 'partner'])
             ->where('is_completed', true)
@@ -156,7 +160,7 @@ class CompetitionPdfController extends Controller
             ->orderBy('styles.sort_order')
             ->orderBy('age_groups.sort_order')
             ->orderBy('athletes.gender')
-            ->orderByDesc('registrations.final_score') 
+            ->orderByDesc('registrations.final_score')
             ->select('registrations.*')
             ->get();
 
@@ -167,11 +171,108 @@ class CompetitionPdfController extends Controller
             return sprintf("%s — %s %s", $styleName, $groupName, $ageStr);
         });
 
+        // ===== ДАННЫЕ ДЛЯ ЛИСТА КОМАНД =====
+        $athleteIds = $competition->registrations()
+            ->where('is_completed', true)
+            ->pluck('athlete_id')
+            ->unique();
+
+        $clubIds = Athlete::whereIn('id', $athleteIds)
+            ->pluck('club_id')
+            ->filter()
+            ->unique();
+
+        $teams = Club::whereIn('id', $clubIds)
+            ->orderBy('city')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($club) use ($athleteIds) {
+                $count = Athlete::where('club_id', $club->id)
+                    ->whereIn('id', $athleteIds)
+                    ->count();
+                return [
+                    'city' => $club->city,
+                    'name' => $club->name,
+                    'count' => $count,
+                ];
+            })
+            ->toArray();
+
+        // ===== ИТОГОВАЯ СТАТИСТИКА (для footer-а в teams-page) =====
+        $totalAthletes = $athleteIds->count();
+        $totalClubs = $clubIds->count();
+
+        // ===== ДАННЫЕ ДЛЯ ЛИСТА АДМИНИСТРАЦИИ =====
+        $chiefJudgeName = $competition->chief_judge_name;
+        $chiefSecretaryName = $competition->chief_secretary_name;
+
+        // ХОТФИКС 8.4/8.5: в листе «СОСТАВ СУДЕЙСКОЙ КОЛЛЕГИИ» — только бригада
+        // ЭТОГО турнира (competition_user), а не все активные судьи системы.
+        // Судьи вне бригады остаются в системе, но в протокол не попадают.
+        $headJudges = $competition->judges()
+            ->with('club')
+            ->where('users.role', 'head_judge')
+            ->where('users.is_active_judge', true)
+            ->orderBy('users.name')
+            ->get();
+
+        $lineJudges = $competition->judges()
+            ->with('club')
+            ->where('users.role', 'judge')
+            ->where('users.is_active_judge', true)
+            ->orderBy('users.name')
+            ->get();
+
         return $this->renderPdfWithCharset('pdf.final-results', compact(
             'competition', 'grouped', 'organizerName', 'formattedDate', 'address',
             'logoBase64', 'judgeSignBase64', 'secSignBase64', 'stampBase64',
-            'judgeName', 'secName'
+            'judgeName', 'secName',
+            'teams', 'totalAthletes', 'totalClubs',
+            'chiefJudgeName', 'chiefSecretaryName', 'headJudges', 'lineJudges'
         ))->stream('final-results.pdf');
+    }
+
+    /**
+     * 2b. ТИТУЛЬНЫЙ ЛИСТ (отдельный PDF, страница 1)
+     */
+    public function titlePage(Competition $competition)
+    {
+        $organizerName = $competition->federation?->name ?? 'ОРГАНИЗАТОР НЕ УКАЗАН';
+
+        $logoBase64 = $this->getImageBase64($competition->organization_logo);
+        $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
+        $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
+        $stampBase64 = $this->getImageBase64($competition->organization_stamp);
+
+        $judgeName = $competition->chief_judge_name;
+        $secName = $competition->chief_secretary_name;
+        $formattedDate = $this->getFormattedDate($competition->start_date);
+
+        $locParts = [];
+        if ($competition->city) $locParts[] = $competition->city;
+        if ($competition->address) $locParts[] = $competition->address;
+        $address = implode(', ', $locParts);
+
+        // Уникальные спортсмены, которые реально выступили
+        $athleteIds = $competition->registrations()
+            ->where('is_completed', true)
+            ->pluck('athlete_id')
+            ->unique();
+
+        $totalAthletes = $athleteIds->count();
+
+        $totalClubs = Athlete::whereIn('id', $athleteIds)
+            ->pluck('club_id')
+            ->filter()
+            ->unique()
+            ->count();
+
+        return $this->renderPdfWithCharset('pdf.title-page-standalone', compact(
+            'competition', 'organizerName', 'formattedDate', 'address',
+            'logoBase64', 'judgeSignBase64', 'secSignBase64', 'stampBase64',
+            'judgeName', 'secName',
+            'totalAthletes', 'totalClubs'
+        ))->stream('title-page.pdf');
     }
 
     /**
@@ -202,70 +303,5 @@ class CompetitionPdfController extends Controller
             'logoBase64', 'judgeSignBase64', 'secSignBase64', 'stampBase64',
             'judgeName', 'secName'
         ))->stream('team-standings.pdf');
-    }
-
-    /**
-     * 4. ДИПЛОМЫ (ВОССТАНОВЛЕННАЯ ФУНКЦИЯ)
-     */
-    public function diplomas(Competition $competition)
-    {
-        // Получаем всех оцененных участников
-        $registrations = $competition->registrations()
-            ->with(['athlete', 'athlete.club', 'style', 'ageGroup', 'partner'])
-            ->where('is_completed', true)
-            ->whereNotNull('final_score')
-            ->join('styles', 'registrations.style_id', '=', 'styles.id')
-            ->join('age_groups', 'registrations.age_group_id', '=', 'age_groups.id')
-            ->orderBy('styles.sort_order')
-            ->orderBy('age_groups.sort_order')
-            ->orderByDesc('final_score')
-            ->select('registrations.*')
-            ->get();
-
-        $winners = collect();
-
-        // Группируем по категории
-        $grouped = $registrations->groupBy(function ($reg) {
-            return $reg->style_id . '-' . $reg->age_group_id . '-' . $reg->athlete->gender;
-        });
-
-        // Определяем 1, 2, 3 места
-        foreach ($grouped as $groupItems) {
-            $rank = 1;
-            $prevScore = null;
-            $count = 0;
-
-            foreach ($groupItems as $reg) {
-                if ($prevScore !== $reg->final_score) {
-                    $rank = $count + 1;
-                }
-                
-                if ($rank <= 3) {
-                    $reg->calculated_rank = $rank;
-                    $winners->push($reg);
-                }
-
-                $count++;
-                $prevScore = $reg->final_score;
-            }
-        }
-
-        // Подготовка данных
-        $organizerName = $competition->federation?->name ?? 'Федерация Ушу';
-        $city = $competition->city ?? 'Город';
-        $date = $this->getFormattedDate($competition->start_date);
-        
-        $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
-        $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
-        $stampBase64 = $this->getImageBase64($competition->organization_stamp);
-        
-        $judgeName = $competition->chief_judge_name;
-        $secName = $competition->chief_secretary_name;
-
-        // ВАЖНО: 'landscape' - альбомная ориентация
-        return $this->renderPdfWithCharset('pdf.diplomas_blank', compact(
-            'winners', 'competition', 'organizerName', 'city', 'date',
-            'judgeSignBase64', 'secSignBase64', 'stampBase64', 'judgeName', 'secName'
-        ), 'landscape')->stream('diplomas.pdf');
     }
 }
