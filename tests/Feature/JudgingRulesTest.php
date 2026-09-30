@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\JudgingLogResource\Pages\ListJudgingLogs;
 use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Club;
@@ -19,6 +20,7 @@ use App\Support\ScoreWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
@@ -47,7 +49,7 @@ class JudgingRulesTest extends TestCase
             default => 'sqlite',
         };
 
-        if (!in_array($driver, \PDO::getAvailableDrivers(), true)) {
+        if (! in_array($driver, \PDO::getAvailableDrivers(), true)) {
             $this->markTestSkipped("PDO-драйвер «{$driver}» не установлен (нужен для тестовой БД).");
         }
 
@@ -177,6 +179,46 @@ class JudgingRulesTest extends TestCase
         $this->assertSame(8.5, (float) $log->old_value);
         $this->assertSame(9.125, (float) $log->new_value);
         $this->assertSame('Тест', $log->reason);
+    }
+
+    /** R-8.9: колонка «Участник» показывает оцениваемого спортсмена (и партнёра в паре). */
+    public function test_judging_log_table_shows_participant(): void
+    {
+        $reg = $this->makeRegistration();
+        $judge = $this->makeJudge('Судья В');
+
+        $log = JudgingLog::record(JudgingLog::ACTION_SCORE_CREATED, [
+            'competition_id' => $reg->competition_id,
+            'registration_id' => $reg->id,
+            'judge_id' => $judge->id,
+            'new_value' => 8.500,
+        ]);
+
+        $this->actingAs($this->makeJudge('Админ Ж', true, 'admin'));
+
+        $table = Livewire::test(ListJudgingLogs::class)
+            ->assertCanSeeTableRecords([$log])
+            ->assertTableColumnFormattedStateSet('registration.athlete.name', 'Иванов Иван', $log);
+
+        // Пара («Дуйлянь»): показываем обоих партнёров.
+        $partner = Athlete::create([
+            'club_id' => $reg->athlete->club_id,
+            'name' => 'Петров Пётр',
+            'birth_date' => '2013-05-01',
+            'gender' => 'male',
+        ]);
+        $reg->update(['partner_id' => $partner->id]);
+        $log->unsetRelation('registration');
+
+        $table->assertTableColumnFormattedStateSet('registration.athlete.name', 'Иванов Иван / Петров Пётр', $log);
+
+        // Без заявки — «—», а не пустая ячейка.
+        $orphan = JudgingLog::record(JudgingLog::ACTION_SCORE_DELETED, [
+            'judge_id' => $judge->id,
+            'reason' => 'Без заявки',
+        ]);
+
+        $table->assertTableColumnFormattedStateSet('registration.athlete.name', '—', $orphan);
     }
 
     // --- Сценарий A/B (R-2.11, R-3.12–R-3.16, R-4.18–R-4.20, R-6.13) ---
@@ -333,7 +375,7 @@ class JudgingRulesTest extends TestCase
     {
         return User::create([
             'name' => $name,
-            'email' => str()->random(12) . '@test.local',
+            'email' => str()->random(12).'@test.local',
             'password' => Hash::make('secret'),
             'role' => $role,
             'is_active_judge' => $isActive,
@@ -364,7 +406,7 @@ class JudgingRulesTest extends TestCase
             'max_age' => 14,
         ], $ageGroupAttributes));
 
-        $club = Club::create(['name' => 'Клуб ' . str()->random(5)]);
+        $club = Club::create(['name' => 'Клуб '.str()->random(5)]);
 
         $athlete = Athlete::create([
             'club_id' => $club->id,

@@ -21,10 +21,15 @@ class JudgingLogResource extends Resource
     protected static ?string $model = JudgingLog::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+
     protected static ?string $navigationLabel = 'Журнал судейства';
+
     protected static ?string $modelLabel = 'Запись журнала';
+
     protected static ?string $pluralModelLabel = 'Журнал судейства';
+
     protected static ?string $navigationGroup = 'Соревнования';
+
     protected static ?int $navigationSort = 90;
 
     public static function shouldRegisterNavigation(): bool
@@ -93,18 +98,30 @@ class JudgingLogResource extends Resource
                     ->alignCenter()
                     ->width(60),
 
-                Tables\Columns\TextColumn::make('registration.athlete.surname')
+                Tables\Columns\TextColumn::make('registration.athlete.name')
                     ->label('Участник')
                     ->formatStateUsing(function ($state, JudgingLog $record): string {
-                        $athlete = $record->registration?->athlete;
+                        $registration = $record->registration;
+                        $athlete = $registration?->athlete;
 
-                        if (!$athlete) {
+                        if (! $athlete) {
                             return '—';
                         }
 
-                        return trim($athlete->surname . ' ' . $athlete->name);
+                        // В локальной схеме ФИО хранится одним полем name, но
+                        // допускаем и раздельное surname+name (серверная схема).
+                        $mainName = trim(($athlete->surname ?? '').' '.$athlete->name);
+
+                        if ($registration->partner) {
+                            $partnerName = trim(($registration->partner->surname ?? '').' '.$registration->partner->name);
+
+                            return $mainName.' / '.$partnerName;
+                        }
+
+                        return $mainName;
                     })
-                    ->searchable(),
+                    ->placeholder('—')
+                    ->searchable(['name']),
 
                 Tables\Columns\TextColumn::make('judge.name')
                     ->label('Судья')
@@ -173,7 +190,7 @@ class JudgingLogResource extends Resource
                 Tables\Actions\Action::make('details')
                     ->label('Подробно')
                     ->icon('heroicon-o-magnifying-glass')
-                    ->visible(fn (JudgingLog $record): bool => !empty($record->details))
+                    ->visible(fn (JudgingLog $record): bool => ! empty($record->details))
                     ->modalHeading('Подробности записи журнала')
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Закрыть')
@@ -196,55 +213,55 @@ class JudgingLogResource extends Resource
         $lines = [];
 
         if (isset($details['scheme'])) {
-            $lines[] = 'Сценарий: ' . ($details['scheme'] === 'ab' ? 'A/B' : 'простой');
+            $lines[] = 'Сценарий: '.($details['scheme'] === 'ab' ? 'A/B' : 'простой');
         }
 
-        if (!empty($details['panel'])) {
-            $lines[] = 'Панель: ' . $details['panel'];
+        if (! empty($details['panel'])) {
+            $lines[] = 'Панель: '.$details['panel'];
         }
 
         if (array_key_exists('deductions', $details)) {
-            $lines[] = 'Старт: ' . $fmt($details['start'] ?? 5);
+            $lines[] = 'Старт: '.$fmt($details['start'] ?? 5);
 
             foreach ($details['deductions'] as $d) {
-                $lines[] = '  • ' . $d['code'] . ' — ' . ($d['label'] ?? '') . ': −' . $fmt($d['value']);
+                $lines[] = '  • '.$d['code'].' — '.($d['label'] ?? '').': −'.$fmt($d['value']);
             }
 
-            $lines[] = 'Сумма сбавок: −' . $fmt($details['deductions_total'] ?? 0);
+            $lines[] = 'Сумма сбавок: −'.$fmt($details['deductions_total'] ?? 0);
         }
 
-        if (!empty($details['old_deductions'])) {
+        if (! empty($details['old_deductions'])) {
             $lines[] = 'Сбавки до изменения:';
             foreach ($details['old_deductions'] as $d) {
-                $lines[] = '  • ' . $d['code'] . ': −' . $fmt($d['value']);
+                $lines[] = '  • '.$d['code'].': −'.$fmt($d['value']);
             }
         }
 
-        if (!empty($details['scores'])) {
+        if (! empty($details['scores'])) {
             $lines[] = 'Оценки судей:';
             foreach ($details['scores'] as $s) {
-                $codes = collect($s['deductions'] ?? [])->map(fn ($d) => $d['code'] . ' −' . $fmt($d['value']))->implode(', ');
-                $lines[] = '  • ' . ($s['judge'] ?? ('#' . $s['judge_id']))
-                    . (!empty($s['panel']) ? ' [' . $s['panel'] . ']' : '')
-                    . ': ' . $fmt($s['score'])
-                    . ($codes !== '' ? ' (' . $codes . ')' : '');
+                $codes = collect($s['deductions'] ?? [])->map(fn ($d) => $d['code'].' −'.$fmt($d['value']))->implode(', ');
+                $lines[] = '  • '.($s['judge'] ?? ('#'.$s['judge_id']))
+                    .(! empty($s['panel']) ? ' ['.$s['panel'].']' : '')
+                    .': '.$fmt($s['score'])
+                    .($codes !== '' ? ' ('.$codes.')' : '');
             }
         }
 
-        if (array_key_exists('avg_a', $details) && !is_null($details['avg_a'])) {
-            $lines[] = 'Среднее A: ' . $fmt($details['avg_a']);
+        if (array_key_exists('avg_a', $details) && ! is_null($details['avg_a'])) {
+            $lines[] = 'Среднее A: '.$fmt($details['avg_a']);
         }
 
-        if (array_key_exists('avg_b', $details) && !is_null($details['avg_b'])) {
-            $lines[] = 'Среднее B: ' . $fmt($details['avg_b']);
+        if (array_key_exists('avg_b', $details) && ! is_null($details['avg_b'])) {
+            $lines[] = 'Среднее B: '.$fmt($details['avg_b']);
         }
 
         if (array_key_exists('auto', $details)) {
-            $lines[] = 'Авто-расчёт: ' . $fmt($details['auto']);
+            $lines[] = 'Авто-расчёт: '.$fmt($details['auto']);
         }
 
-        if (!empty($details['formula'])) {
-            $lines[] = 'Формула: ' . $details['formula'];
+        if (! empty($details['formula'])) {
+            $lines[] = 'Формула: '.$details['formula'];
         }
 
         return $lines;
