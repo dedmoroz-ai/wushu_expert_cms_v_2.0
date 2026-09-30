@@ -15,8 +15,11 @@ class EditCompetition extends EditRecord
     {
         return [
             // 1. Кнопка "Стартовый протокол"
+            // Подписи намеренно короткие (30.09: ряд кнопок не помещался по ширине
+            // при 100% масштабе); полные названия — в tooltip при наведении.
             Actions\Action::make('start_protocol')
-                ->label('Стартовый протокол (PDF)')
+                ->label('Стартовый (PDF)')
+                ->tooltip('Стартовый протокол (PDF)')
                 ->icon('heroicon-o-printer')
                 ->color('success') // Серый цвет
                 ->url(fn ($record) => route('competition.start-list', $record))
@@ -24,7 +27,8 @@ class EditCompetition extends EditRecord
 
             // 2. Кнопка "Титульный лист"
             Actions\Action::make('title_page')
-                ->label('Титульный лист (PDF)')
+                ->label('Титульный (PDF)')
+                ->tooltip('Титульный лист (PDF)')
                 ->icon('heroicon-o-document-text')
                 ->color('warning')
                 ->url(fn ($record) => route('competition.title-page', $record))
@@ -32,7 +36,8 @@ class EditCompetition extends EditRecord
 
             // 3. Кнопка "Итоговый протокол"
             Actions\Action::make('final_protocol')
-                ->label('Итоговый протокол (PDF)')
+                ->label('Итоговый (PDF)')
+                ->tooltip('Итоговый протокол (PDF)')
                 ->icon('heroicon-o-trophy')
                 ->color('success') // Зеленый цвет
                 ->url(fn ($record) => route('competition.final-results', $record))
@@ -40,7 +45,8 @@ class EditCompetition extends EditRecord
 
             // 2.1 Кнопка "Командный зачёт" (R-6.14, между итоговым протоколом и QR-кодом)
             Actions\Action::make('team_standings')
-                ->label('Командный зачёт (PDF)')
+                ->label('Командный (PDF)')
+                ->tooltip('Командный зачёт (PDF)')
                 ->icon('heroicon-o-user-group')
                 ->color('success')
                 ->url(fn ($record) => route('competition.team-standings', $record))
@@ -48,35 +54,36 @@ class EditCompetition extends EditRecord
 
             // 3. Кнопка "QR-код для публичной страницы"
             Actions\Action::make('qr_code')
-                ->label('QR-код для публичной страницы')
+                ->label('QR-код')
+                ->tooltip('QR-код для публичной страницы')
                 ->icon('heroicon-o-qr-code')
                 ->color('info')
                 ->modalHeading('QR-код для публичной страницы результатов')
                 ->modalContent(function () {
                     $competition = $this->record;
-                    
+
                     // Проверяем наличие колонки (для совместимости с версиями без миграции)
                     try {
-                    $hasPublicTokenColumn = Schema::hasColumn('competitions', 'public_token');
-                    
-                    if ($hasPublicTokenColumn) {
-                        // Генерируем токен, если его нет
-                        if (!$competition->public_token) {
-                            $competition->public_token = \Illuminate\Support\Str::random(32);
-                            $competition->save();
-                        }
-                        $publicUrl = route('public.results', ['token' => $competition->public_token]);
-                    } else {
+                        $hasPublicTokenColumn = Schema::hasColumn('competitions', 'public_token');
+
+                        if ($hasPublicTokenColumn) {
+                            // Генерируем токен, если его нет
+                            if (! $competition->public_token) {
+                                $competition->public_token = \Illuminate\Support\Str::random(32);
+                                $competition->save();
+                            }
+                            $publicUrl = route('public.results', ['token' => $competition->public_token]);
+                        } else {
                             // Если колонки нет, используем ID соревнования
-                            $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
+                            $publicUrl = route('public.results', ['token' => 'comp_'.$competition->id]);
                         }
                     } catch (\Exception $e) {
                         // Fallback: используем ID соревнования
-                        $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
+                        $publicUrl = route('public.results', ['token' => 'comp_'.$competition->id]);
                     }
-                    
+
                     $qrCodeUrl = route('competition.qr-code', $competition);
-                    
+
                     return view('filament.resources.competition-resource.pages.qr-code-modal', [
                         'publicUrl' => $publicUrl,
                         'qrCodeUrl' => $qrCodeUrl,
