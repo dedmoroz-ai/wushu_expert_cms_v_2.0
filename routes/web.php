@@ -44,6 +44,11 @@ Route::get('/competition/{competition}/scores-summary', \App\Http\Controllers\Sc
     ->middleware('auth')
     ->name('competition.scores-summary');
 
+// --- ПАМЯТКА СУДЬЯМ: КОДЫ СБАВОК (PDF, печать/раздача) ---
+Route::get('/competition/{competition}/deduction-codes-memo', \App\Http\Controllers\DeductionCodesMemoPdfController::class)
+    ->middleware('auth')
+    ->name('competition.deduction-codes-memo');
+
 // --- ПЕЧАТЬ ДИПЛОМОВ ---
 // Теперь принимаем ID соревнования, вида, возрастную группу и пол.
 // Группа «O» (R-6.15): необязательный флаг is_special (0/1) — отдельная
