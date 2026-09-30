@@ -6,6 +6,33 @@
 
 ---
 
+## 0.1. Слияние с сервером — Фазы 0–1 выполнены (30.09.2026, ветка `merge/server-2026-09-29`)
+
+По `docs/SERVER_MERGE_PLAN.md` §5 выполнены шаги 0–3 (стабилизация, импорт E, копирование B,
+union-слияния C). Все этапы отдельными коммитами:
+
+| Коммит | Шаг | Содержание |
+|---|---|---|
+| `5799752f` | E (страховка майской волны) | `Analytics.php` + blade + `public/analytics.html`, `ScoresSummary.php` + blade, `ScoresSummaryPdfController.php` + `pdf/scores-summary.blade.php`, `pdf/parts/{title,admin,teams}-page`, `title-page-standalone`, миграция `2026_05_15_065700_add_judge_category_to_users_table`, `public/images/c989.svg` — 13 файлов, всё из выгрузки `/mnt/c/wushu-server` |
+| `92adc09f` | B (сервер-победитель) | `Caddyfile`, `Dockerfile`, `docker-compose.yml` (prod-инфраструктура; локально не менялись), `UserResource.php`/`JudgeResource.php` (судейские категории), `welcome.blade.php` (майский футер c989) |
+| `11a2bff2` | C union | `User.php` (`judge_category` в `$fillable` + наш `withPivot('panel')`), `routes/web.php` (маршруты `title-page` + `scores-summary` + наш `team-standings`), `EditCompetition.php` (кнопка «Титульный лист» + наши try/catch и «Командный зачёт»), `JudgesRelationManager.php` (колонка «Категория» + наши `panelSelect()`/«Функция») |
+| `b7b83223` | C union | `CompetitionPdfController.php`: база = `_server/CompetitionPdfController.hotfix.php` (майская волна + хотфикс «PDF-судей» 8.4/8.5), сохранён наш `teamStandings()` (R-6.14), удалён мёртвый `diplomas()` (маршруты идут через `ExportController`); `php -l` чистый |
+| `1cbcedd7` | C union | `final-results.blade.php`: база = серверная майская (листы «Команды» + «Администрация», titlesep-фикс нумерации), сохранён наш `club->name` в колонке «Команда» (30.09) |
+
+**Контрольные точки C проверены:**
+- `RegistrationsRelationManager.php` — наша версия строгое надмножество серверной («Партнёр», «Оценка»
+  step 0.001, формат 3 знака, «Место» по `age_group_id` — всё есть + наши фильтр/сортировка/A/B-журнал) —
+  правок не потребовалось.
+- `SuperJudgePad.php` — база наша (A/B), все 5 серверных фиксов ввода покрыты логикой `ScoreRange`/
+  `appendDigit`: «8.125» (лимит 2 целых + 3 знака), длинный финал (итог до `20.000` в A/B влезает),
+  сохранение «9» (нет min-длины), любая первая цифра, round(3) (`ScoreRange::PRECISION`).
+
+**Сохранено при слиянии (не потерять!):** `club->name` (final-results, start-list, public-results),
+блок «Командный зачёт» в `PublicResults`/blade, `team-standings.blade.php` + `TeamStandings.php` +
+тест, try/catch в `EditCompetition`, `panelSelect()` A/B (R-4.18), фильтр/сортировка заявок (28.09).
+
+**Не переносилось (по плану §F):** `.env`, `storage/`, `auto_backup.sql`, `*.bak*`, `welcome.blade1.php`.
+
 ## 0. Обновление 30.09.2026 (подготовка к слиянию)
 
 - **Колонка «Команда» → название клуба.** В `pdf/final-results.blade.php`, `pdf/start-list.blade.php` и
@@ -359,9 +386,14 @@ DB_DATABASE=wushu_test DB_USERNAME=sail DB_PASSWORD=password ./vendor/bin/phpuni
       (`deduction_codes` глобальный, набора для турнира нет). Доработка + обновить
       R-3.13/R-7.8 в `docs/JUDGING_RULES.md`.
 - [ ] Повторить полный зелёный прогон всех тестов при работающей БД (сейчас 22 feature
-      падают только из-за `connection refused`).
-- [ ] План слияния §3 (snapshot → ветка `server-snapshot` → merge → миграции → репетиция →
-      деплой) **не начат**.
+      падают только из-за `connection refused`). На 30.09 на ветке `merge/server-2026-09-29`:
+      unit-набор зелёный (73 passed), feature ждут docker-БД — прогон входит в обязательный
+      смоук перед деплоем (§3.5 «Репетиция» `POST_TOURNAMENT_PLAN.md`: копия боевой базы
+      `db.sql.gz`, migrate, phpunit на PostgreSQL, ручной смоук).
+- [x] Слияние с сервером (30.09): Фазы 0–1 выполнены на ветке `merge/server-2026-09-29` —
+      импорт E, копирование B, все union-слияния C (см. §0.1). Осталось: шаги 4–9 плана §5 —
+      тесты при БД, смоук (пульты A/B, все PDF, QR, дипломы, сводка, аналитика), решения
+      заказчика (футер/дипломы), коммит слияния, деплой.
 - [ ] Перенести переменные `.env` в compose (`env_file`) и исключить `.env` из образа
       (план §5).
 

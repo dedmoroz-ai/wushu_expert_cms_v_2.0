@@ -129,6 +129,10 @@
 
 ## 5. План действий
 
+> **Статус 30.09.2026 (ветка `merge/server-2026-09-29`):** шаги 0–3 выполнены (коммиты
+> `5799752f`, `92adc09f`, `11a2bff2`, `b7b83223`, `1cbcedd7`; контрольные точки C — в `WORK_SUMMARY.md` §0.1).
+> Осталось: 4 (тесты при БД), 5 (смоук), 6 (решения заказчика), 7 (коммит слияния), 8 (деплой), 9.
+
 0. **Стабилизация.** Закоммитить текущее рабочее дерево (`docs/WORK_SUMMARY.md` и др.); создать ветку `merge/server-2026-09-29` от `ab-judging`.
 1. **Импорт E** (untracked-файлы сервера) в рабочее дерево; сразу добавить в git — это страховка от потери майской волны.
 2. **Копирование B** (сервер-победители) из `/mnt/c/wushu-server`.
@@ -158,17 +162,17 @@
 
 ## 7. Чек-лист «ничего не потерять»
 
-- [ ] Майский PDF-кластер: `CompetitionPdfController` (titlePage), `pdf/parts/*`, `title-page-standalone`, `final-results` (titlesep)
-- [ ] `ScoresSummary` (страница + PDF-контроллер + 2 blade)
-- [ ] `Analytics` (страница + blade + `public/analytics.html`)
-- [ ] Судейские категории: миграция + `User` fillable + `UserResource`/`JudgeResource`/`JudgesRelationManager`
-- [ ] Форма заявок: Партнёр (Дуйлянь/Дуйда), «Оценка» (step 0.001), место по `age_group_id`
-- [ ] Фиксы ввода `SuperJudgePad` (6/8, «9», любая цифра, round(3))
-- [ ] Double-касты `Score`/`Registration`
-- [ ] Инфраструктура: Caddyfile, Dockerfile (gd), docker-compose (caddy, 64M, TRUSTED_PROXIES)
-- [ ] Футер `welcome` + `c989.svg`
-- [ ] `diplomas_blank_old.blade.php` (= майский серверный шаблон) остаётся в репо как фолбэк
-- [ ] Хотфикс «PDF-судей» в `CompetitionPdfController` (из `_server/*.hotfix.php`)
+- [x] Майский PDF-кластер: `CompetitionPdfController` (titlePage), `pdf/parts/*`, `title-page-standalone`, `final-results` (titlesep) — E + C union (`5799752f`, `b7b83223`, `1cbcedd7`)
+- [x] `ScoresSummary` (страница + PDF-контроллер + 2 blade) — E (`5799752f`)
+- [x] `Analytics` (страница + blade + `public/analytics.html`) — E (`5799752f`)
+- [x] Судейские категории: миграция + `User` fillable + `UserResource`/`JudgeResource`/`JudgesRelationManager` — E + B + C (`5799752f`, `92adc09f`, `11a2bff2`)
+- [x] Форма заявок: Партнёр (Дуйлянь/Дуйда), «Оценка» (step 0.001), место по `age_group_id` — проверено: в нашей версии есть (надмножество серверной)
+- [x] Фиксы ввода `SuperJudgePad` (6/8, «9», любая цифра, round(3)) — проверено: покрыты `ScoreRange`/`appendDigit` (база — наша A/B)
+- [x] Double-касты `Score`/`Registration` — зона D, наши версии сохранены
+- [x] Инфраструктура: Caddyfile, Dockerfile (gd), docker-compose (caddy, 64M, TRUSTED_PROXIES) — B (`92adc09f`)
+- [x] Футер `welcome` + `c989.svg` — B (`92adc09f`); ⚠️ брендинг ждёт подтверждения (§5 п.6)
+- [x] `diplomas_blank_old.blade.php` (= майский серверный шаблон) остаётся в репо как фолбэк — не трогали
+- [x] Хотфикс «PDF-судей» в `CompetitionPdfController` (из `_server/*.hotfix.php`) — влит как база (`b7b83223`)
 
 ---
 
