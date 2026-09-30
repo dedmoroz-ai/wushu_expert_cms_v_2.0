@@ -175,7 +175,37 @@ class CompetitionPdfController extends Controller
     }
 
     /**
-     * 3. ДИПЛОМЫ (ВОССТАНОВЛЕННАЯ ФУНКЦИЯ)
+     * 3. КОМАНДНЫЙ (КЛУБНЫЙ) ЗАЧЁТ (R-6.14, решения 30.09.2026)
+     */
+    public function teamStandings(Competition $competition)
+    {
+        $organizerName = $competition->federation?->name ?? 'ОРГАНИЗАТОР НЕ УКАЗАН';
+
+        $logoBase64 = $this->getImageBase64($competition->organization_logo);
+        $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
+        $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
+        $stampBase64 = $this->getImageBase64($competition->organization_stamp);
+
+        $judgeName = $competition->chief_judge_name;
+        $secName = $competition->chief_secretary_name;
+        $formattedDate = $this->getFormattedDate($competition->start_date);
+
+        $locParts = [];
+        if ($competition->city) $locParts[] = $competition->city;
+        if ($competition->address) $locParts[] = $competition->address;
+        $address = implode(', ', $locParts);
+
+        $standings = \App\Support\TeamStandings::forCompetition($competition);
+
+        return $this->renderPdfWithCharset('pdf.team-standings', compact(
+            'competition', 'standings', 'organizerName', 'formattedDate', 'address',
+            'logoBase64', 'judgeSignBase64', 'secSignBase64', 'stampBase64',
+            'judgeName', 'secName'
+        ))->stream('team-standings.pdf');
+    }
+
+    /**
+     * 4. ДИПЛОМЫ (ВОССТАНОВЛЕННАЯ ФУНКЦИЯ)
      */
     public function diplomas(Competition $competition)
     {

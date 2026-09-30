@@ -155,6 +155,41 @@
                     <p class="text-gray-700 text-base sm:text-lg">Результаты пока отсутствуют</p>
                 </div>
             @endif
+
+            {{-- КОМАНДНЫЙ (КЛУБНЫЙ) ЗАЧЁТ (R-6.14) --}}
+            @if($standings->count() > 0)
+                <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-4 sm:mb-6">
+                    <div class="px-3 sm:px-6 py-2 sm:py-3 bg-gray-800">
+                        <h3 class="text-sm sm:text-base lg:text-lg font-bold text-white uppercase">Командный зачёт</h3>
+                    </div>
+                    <div class="overflow-x-auto -mx-2 sm:mx-0">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Место</th>
+                                    <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Команда</th>
+                                    <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Очки</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($standings as $row)
+                                    <tr>
+                                        <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                                            {{ $row['place'] }}
+                                        </td>
+                                        <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <b>{{ $row['club_name'] }}</b>
+                                        </td>
+                                        <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                                            {{ $row['points'] }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         @else
             <div class="bg-white shadow-lg rounded-lg p-6 text-center">
                 <p class="text-gray-700 text-base sm:text-lg">Соревнование не найдено</p>

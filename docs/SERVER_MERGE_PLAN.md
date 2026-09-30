@@ -85,7 +85,7 @@
 ## 4. Матрица слияния
 
 ### A. Идентичны — действий не требуется
-`RegistrationResource.php`, `RegistrationResource/Pages/CreateRegistration.php`, `StyleResource.php`, `AppServiceProvider.php`, `composer.json`, `composer.lock`, `scoreboard.blade.php`, `start-list.blade.php`, `ExportController.php`, `PublicResults.php`, `public-results.blade.php`, `qr-code-modal.blade.php`, `layouts/public.blade.php`, миграция `2026_01_29_120000`. ⚠️ (30.09) в `start-list.blade.php` и `public-results.blade.php` колонка команды переведена с `club->city` на `club->name` — при копировании B сохранить эту правку.
+`RegistrationResource.php`, `RegistrationResource/Pages/CreateRegistration.php`, `StyleResource.php`, `AppServiceProvider.php`, `composer.json`, `composer.lock`, `scoreboard.blade.php`, `start-list.blade.php`, `ExportController.php`, `PublicResults.php`, `public-results.blade.php`, `qr-code-modal.blade.php`, `layouts/public.blade.php`, миграция `2026_01_29_120000`. ⚠️ (30.09) в `start-list.blade.php` и `public-results.blade.php` колонка команды переведена с `club->city` на `club->name` — при копировании B сохранить эту правку. Также (30.09) в `PublicResults.php`/`public-results.blade.php` добавлен блок «Командный зачёт» (R-6.14) — при слиянии сохранить и его.
 
 ### B. Сервер победитель — скопировать с сервера
 | Файл | Почему |
@@ -99,18 +99,20 @@
 | Файл | Сервер добавляет | Мы добавляем | Итог |
 |---|---|---|---|
 | `User.php` | `judge_category` в `$fillable` | `withPivot('panel')` | оба изменения |
-| `routes/web.php` | `title-page`, `scores-summary` | (public.results/qr уже совпадают) | оба маршрута + наши |
-| `EditCompetition.php` | кнопка «Титульный лист», QR-модалка | try/catch вокруг `Schema::hasColumn` | сервер + наш try/catch |
+| `routes/web.php` | `title-page`, `scores-summary` | маршрут `competition.team-standings` (30.09) | оба маршрута + наши |
+| `EditCompetition.php` | кнопка «Титульный лист», QR-модалка | try/catch вокруг `Schema::hasColumn`, кнопка «Командный зачёт» (30.09) | сервер + наш try/catch + кнопка «Командный зачёт» |
 | `JudgesRelationManager.php` | колонка «Категория» | `panelSelect()` A/B (R-4.18), колонка «Функция» | оба набора |
 | `RegistrationsRelationManager.php` | Партнёр, «Оценка», место по `age_group_id`, формат 3 знака | фильтр по соревнованию + сортировка («заявки тренеров», 28.09) | оба набора; **не** добавлять «редактирование заявки, если нет» (решение 28.09) |
 | `SuperJudgePad.php` | фиксы ввода 6/8, «9», любая цифра, round(3) | полная переработка A/B | база — наша версия; **проверить**, что все 5 фиксов покрыты логикой `ScoreRange`/`appendDigit` |
-| `CompetitionPdfController.php` | май +301 (`titlePage`, `startList`, `finalResults`) | хотфикс «PDF-судей» | итог = `_server/CompetitionPdfController.hotfix.php` (= серверный май + хотфикс); затем перенести уникальные локальные правки (12 однострочных хунков — проверить по `diff -u`) |
+| `CompetitionPdfController.php` | май +301 (`titlePage`, `startList`, `finalResults`) | хотфикс «PDF-судей» + метод `teamStandings()` (30.09) | итог = `_server/CompetitionPdfController.hotfix.php` (= серверный май + хотфикс); затем перенести уникальные локальные правки (12 однострочных хунков — проверить по `diff -u`) **и не потерять `teamStandings()` + `pdf/team-standings.blade.php` (30.09)** |
 | `final-results.blade.php` | майская переработка + titlesep-фикс | локальные правки (17 хунков — проверить, не относятся ли к A/B) | база — серверная; уникальное локальное перенести; **30.09: колонка «Команда» = `club->name` — не потерять при взятии серверной базы** |
 
 ### D. Мы победитель (сервер не менял или наша версия — надмножество)
 `JudgePad.php` (на сервере только mode), `Score.php`, `Registration.php`, `Scoreboard.php`, `Competition.php`, `AgeGroup.php`, `AgeGroupResource.php`, `CompetitionResource.php`, `QrCodeController.php` (+ смоук QR).
 
 `diplomas_blank.blade.php` — наш новый шаблон (решение заказчика печатать на готовом бланке); майская версия сервера уже сохранена как `diplomas_blank_old.blade.php` (ничего не потеряно). ⚠️ Перед следующей печатью дипломов — подтвердить выбор шаблона.
+
+Командный зачёт (30.09): `app/Support/TeamStandings.php`, `resources/views/pdf/team-standings.blade.php`, `tests/Unit/TeamStandingsTest.php` — новые файлы, сервер их не знает, конфликтов нет; правки в `PublicResults.php`, `public-results.blade.php`, `routes/web.php`, `EditCompetition.php`, `CompetitionPdfController.php` — см. зоны A/C.
 
 ### E. Импортировать с сервера (untracked — сейчас есть ТОЛЬКО на сервере!)
 1. `app/Filament/Pages/Analytics.php` + `resources/views/filament/pages/analytics.blade.php` + `public/analytics.html`

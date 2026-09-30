@@ -30,6 +30,14 @@ class EditCompetition extends EditRecord
                 ->url(fn ($record) => route('competition.final-results', $record))
                 ->openUrlInNewTab(),
 
+            // 2.1 Кнопка "Командный зачёт" (R-6.14, между итоговым протоколом и QR-кодом)
+            Actions\Action::make('team_standings')
+                ->label('Командный зачёт (PDF)')
+                ->icon('heroicon-o-user-group')
+                ->color('success')
+                ->url(fn ($record) => route('competition.team-standings', $record))
+                ->openUrlInNewTab(),
+
             // 3. Кнопка "QR-код для публичной страницы"
             Actions\Action::make('qr_code')
                 ->label('QR-код для публичной страницы')

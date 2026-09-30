@@ -57,6 +57,7 @@ class PublicResults extends Component
     public function render()
     {
         $grouped = collect();
+        $standings = collect();
         
         if ($this->competition) {
             $registrations = Registration::where('competition_id', $this->competition->id)
@@ -84,10 +85,14 @@ class PublicResults extends Component
                 $groupName = $reg->ageGroup?->name ?? 'Группа';
                 return sprintf("%s — %s %s", $styleName, $groupName, $ageStr);
             });
+
+            // Командный (клубный) зачёт (R-6.14)
+            $standings = \App\Support\TeamStandings::forCompetition($this->competition);
         }
         
         return view('livewire.public-results', [
             'grouped' => $grouped,
+            'standings' => $standings,
         ])->layout('components.layouts.public');
     }
 }
