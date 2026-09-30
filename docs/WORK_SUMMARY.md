@@ -391,11 +391,19 @@ DB_DATABASE=wushu_test DB_USERNAME=sail DB_PASSWORD=password ./vendor/bin/phpuni
       (`ScoreWriter` не меняем). Сейчас пульты грузят все активные коды
       (`deduction_codes` глобальный, набора для турнира нет). Доработка + обновить
       R-3.13/R-7.8 в `docs/JUDGING_RULES.md`.
-- [ ] Повторить полный зелёный прогон всех тестов при работающей БД (сейчас 22 feature
-      падают только из-за `connection refused`). На 30.09 на ветке `merge/server-2026-09-29`:
-      unit-набор зелёный (73 passed), feature ждут docker-БД — прогон входит в обязательный
-      смоук перед деплоем (§3.5 «Репетиция» `POST_TOURNAMENT_PLAN.md`: копия боевой базы
-      `db.sql.gz`, migrate, phpunit на PostgreSQL, ручной смоук).
+- [x] Повторить полный зелёный прогон всех тестов при работающей БД — **выполнено 30.09.2026**
+      (тестовый запуск после слияния и репетиции): Docker-БД `wushu_db_local` поднята,
+      `migrate` чист (применена pending-миграция `2026_05_15_065700_add_judge_category`),
+      phpunit на PostgreSQL — **95/95 OK (226 assertions)**, из них unit 73/73.
+      Фиксы репетиции закоммичены (`22217fea`): редирект гостей на логин Filament
+      (было 500 «Route [login]» на `/competition/{id}/scores-summary`) и починка
+      миграции точности очков (опечатки `835` → `8.35` перед ALTER).
+      HTTP-смоук на `php artisan serve :8200`: `/`, `/admin/login`, `/scoreboard`,
+      `/results`, QR (SVG), start-list/final-results/title-page/team-standings (все
+      `application/pdf`, magic `%PDF-`), защита `/admin/*` и `scores-summary` — 302 на
+      логин для гостей; для авторизованного: `/admin` 200, `scores-summary` 403
+      (белый список `ALLOWED_EMAILS` — ожидаемо), дипломы — `back()->with('error')`
+      302 при пустой категории (демо без оценок — ожидаемо).
 - [x] Слияние с сервером (30.09): Фазы 0–1 выполнены на ветке `merge/server-2026-09-29` —
       импорт E, копирование B, все union-слияния C (см. §0.1). Осталось: шаги 4–9 плана §5 —
       тесты при БД, смоук (пульты A/B, все PDF, QR, дипломы, сводка, аналитика, **командный
