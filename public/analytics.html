@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Аналитический отчёт по судейской коллегии</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm;
+  }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #222;
+    line-height: 1.55;
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 0 20px;
+    background: #fff;
+  }
+  h1 {
+    text-align: center;
+    color: #1a3a6c;
+    border-bottom: 3px solid #1a3a6c;
+    padding-bottom: 10px;
+    margin-bottom: 25px;
+  }
+  h2 {
+    color: #1a3a6c;
+    border-left: 5px solid #1a3a6c;
+    padding-left: 10px;
+    margin-top: 35px;
+  }
+  h3 {
+    color: #2a5599;
+    margin-top: 25px;
+  }
+  p.meta {
+    text-align: center;
+    color: #555;
+    margin-top: -10px;
+    margin-bottom: 30px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 15px 0 25px;
+    font-size: 14px;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #b8c5d6;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: middle;
+  }
+  th {
+    background: #1a3a6c;
+    color: #fff;
+    font-weight: 600;
+  }
+  tr:nth-child(even) td {
+    background: #f3f6fb;
+  }
+  td.center, th.center {
+    text-align: center;
+  }
+  .highlight {
+    background: #fff7d6 !important;
+    font-weight: bold;
+  }
+  ul, ol {
+    margin: 10px 0 15px 25px;
+  }
+  li {
+    margin-bottom: 6px;
+  }
+  blockquote {
+    border-left: 4px solid #2a5599;
+    background: #eaf1fb;
+    padding: 10px 15px;
+    margin: 15px 0;
+    color: #1a3a6c;
+    border-radius: 4px;
+  }
+  .signature-table td {
+    height: 35px;
+  }
+  .footer-note {
+    margin-top: 40px;
+    font-size: 13px;
+    color: #555;
+    border-top: 1px solid #ccc;
+    padding-top: 15px;
+  }
+  @media print {
+    body { margin: 0; }
+    h2 { page-break-after: avoid; }
+    table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Аналитический отчёт по судейской коллегии</h1>
+<p class="meta">
+  Объект анализа: сводная таблица оценок (164 выступления, 8 судей)<br>
+  Цель отчёта: выявить системные особенности судейства и провести детальный разбор пула «Юнчуньцюань — Гунь, девушки» (строки 133–136).
+</p>
+
+<h2>1. Общая аналитика по судьям (по всем 164 выступлениям)</h2>
+
+<p>Для каждого судьи рассчитаны три показателя:</p>
+<ul>
+  <li><b>Средний балл</b> — насколько строго или мягко судья оценивает в целом.</li>
+  <li><b>Δ (отклонение от среднего по строке)</b> — систематическая «строгость» или «щедрость» относительно коллег.</li>
+  <li><b>СКО отклонений</b> — степень непоследовательности судьи (разброс отклонений от группы).</li>
+</ul>
+
+<h3>Таблица 1. Сводные показатели по судьям</h3>
+<table>
+  <thead>
+    <tr>
+      <th class="center">№</th>
+      <th>Судья</th>
+      <th class="center">Средний балл</th>
+      <th class="center">Δ от среднего по строке</th>
+      <th>Характеристика</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="center">1</td><td>Иващенко О. К.</td><td class="center">≈ 8,12</td><td class="center">+0,07</td><td>Самый «щедрый» судья, ставит выше среднего</td></tr>
+    <tr><td class="center">2</td><td>Чёрный С. И.</td><td class="center">≈ 8,11</td><td class="center">+0,06</td><td>Слегка завышает</td></tr>
+    <tr><td class="center">3</td><td>Копылова В. С.</td><td class="center">≈ 8,10</td><td class="center">+0,05</td><td>Слегка завышает</td></tr>
+    <tr><td class="center">4</td><td>Левина А. С.</td><td class="center">≈ 8,10</td><td class="center">+0,05</td><td>Слегка завышает</td></tr>
+    <tr><td class="center">5</td><td>Мороз М. Г.</td><td class="center">≈ 8,09</td><td class="center">+0,04</td><td>Около среднего, чуть выше</td></tr>
+    <tr><td class="center">6</td><td>Семиразум В.</td><td class="center">≈ 8,06</td><td class="center">≈ 0,00</td><td>Эталонный судья — оценки максимально близки к среднему по группе</td></tr>
+    <tr><td class="center">7</td><td>Зубкова А. В.</td><td class="center">≈ 7,99</td><td class="center">−0,07</td><td>Систематически строже коллег</td></tr>
+    <tr class="highlight"><td class="center">8</td><td>Щербаков А. Ю.</td><td class="center">≈ 7,82</td><td class="center">−0,24</td><td>Резко выделяется — самый строгий, ставит существенно ниже остальных</td></tr>
+  </tbody>
+</table>
+
+<h3>Ключевые выводы по судьям</h3>
+<ol>
+  <li><b>Щербаков А. Ю.</b> — главный «выбивающийся» судья. Его оценки в среднем на <b>0,2–0,3 балла ниже</b> остальных, разброс отклонений у него самый большой. Особенно показательны выступления:
+    <ul>
+      <li>№ 35 (Кравченко Я.) — 6,00 при остальных 6,90–7,10 (Δ ≈ −0,9);</li>
+      <li>№ 110 (Каверин / Козлов) — 6,90 при медиане 7,85 (Δ ≈ −0,9);</li>
+      <li>№ 53 (Зайцев В.) — 7,00 при остальных 7,40–7,70.</li>
+    </ul>
+    На многих стартах именно его оценка «срезается» как минимальная.
+  </li>
+  <li><b>Зубкова А. В.</b> — стабильно строга, но в разумных пределах (около −0,07). Иногда заметно занижает: № 70 (Османов) — 7,20 при остальных 7,90–8,15.</li>
+  <li><b>Семиразум В.</b> — наиболее нейтральный и согласованный с коллегией судья (Δ ≈ 0). Может использоваться как ориентир коллегиальной нормы.</li>
+  <li><b>Иващенко О. К., Копылова В. С., Левина А. С., Чёрный С. И.</b> — формируют «верхнюю» часть коллегии: ставят чуть выше среднего, но без аномалий.</li>
+  <li><b>Мороз М. Г.</b> — близок к центру, лишь незначительно завышает.</li>
+  <li><b>Системный эффект.</b> В большинстве протоколов крайние оценки отбрасываются именно у Щербакова (как минимум) и у одного из «щедрых» судей (как максимум) — поэтому <b>итог</b> часто оказывается <b>выше среднего арифметического</b>.</li>
+</ol>
+
+<h2>2. Аналитика по строкам 133–136</h2>
+
+<p>
+  <b>Дисциплина:</b> Юнчуньцюань — Гунь<br>
+  <b>Возрастная группа:</b> Девушки<br>
+  <b>Объём пула:</b> 4 спортсменки — удобный кейс для сравнения.
+</p>
+
+<h3>Таблица 2. Итоговый рейтинг пула</h3>
+<table>
+  <thead>
+    <tr>
+      <th class="center">Ранг</th>
+      <th class="center">№</th>
+      <th>Спортсменка</th>
+      <th>Клуб</th>
+      <th class="center">Среднее</th>
+      <th class="center">Итог</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="highlight"><td class="center">1</td><td class="center">134</td><td>Левина Варвара Дмитриевна</td><td>У Син Дао (Симферополь)</td><td class="center">8,475</td><td class="center"><b>8,492</b></td></tr>
+    <tr><td class="center">2</td><td class="center">135</td><td>Кравчук Елизавета Геннадьевна</td><td>ЦВП (Ялта)</td><td class="center">8,350</td><td class="center">8,350</td></tr>
+    <tr><td class="center">3</td><td class="center">136</td><td>Ушакова Мария Денисовна</td><td>У Син Дао (Симферополь)</td><td class="center">8,275</td><td class="center">8,283</td></tr>
+    <tr><td class="center">4</td><td class="center">133</td><td>Мязина Александра Андреевна</td><td>У Син Дао (Симферополь)</td><td class="center">8,238</td><td class="center">8,242</td></tr>
+  </tbody>
+</table>
+
+<blockquote>
+  Разрыв между 1-м и 4-м местом — <b>0,25 балла</b>, между 2-м и 4-м — <b>0,11 балла</b>. Конкуренция в пуле плотная.
+</blockquote>
+
+<h3>Таблица 3. Поведение судей в данном пуле</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Судья</th>
+      <th class="center">№ 133</th>
+      <th class="center">№ 134</th>
+      <th class="center">№ 135</th>
+      <th class="center">№ 136</th>
+      <th class="center">Среднее по 4</th>
+      <th class="center">Δ к среднему по строкам</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Зубкова А. В.</td><td class="center">8,20</td><td class="center">8,40</td><td class="center">8,25</td><td class="center">8,30</td><td class="center">8,288</td><td class="center">−0,02</td></tr>
+    <tr><td>Иващенко О. К.</td><td class="center">8,30</td><td class="center">8,50</td><td class="center">8,35</td><td class="center">8,30</td><td class="center">8,363</td><td class="center">+0,05</td></tr>
+    <tr><td>Копылова В. С.</td><td class="center">8,20</td><td class="center">8,50</td><td class="center">8,45</td><td class="center">8,25</td><td class="center">8,363</td><td class="center">+0,05</td></tr>
+    <tr><td>Левина А. С.</td><td class="center">8,30</td><td class="center">8,55</td><td class="center">8,40</td><td class="center">8,25</td><td class="center">8,375</td><td class="center">+0,07</td></tr>
+    <tr><td>Мороз М. Г.</td><td class="center">8,25</td><td class="center">8,50</td><td class="center">8,20</td><td class="center">8,30</td><td class="center">8,313</td><td class="center">0,00</td></tr>
+    <tr><td>Семиразум В.</td><td class="center">8,20</td><td class="center">8,50</td><td class="center">8,50</td><td class="center">8,30</td><td class="center">8,363</td><td class="center">+0,05</td></tr>
+    <tr><td>Чёрный С. И.</td><td class="center">8,30</td><td class="center">8,60</td><td class="center">8,45</td><td class="center">8,20</td><td class="center">8,388</td><td class="center">+0,08</td></tr>
+    <tr class="highlight"><td>Щербаков А. Ю.</td><td class="center">8,15</td><td class="center">8,25</td><td class="center">8,20</td><td class="center">8,30</td><td class="center">8,225</td><td class="center">−0,09</td></tr>
+  </tbody>
+</table>
+
+<h3>Что видно из данных</h3>
+<ol>
+  <li><b>Щербаков А. Ю.</b> и здесь самый строгий — ставит ниже всех в трёх случаях из четырёх (№ 133, 134, 135). Его 8,25 у Левиной — единственная оценка ниже 8,40 у победительницы.</li>
+  <li><b>Чёрный С. И.</b> и <b>Левина А. С.</b> — наиболее «щедрые» в этом пуле.</li>
+  <li><b>Ушакова М. (№ 136)</b> — феномен высокой согласованности: разброс оценок всего <b>0,10</b> (8,20–8,30). Все восемь судей увидели её одинаково — самый «чистый» результат по единогласию.</li>
+  <li><b>Левина Варвара (№ 134)</b> получила максимум за счёт явного отрыва: 6 из 8 судей дали ≥ 8,50, и даже строгий Щербаков поставил 8,25 (что для него высокая оценка).</li>
+  <li><b>Кравчук (№ 135)</b> — самая «спорная»: разброс 8,20 (Мороз) — 8,50 (Семиразум), то есть <b>0,30 балла</b>. Стиль восприняли по-разному.</li>
+  <li><b>Мязина (№ 133)</b> — ровное, но чуть более низкое выступление: разброс всего 0,15, никто не дал «вау-балла».</li>
+</ol>
+
+<h3>Вывод по пулу 133–136</h3>
+<ul>
+  <li><b>Победа Левиной В.</b> — заслуженная и единогласная: она лидер по оценкам у 7 из 8 судей.</li>
+  <li><b>Серебро Кравчук Е.</b> удержано в основном благодаря двум высоким оценкам (Копылова и Семиразум — 8,45 / 8,50); часть судейской бригады поставила её ниже Ушаковой.</li>
+  <li><b>Ушакова М.</b> — самая «недооценённая по разбросу»: при идеальной согласованности получает только 3-е место. Это говорит о стабильном, но без яркости выступлении.</li>
+  <li><b>Влияние Щербакова</b> на итоговую таблицу в этом пуле минимальное, так как его строгость относительно равномерна для всех четырёх — порядок мест он не меняет.</li>
+</ul>
+
+<p class="footer-note">
+  Документ подготовлен на основе сводной таблицы оценок (164 выступления, 8 судей).<br>
+  Для сохранения в PDF: <b>Ctrl + P → Сохранить как PDF</b>.
+</p>
+
+</body>
+</html>
