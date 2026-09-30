@@ -15,11 +15,15 @@ class StyleResource extends Resource
     protected static ?string $model = Style::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-sparkles';
-    
+
     protected static ?string $navigationLabel = 'Виды программы';
+
     protected static ?string $modelLabel = 'Вид';
+
     protected static ?string $pluralModelLabel = 'Виды программы';
+
     protected static ?string $navigationGroup = 'Справочники';
+
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
@@ -30,14 +34,10 @@ class StyleResource extends Resource
                     ->required()
                     ->label('Название вида')
                     ->placeholder('Например: Чанцюань'),
-                    
+
                 Forms\Components\Select::make('category')
-                    ->options([
-                        // ИЗМЕНЕНИЕ 1: Список опций в форме
-                        'taolu' => 'Таолу (Комплексы)',
-                        'traditional' => 'Традиционное ушу',
-                        'yongchun' => 'Юнчуньцюань', 
-                    ])
+                    // Единый канон названий категорий — константа Style::CATEGORIES
+                    ->options(Style::CATEGORIES)
                     ->required()
                     ->default('taolu')
                     ->label('Категория'),
@@ -74,24 +74,16 @@ class StyleResource extends Resource
                         'info' => 'traditional',
                         'warning' => 'yongchun', // Дадим Юнчуню желтый/оранжевый цвет
                     ])
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        // ИЗМЕНЕНИЕ 3: Перевод названия в таблице
-                        'taolu' => 'Таолу',
-                        'traditional' => 'Традиционное',
-                        'yongchun' => 'Юнчуньцюань',
-                        default => $state,
-                    })
+                    // Единый канон названий категорий — константа Style::CATEGORIES
+                    ->formatStateUsing(fn (string $state): string => Style::categoryLabel($state))
                     ->label('Категория'),
             ])
             ->defaultSort('sort_order', 'asc')
             ->filters([
                 // ИЗМЕНЕНИЕ 4: Фильтр справа
                 Tables\Filters\SelectFilter::make('category')
-                    ->options([
-                        'taolu' => 'Таолу',
-                        'traditional' => 'Традиционное',
-                        'yongchun' => 'Юнчуньцюань',
-                    ])
+                    // Единый канон названий категорий — константа Style::CATEGORIES
+                    ->options(Style::CATEGORIES)
                     ->label('Категория'),
             ])
             ->actions([

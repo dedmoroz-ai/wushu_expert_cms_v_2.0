@@ -6,14 +6,14 @@ use App\Filament\Resources\RegistrationResource\Pages;
 use App\Models\Competition;
 use App\Models\Registration;
 use App\Models\Style;
+use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
-use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
 class RegistrationResource extends Resource
@@ -21,10 +21,15 @@ class RegistrationResource extends Resource
     protected static ?string $model = Registration::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+
     protected static ?string $navigationLabel = 'Заявки';
+
     protected static ?string $modelLabel = 'Заявка';
+
     protected static ?string $pluralModelLabel = 'Заявки';
+
     protected static ?string $navigationGroup = 'Турнир';
+
     protected static ?int $navigationSort = 5;
 
     public static function getEloquentQuery(): Builder
@@ -46,23 +51,30 @@ class RegistrationResource extends Resource
         $maxEventsRule = function (Get $get) {
             return function (string $attribute, $value, Closure $fail) use ($get) {
                 $competitionId = $get('competition_id');
-                if (!$competitionId) return;
+                if (! $competitionId) {
+                    return;
+                }
 
                 $competition = Competition::find($competitionId);
-                if (!$competition) return;
-                
-                $limit = $competition->max_events ?? 2; 
+                if (! $competition) {
+                    return;
+                }
+
+                $limit = $competition->max_events ?? 2;
 
                 $taolu = $get('events_taolu_virtual') ?? [];
                 $trad = $get('events_trad_virtual') ?? [];
-                
-                $allSelectedIds = array_unique(array_merge($taolu, $trad));
-                
-                if (empty($allSelectedIds)) return;
+                $yongchun = $get('events_yongchun_virtual') ?? [];
+
+                $allSelectedIds = array_unique(array_merge($taolu, $trad, $yongchun));
+
+                if (empty($allSelectedIds)) {
+                    return;
+                }
 
                 // Лимит: Дуйлянь не считается
                 $duilianCount = Style::whereIn('id', $allSelectedIds)
-                    ->where('name', 'like', '%Дуйлянь%') 
+                    ->where('name', 'like', '%Дуйлянь%')
                     ->count();
 
                 $totalCount = count($allSelectedIds);
@@ -79,7 +91,9 @@ class RegistrationResource extends Resource
         // либо оба «O», либо оба не «O».
         $partnerSpecialRule = function (Get $get) {
             return function (string $attribute, $value, Closure $fail) use ($get) {
-                if (!$value) return;
+                if (! $value) {
+                    return;
+                }
 
                 $main = \App\Models\Athlete::find($get('athlete_id'));
                 $partner = \App\Models\Athlete::find($value);
@@ -107,6 +121,7 @@ class RegistrationResource extends Resource
                                 if (auth()->user()->club_id) {
                                     return $query->where('club_id', auth()->user()->club_id);
                                 }
+
                                 return $query;
                             })
                             ->label('Спортсмен')
@@ -129,17 +144,17 @@ class RegistrationResource extends Resource
                             ->default(false),
                     ])->columns(2),
 
-                // --- СЕКЦИЯ 1: ТАОЛУ ---
-                Forms\Components\Section::make('Спортивное Ушу (Таолу)')
+                // --- СЕКЦИЯ 1: ТАОЛУ (Комплексы) ---
+                Forms\Components\Section::make(Style::CATEGORIES['taolu'])
                     ->collapsible()
                     ->schema([
                         Forms\Components\CheckboxList::make('events_taolu_virtual')
                             ->hiddenLabel()
                             ->options(
                                 Style::where('category', 'taolu')
-                                     ->orderBy('sort_order', 'asc')
-                                     ->orderBy('name', 'asc')
-                                     ->pluck('name', 'id')
+                                    ->orderBy('sort_order', 'asc')
+                                    ->orderBy('name', 'asc')
+                                    ->pluck('name', 'id')
                             )
                             ->columns(1)
                             ->extraAttributes([
@@ -152,17 +167,40 @@ class RegistrationResource extends Resource
                             ->rules([$maxEventsRule]),
                     ]),
 
-                // --- СЕКЦИЯ 2: ТРАДИЦИОННОЕ ---
-                Forms\Components\Section::make('Традиционное Ушу')
+                // --- СЕКЦИЯ 2: ТРАДИЦИОННОЕ УШУ ---
+                Forms\Components\Section::make(Style::CATEGORIES['traditional'])
                     ->collapsible()
                     ->schema([
                         Forms\Components\CheckboxList::make('events_trad_virtual')
                             ->hiddenLabel()
                             ->options(
                                 Style::where('category', 'traditional')
-                                     ->orderBy('sort_order', 'asc')
-                                     ->orderBy('name', 'asc')
-                                     ->pluck('name', 'id')
+                                    ->orderBy('sort_order', 'asc')
+                                    ->orderBy('name', 'asc')
+                                    ->pluck('name', 'id')
+                            )
+                            ->columns(1)
+                            ->extraAttributes([
+                                'style' => 'column-count: 3; column-gap: 2rem; display: block;',
+                                'class' => '[&_label]:break-inside-avoid [&_label]:mb-2',
+                            ])
+                            ->bulkToggleable()
+                            ->searchable()
+                            ->live()
+                            ->rules([$maxEventsRule]),
+                    ]),
+
+                // --- СЕКЦИЯ 3: ЮНЧУНЬЦЮАНЬ ---
+                Forms\Components\Section::make(Style::CATEGORIES['yongchun'])
+                    ->collapsible()
+                    ->schema([
+                        Forms\Components\CheckboxList::make('events_yongchun_virtual')
+                            ->hiddenLabel()
+                            ->options(
+                                Style::where('category', 'yongchun')
+                                    ->orderBy('sort_order', 'asc')
+                                    ->orderBy('name', 'asc')
+                                    ->pluck('name', 'id')
                             )
                             ->columns(1)
                             ->extraAttributes([
@@ -194,15 +232,19 @@ class RegistrationResource extends Resource
                                 if ($currentAthleteId) {
                                     $query->where('id', '!=', $currentAthleteId);
                                 }
+
                                 return $query->pluck('name', 'id');
                             }),
                     ])
                     ->visible(function (Get $get) {
                         $taolu = $get('events_taolu_virtual') ?? [];
                         $trad = $get('events_trad_virtual') ?? [];
-                        $allSelectedIds = array_merge($taolu, $trad);
+                        $yongchun = $get('events_yongchun_virtual') ?? [];
+                        $allSelectedIds = array_merge($taolu, $trad, $yongchun);
 
-                        if (empty($allSelectedIds)) return false;
+                        if (empty($allSelectedIds)) {
+                            return false;
+                        }
 
                         // Показываем, если есть слово "Дуйлянь"
                         return Style::whereIn('id', $allSelectedIds)
@@ -229,15 +271,19 @@ class RegistrationResource extends Resource
                                 if ($currentAthleteId) {
                                     $query->where('id', '!=', $currentAthleteId);
                                 }
+
                                 return $query->pluck('name', 'id');
                             }),
                     ])
                     ->visible(function (Get $get) {
                         $taolu = $get('events_taolu_virtual') ?? [];
                         $trad = $get('events_trad_virtual') ?? [];
-                        $allSelectedIds = array_merge($taolu, $trad);
+                        $yongchun = $get('events_yongchun_virtual') ?? [];
+                        $allSelectedIds = array_merge($taolu, $trad, $yongchun);
 
-                        if (empty($allSelectedIds)) return false;
+                        if (empty($allSelectedIds)) {
+                            return false;
+                        }
 
                         // Показываем, если есть слово "Дуйда"
                         return Style::whereIn('id', $allSelectedIds)
@@ -278,7 +324,7 @@ class RegistrationResource extends Resource
                     ->label('Группа O')
                     ->boolean()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 Tables\Columns\TextColumn::make('athlete.club.name')
                     ->label('Клуб')
                     ->wrap()
@@ -289,7 +335,7 @@ class RegistrationResource extends Resource
                     ->weight('black')
                     ->sortable()
                     ->searchable()
-                    ->placeholder('-'), 
+                    ->placeholder('-'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime('d.m.Y')
@@ -303,8 +349,8 @@ class RegistrationResource extends Resource
 
                 Tables\Filters\SelectFilter::make('age_group_label')
                     ->label('Категория')
-                    ->options(fn() => Registration::distinct()->pluck('age_group_label', 'age_group_label')->toArray()),
-                
+                    ->options(fn () => Registration::distinct()->pluck('age_group_label', 'age_group_label')->toArray()),
+
                 Tables\Filters\SelectFilter::make('style')
                     ->relationship('style', 'name')
                     ->label('Дисциплина')

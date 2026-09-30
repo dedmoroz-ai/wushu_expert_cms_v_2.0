@@ -10,14 +10,14 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('styles', function (Blueprint $table) {
-        $table->id();
-        $table->string('name'); // Название (напр. Чанцюань)
-        $table->string('category')->default('taolu'); // Тип (taolu или sanda)
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('styles', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // Название (напр. Чанцюань)
+            $table->string('category')->default('taolu'); // Категория: taolu / traditional / yongchun (см. Style::CATEGORIES)
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

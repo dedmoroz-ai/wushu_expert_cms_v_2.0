@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Style;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class StyleSeeder extends Seeder
@@ -46,12 +45,13 @@ class StyleSeeder extends Seeder
             ['name' => 'Традиционное ушу Тайцзицюань', 'category' => 'traditional'],
 
             // --- ЮНЧУНЬЦЮАНЬ (Вин Чунь) ---
-            ['name' => 'Юнчуньцюань - Традиционные формы', 'category' => 'traditional'],
-            ['name' => 'Юнчуньцюань - Мужэньчжуан', 'category' => 'traditional'],
-            ['name' => 'Юнчуньцюань - Гуйдин', 'category' => 'traditional'],
-            ['name' => 'Юнчуньцюань - Гуйдин Дуйда', 'category' => 'traditional'],
-            ['name' => 'Юнчуньцюань - Гунь', 'category' => 'traditional'],
-            ['name' => 'Юнчуньцюань - Шуандао', 'category' => 'traditional'],
+            // Стандартизация категорий: раньше ошибочно лежали в 'traditional'.
+            ['name' => 'Юнчуньцюань - Традиционные формы', 'category' => 'yongchun'],
+            ['name' => 'Юнчуньцюань - Мужэньчжуан', 'category' => 'yongchun'],
+            ['name' => 'Юнчуньцюань - Гуйдин', 'category' => 'yongchun'],
+            ['name' => 'Юнчуньцюань - Гуйдин Дуйда', 'category' => 'yongchun'],
+            ['name' => 'Юнчуньцюань - Гунь', 'category' => 'yongchun'],
+            ['name' => 'Юнчуньцюань - Шуандао', 'category' => 'yongchun'],
         ];
 
         foreach ($styles as $style) {

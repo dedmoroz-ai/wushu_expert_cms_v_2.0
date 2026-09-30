@@ -7,9 +7,9 @@ use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Competition;
 use App\Models\Style;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
-use Filament\Notifications\Notification;
 
 class CreateRegistration extends CreateRecord
 {
@@ -20,26 +20,28 @@ class CreateRegistration extends CreateRecord
         // 1. Сборка массива стилей
         $taolu = $data['events_taolu_virtual'] ?? [];
         $trad = $data['events_trad_virtual'] ?? [];
-        
-        $selectedStyleIds = array_unique(array_merge($taolu, $trad));
+        $yongchun = $data['events_yongchun_virtual'] ?? [];
+
+        $selectedStyleIds = array_unique(array_merge($taolu, $trad, $yongchun));
 
         // --- ЛОГИКА ПАРТНЕРОВ (Берем из разных полей) ---
         $partnerForDuilian = $data['partner_duilian_virtual'] ?? null;
-        $partnerForDuida   = $data['partner_duida_virtual'] ?? null;
-        
+        $partnerForDuida = $data['partner_duida_virtual'] ?? null;
+
         // Удаляем лишние поля, чтобы не мешали при create()
         unset($data['events_taolu_virtual']);
         unset($data['events_trad_virtual']);
-        unset($data['events']); 
+        unset($data['events_yongchun_virtual']);
+        unset($data['events']);
         unset($data['partner_duilian_virtual']); // Чистим виртуалки
         unset($data['partner_duida_virtual']);   // Чистим виртуалки
         // partner_id тоже чистим, так как мы его будем назначать вручную ниже
-        unset($data['partner_id']); 
+        unset($data['partner_id']);
 
         // 2. ОПРЕДЕЛЕНИЕ ВОЗРАСТНОЙ ГРУППЫ
         $athlete = Athlete::find($data['athlete_id']);
         $competition = Competition::find($data['competition_id']);
-        
+
         $data['age_group_id'] = null;
         $data['age_group_label'] = 'Не определено';
 
@@ -63,7 +65,7 @@ class CreateRegistration extends CreateRecord
         // 3. СОХРАНЕНИЕ (Цикл по стилям)
         foreach ($selectedStyleIds as $styleId) {
             $singleRowData = $data;
-            $singleRowData['style_id'] = $styleId; 
+            $singleRowData['style_id'] = $styleId;
             $singleRowData['status'] = 0;
 
             // --- УМНЫЙ ВЫБОР ПАРТНЕРА ---
@@ -72,7 +74,7 @@ class CreateRegistration extends CreateRecord
 
             if ($style) {
                 $styleName = mb_strtolower($style->name);
-                
+
                 // Если это Дуйлянь — берем партнера из поля для Дуйлянь
                 if (str_contains($styleName, 'дуйлянь')) {
                     $targetPartnerId = $partnerForDuilian;
@@ -82,7 +84,7 @@ class CreateRegistration extends CreateRecord
                     $targetPartnerId = $partnerForDuida;
                 }
             }
-            
+
             // Присваиваем правильного партнера (или NULL, если вид одиночный)
             $singleRowData['partner_id'] = $targetPartnerId;
             // ---------------------------
@@ -90,8 +92,8 @@ class CreateRegistration extends CreateRecord
             $record = static::getModel()::firstOrCreate(
                 [
                     'competition_id' => $singleRowData['competition_id'],
-                    'athlete_id'     => $singleRowData['athlete_id'],
-                    'style_id'       => $styleId,
+                    'athlete_id' => $singleRowData['athlete_id'],
+                    'style_id' => $styleId,
                 ],
                 $singleRowData
             );
@@ -114,9 +116,9 @@ class CreateRegistration extends CreateRecord
         }
 
         // Если вообще ничего не выбрали (редкий случай), создаем пустышку
-        if (!$record) {
-             $data['partner_id'] = null;
-             $record = static::getModel()::create($data); 
+        if (! $record) {
+            $data['partner_id'] = null;
+            $record = static::getModel()::create($data);
         }
 
         Notification::make()
@@ -147,15 +149,27 @@ class CreateRegistration extends CreateRecord
 
     protected function calculateManualLabel($athlete, $age)
     {
-        $genderRaw = mb_strtolower($athlete->gender ?? ''); 
+        $genderRaw = mb_strtolower($athlete->gender ?? '');
         $isMale = in_array($genderRaw, ['male', 'm', 'man', 'мужской', 'муж', 'м']);
 
-        if ($age < 9) return $isMale ? "Мальчики (до 9 лет)" : "Девочки (до 9 лет)";
-        if ($age >= 9 && $age <= 11) return $isMale ? "Мальчики (9-11 лет)" : "Девочки (9-11 лет)";
-        if ($age >= 12 && $age <= 14) return $isMale ? "Юноши (12-14 лет)" : "Девушки (12-14 лет)";
-        if ($age >= 15 && $age <= 17) return $isMale ? "Юниоры (15-17 лет)" : "Юниорки (15-17 лет)";
-        if ($age >= 18 && $age <= 35) return $isMale ? "Мужчины (18-35 лет)" : "Женщины (18-35 лет)";
-        if ($age >= 36) return $isMale ? "Ветераны (36+ лет)" : "Ветераны-женщины (36+ лет)";
+        if ($age < 9) {
+            return $isMale ? 'Мальчики (до 9 лет)' : 'Девочки (до 9 лет)';
+        }
+        if ($age >= 9 && $age <= 11) {
+            return $isMale ? 'Мальчики (9-11 лет)' : 'Девочки (9-11 лет)';
+        }
+        if ($age >= 12 && $age <= 14) {
+            return $isMale ? 'Юноши (12-14 лет)' : 'Девушки (12-14 лет)';
+        }
+        if ($age >= 15 && $age <= 17) {
+            return $isMale ? 'Юниоры (15-17 лет)' : 'Юниорки (15-17 лет)';
+        }
+        if ($age >= 18 && $age <= 35) {
+            return $isMale ? 'Мужчины (18-35 лет)' : 'Женщины (18-35 лет)';
+        }
+        if ($age >= 36) {
+            return $isMale ? 'Ветераны (36+ лет)' : 'Ветераны-женщины (36+ лет)';
+        }
 
         return "Категория ($age лет)";
     }
