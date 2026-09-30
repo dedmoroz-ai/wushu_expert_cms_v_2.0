@@ -3,6 +3,12 @@
         $competitions = $this->getCompetitionsList();
         $matrix = $this->getMatrix();
         $competition = $this->getCompetition();
+        $isAb = $matrix['isAb'] ?? false;
+        $groupLabels = [
+            \App\Models\Competition::PANEL_A => 'Панель A — качество исполнения (сбавки)',
+            \App\Models\Competition::PANEL_B => 'Панель B — общее впечатление',
+            \App\Support\ScoresSummaryMatrix::GROUP_NONE => 'Без функции (в расчёте не участвуют)',
+        ];
     @endphp
 
     <form method="GET" class="mb-8 no-print">
@@ -59,6 +65,7 @@
                 @if($competition->start_date)
                     — {{ \Illuminate\Support\Carbon::parse($competition->start_date)->format('d.m.Y') }}
                 @endif
+                — схема судейства: {{ $isAb ? 'A/B (панели A и B)' : 'простая' }}
             </div>
         </div>
 
@@ -123,8 +130,17 @@
 
             .cell-min { background: #dbeafe !important; color: #1e40af !important; font-weight: 600; }
             .cell-max { background: #d1fae5 !important; color: #065f46 !important; font-weight: 600; }
+            .cell-na  { background: #e5e7eb; color: #6b7280; }
             .dark .cell-min { background: rgba(30, 58, 138, 0.5) !important; color: #bfdbfe !important; }
             .dark .cell-max { background: rgba(6, 95, 70, 0.5) !important; color: #a7f3d0 !important; }
+            .dark .cell-na  { background: rgba(75, 85, 99, 0.5); color: #9ca3af; }
+
+            .col-group {
+                text-align: center;
+                background: #e5e7eb;
+                font-weight: 700;
+            }
+            .dark .col-group { background: #374151; }
 
             .scores-table tbody tr:hover { background: #f9fafb; }
             .dark .scores-table tbody tr:hover { background: #111827; }
@@ -258,19 +274,47 @@
         <div class="scores-scroll bg-white dark:bg-gray-900 shadow">
             <table class="scores-table">
                 <thead>
-                    <tr>
-                        <th class="col-num">№</th>
-                        <th class="col-name" style="text-align:left">Спортсмен / Пара</th>
-                        <th class="col-club" style="text-align:left">Клуб</th>
-                        <th class="col-style" style="text-align:left">Стиль</th>
-                        @foreach($matrix['judges'] as $judge)
-                            <th class="col-judge">
-                                <span class="judge-name">{{ $judge->name }}</span>
-                            </th>
-                        @endforeach
-                        <th class="col-avg">Среднее</th>
-                        <th class="col-final">Итог</th>
-                    </tr>
+                    @if($isAb)
+                        <tr>
+                            <th class="col-num" rowspan="2">№</th>
+                            <th class="col-name" rowspan="2" style="text-align:left">Спортсмен / Пара</th>
+                            <th class="col-club" rowspan="2" style="text-align:left">Клуб</th>
+                            <th class="col-style" rowspan="2" style="text-align:left">Стиль</th>
+                            @foreach($matrix['groupsOrder'] as $g)
+                                @if(count($matrix['judgesByGroup'][$g]) > 0)
+                                    <th class="col-group" colspan="{{ count($matrix['judgesByGroup'][$g]) + 1 }}">{{ $groupLabels[$g] }}</th>
+                                @endif
+                            @endforeach
+                            <th class="col-avg" rowspan="2">Расчёт (A+B)</th>
+                            <th class="col-final" rowspan="2">Итог</th>
+                        </tr>
+                        <tr>
+                            @foreach($matrix['groupsOrder'] as $g)
+                                @foreach($matrix['judgesByGroup'][$g] as $judge)
+                                    <th class="col-judge">
+                                        <span class="judge-name">{{ $judge->name }}</span>
+                                    </th>
+                                @endforeach
+                                @if(count($matrix['judgesByGroup'][$g]) > 0)
+                                    <th class="col-avg">Ср. {{ $g }}</th>
+                                @endif
+                            @endforeach
+                        </tr>
+                    @else
+                        <tr>
+                            <th class="col-num">№</th>
+                            <th class="col-name" style="text-align:left">Спортсмен / Пара</th>
+                            <th class="col-club" style="text-align:left">Клуб</th>
+                            <th class="col-style" style="text-align:left">Стиль</th>
+                            @foreach($matrix['judgesByGroup'][\App\Support\ScoresSummaryMatrix::GROUP_NONE] as $judge)
+                                <th class="col-judge">
+                                    <span class="judge-name">{{ $judge->name }}</span>
+                                </th>
+                            @endforeach
+                            <th class="col-avg">Среднее</th>
+                            <th class="col-final">Итог</th>
+                        </tr>
+                    @endif
                 </thead>
                 <tbody>
                     @foreach($matrix['rows'] as $i => $row)
@@ -282,54 +326,50 @@
                                 if ($partnerName) $athleteName .= ' / ' . $partnerName;
                             }
                             $club = $reg->athlete?->club?->name ?? '—';
-
-                            $values = array_filter($row['cells'], fn($v) => $v !== null);
-                            $minJudgeId = null;
-                            $maxJudgeId = null;
-                            if (count($values) >= 3) {
-                                $minVal = min($values);
-                                foreach ($row['cells'] as $jid => $v) {
-                                    if ($v !== null && (float)$v === (float)$minVal) {
-                                        $minJudgeId = $jid;
-                                        break;
-                                    }
-                                }
-                                $maxVal = max($values);
-                                foreach ($row['cells'] as $jid => $v) {
-                                    if ($v !== null && (float)$v === (float)$maxVal && $jid !== $minJudgeId) {
-                                        $maxJudgeId = $jid;
-                                        break;
-                                    }
-                                }
-                            }
                         @endphp
                         <tr>
                             <td class="col-num">{{ $i + 1 }}</td>
                             <td class="col-name">{{ $athleteName }}</td>
                             <td class="col-club">{{ $club }}</td>
                             <td class="col-style">{{ $reg->style?->name ?? '—' }}</td>
-                            @foreach($matrix['judges'] as $judge)
-                                @php
-                                    $val = $row['cells'][$judge->id] ?? null;
-                                    $level = \App\Filament\Pages\ScoresSummary::deviationLevel($val, $row['avg']);
-                                    $cls = match($level) {
-                                        'danger' => 'cell-danger',
-                                        'warn'   => 'cell-warn',
-                                        default  => '',
-                                    };
-                                    if ($judge->id === $minJudgeId) {
-                                        $cls = 'cell-min';
-                                    } elseif ($judge->id === $maxJudgeId) {
-                                        $cls = 'cell-max';
-                                    }
-                                @endphp
-                                <td class="col-judge {{ $cls }}">
-                                    {{ $val !== null ? number_format($val, 2, '.', '') : '—' }}
-                                </td>
+                            @foreach($matrix['groupsOrder'] as $g)
+                                @foreach($matrix['judgesByGroup'][$g] as $judge)
+                                    @php
+                                        $val = $row['cells'][$judge->id] ?? null;
+                                        $isCounted = $row['counted'][$judge->id] ?? false;
+                                        $gStats = $row['groups'][$g];
+                                        $cls = '';
+                                        if ($val !== null && ! $isCounted) {
+                                            $cls = 'cell-na';
+                                        } elseif ($val !== null) {
+                                            $level = \App\Filament\Pages\ScoresSummary::deviationLevel($val, $gStats['avg']);
+                                            $cls = match($level) {
+                                                'danger' => 'cell-danger',
+                                                'warn'   => 'cell-warn',
+                                                default  => '',
+                                            };
+                                            if ($judge->id === $gStats['minJudgeId']) {
+                                                $cls = 'cell-min';
+                                            } elseif ($judge->id === $gStats['maxJudgeId']) {
+                                                $cls = 'cell-max';
+                                            }
+                                        }
+                                    @endphp
+                                    <td class="col-judge {{ $cls }}">
+                                        {{ $val !== null ? number_format($val, 2, '.', '') : '—' }}
+                                    </td>
+                                @endforeach
+                                @if(count($matrix['judgesByGroup'][$g]) > 0)
+                                    <td class="col-avg">
+                                        {{ $row['groups'][$g]['avg'] !== null ? number_format($row['groups'][$g]['avg'], 3, '.', '') : '—' }}
+                                    </td>
+                                @endif
                             @endforeach
-                            <td class="col-avg">
-                                {{ $row['avg'] !== null ? number_format($row['avg'], 3, '.', '') : '—' }}
-                            </td>
+                            @if($isAb)
+                                <td class="col-avg">
+                                    {{ $row['avg'] !== null ? number_format($row['avg'], 3, '.', '') : '—' }}
+                                </td>
+                            @endif
                             <td class="col-final">
                                 {{ $row['final'] !== null ? number_format($row['final'], 3, '.', '') : '—' }}
                             </td>
@@ -344,6 +384,10 @@
             <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#d1fae5"></span> максимум (отброшен)</span>
             <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#fef3c7"></span> отклонение ≥ 0.10</span>
             <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#fee2e2"></span> отклонение ≥ 0.20</span>
+            @if($isAb)
+                <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#e5e7eb"></span> не учтена (выставлена не в своей функции)</span>
+                <span>Итог A/B = «Ср. A» + «Ср. B»; мин./макс. отбрасываются в каждой панели отдельно.</span>
+            @endif
         </div>
     @endif
 </x-filament-panels::page>
