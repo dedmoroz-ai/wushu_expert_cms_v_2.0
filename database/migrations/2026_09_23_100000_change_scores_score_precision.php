@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -20,6 +21,34 @@ return new class extends Migration
     {
         if (!Schema::hasTable('scores') || !Schema::hasColumn('scores', 'score')) {
             return;
+        }
+
+        // Боевая база 29.09.2026 (репетиция слияния): одна строка с опечаткой
+        // пропущенной точки — 835.0000 вместо 8.35 (ввод на пульте до фиксов
+        // точности). Значение вне домена 0.000–10.000 не влезает в numeric(5,3)
+        // и роняло ALTER (numeric field overflow). Опечатки точки исправляем
+        // делением на 10 до вхождения в домен (835 → 83.5 → 8.35); это
+        // НЕ меняет итоги турниров: трим-среднее отбрасывает такой выброс
+        // как максимум (заявка 448: final_score 8.2470 одинаков и при 835,
+        // и при 8.35). Удаление строки НЕЛЬЗЯ — изменило бы результат.
+        $bad = DB::table('scores')
+            ->where('score', '>', 10)
+            ->orWhere('score', '<', 0)
+            ->get(['id', 'score']);
+
+        foreach ($bad as $row) {
+            $value = (float) $row->score;
+            while ($value > 10.0) {
+                $value /= 10;
+            }
+            if ($value < 0) {
+                $value = 0.0;
+            }
+            DB::table('scores')->where('id', $row->id)->update(['score' => round($value, 3)]);
+        }
+
+        if ($bad->isNotEmpty()) {
+            echo 'change_scores_score_precision: исправлено опечаток пропущенной точки: '.$bad->count().PHP_EOL;
         }
 
         Schema::table('scores', function (Blueprint $table) {

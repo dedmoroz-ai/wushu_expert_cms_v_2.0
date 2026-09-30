@@ -11,7 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Гости на маршрутах с middleware `auth` → на вход Filament (админка).
+        // Без этого Laravel редиректует на несуществующий маршрут `login`
+        // (Route [login] not defined → 500) — дефект майской волны,
+        // пойман репетицией слияния 30.09.2026 на `/competition/{id}/scores-summary`.
+        $middleware->redirectGuestsTo(fn () => route('filament.admin.auth.login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
