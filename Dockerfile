@@ -5,11 +5,10 @@ WORKDIR /var/www/html
 USER root
 
 # ИСПРАВЛЕНИЕ: Используем специальный установщик расширений.
-# Он работает надежнее, чем apt-get для новых версий PHP.
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-# Устанавливаем intl через этот скрипт
-RUN install-php-extensions intl
+# ДОБАВИЛ 'gd' СЮДА (для работы с картинками и PDF)
+RUN install-php-extensions intl gd
 
 COPY . .
 

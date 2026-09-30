@@ -27,7 +27,6 @@ class JudgeResource extends Resource
         return parent::getEloquentQuery()->whereIn('role', ['judge', 'head_judge']);
     }
 
-    // ВАЖНО: Добавлено слово static
     public static function form(Form $form): Form
     {
         return $form
@@ -60,6 +59,21 @@ class JudgeResource extends Resource
                     ->default('judge')
                     ->required(),
 
+                // --- НОВОЕ: КАТЕГОРИЯ СУДЬИ ---
+                Forms\Components\Select::make('judge_category')
+                    ->label('Судейская категория')
+                    ->options([
+                        'ССМК' => 'Международная категория (ССМК)',
+                        'ССВК' => 'Всероссийская категория (ССВК)',
+                        'СС1К' => 'Первая категория (СС1К)',
+                        'СС2К' => 'Вторая категория (СС2К)',
+                        'СС3К' => 'Третья категория (СС3К)',
+                        'ЮС'   => 'Юный судья (ЮС)',
+                    ])
+                    ->helperText('Категория, присвоенная судье')
+                    ->searchable()
+                    ->nullable(),
+
                 Forms\Components\Toggle::make('is_active_judge')
                     ->label('Допущен к судейству (Активен)')
                     ->helperText('Включите, чтобы судья мог войти в пульт.')
@@ -68,7 +82,6 @@ class JudgeResource extends Resource
             ]);
     }
 
-    // ВАЖНО: Добавлено слово static
     public static function table(Table $table): Table
     {
         return $table
@@ -95,9 +108,50 @@ class JudgeResource extends Resource
                         default => $state,
                     }),
 
+                // --- НОВАЯ КОЛОНКА: КАТЕГОРИЯ ---
+                Tables\Columns\TextColumn::make('judge_category')
+                    ->label('Категория')
+                    ->badge()
+                    ->placeholder('—')
+                    ->sortable()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'ССМК' => 'success',   // зелёный — международная
+                        'ССВК' => 'success',   // зелёный — высшая
+                        'СС1К' => 'warning',   // оранжевый — первая
+                        'СС2К' => 'info',      // синий — вторая
+                        'СС3К' => 'gray',      // серый — третья
+                        'ЮС'   => 'gray',      // юный судья
+                        default => 'gray',
+                    }),
+
                 Tables\Columns\IconColumn::make('is_active_judge')
                     ->label('Активен')
                     ->boolean(),
+            ])
+            ->filters([
+                // --- НОВЫЙ ФИЛЬТР: ПО КАТЕГОРИИ ---
+                Tables\Filters\SelectFilter::make('judge_category')
+                    ->label('Категория')
+                    ->options([
+                        'ССМК' => 'ССМК',
+                        'ССВК' => 'ССВК',
+                        'СС1К' => 'СС1К',
+                        'СС2К' => 'СС2К',
+                        'СС3К' => 'СС3К',
+                        'ЮС'   => 'ЮС',
+                    ]),
+
+                // --- ФИЛЬТР ПО РОЛИ ---
+                Tables\Filters\SelectFilter::make('role')
+                    ->label('Роль')
+                    ->options([
+                        'judge' => 'Линейный судья',
+                        'head_judge' => 'Старший судья',
+                    ]),
+
+                // --- ФИЛЬТР ПО АКТИВНОСТИ ---
+                Tables\Filters\TernaryFilter::make('is_active_judge')
+                    ->label('Активен'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

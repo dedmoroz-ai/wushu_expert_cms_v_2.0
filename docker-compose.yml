@@ -8,24 +8,45 @@ services:
     container_name: wushu_app
     restart: always
     environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - APP_KEY=${APP_KEY}
-      - APP_URL=${APP_URL}
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=redis
-      - PHP_POST_MAX_SIZE=20M
-      - PHP_UPLOAD_MAX_FILESIZE=20M
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${APP_URL}
+      # ВАЖНО: Доверяем прокси, чтобы HTTPS работал
+      TRUSTED_PROXIES: "*" 
+      ASSET_URL: ${APP_URL}
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      PHP_POST_MAX_SIZE: 64M
+      PHP_UPLOAD_MAX_FILESIZE: 64M
+      NGINX_CLIENT_MAX_BODY_SIZE: 64M
     depends_on:
       - db
       - redis
     volumes:
+      # ВОТ ОНА, НЕДОСТАЮЩАЯ СТРОКА! Теперь PHP пишет прямо к тебе на диск
+      - ./public:/var/www/html/public
       - ./storage/app/public:/var/www/html/storage/app/public
+
+  caddy:
+    image: caddy:alpine
+    container_name: wushu_caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./public:/var/www/html/public
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
 
   db:
     image: postgres:17
@@ -48,3 +69,5 @@ services:
 volumes:
   db_data:
   redis_data:
+  caddy_data:
+  caddy_config:

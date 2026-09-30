@@ -14,12 +14,12 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-users'; // Поменял иконку на "люди"
+    protected static ?string $navigationIcon = 'heroicon-o-users';
     protected static ?string $navigationLabel = 'Пользователи';
     protected static ?string $modelLabel = 'Пользователь';
     protected static ?string $pluralModelLabel = 'Пользователи';
     protected static ?string $navigationGroup = 'Управление';
-    protected static ?int $navigationSort = 1; // Поднимем повыше в меню
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
@@ -40,18 +40,31 @@ class UserResource extends Resource
                         Forms\Components\TextInput::make('password')
                             ->label('Пароль')
                             ->password()
-                            // Логика пароля: обновляем хеш только если поле заполнено
                             ->dehydrated(fn ($state) => filled($state))
-                            // Обязателен только при создании нового пользователя
                             ->required(fn (string $context): bool => $context === 'create'),
 
-                        // --- ВЫБОР КЛУБА (САМОЕ ВАЖНОЕ) ---
+                        // --- ВЫБОР КЛУБА ---
                         Forms\Components\Select::make('club_id')
                             ->relationship('club', 'name')
                             ->label('Клуб')
                             ->helperText('Если оставить пустым — пользователь будет полным АДМИНИСТРАТОРОМ')
                             ->searchable()
                             ->preload(),
+
+                        // --- КАТЕГОРИЯ СУДЬИ ---
+                        Forms\Components\Select::make('judge_category')
+                            ->label('Судейская категория')
+                            ->options([
+                                'ССВК' => 'Всероссийская категория (ССВК)',
+                                'СС1К' => 'Первая категория (СС1К)',
+                                'СС2К' => 'Вторая категория (СС2К)',
+                                'СС3К' => 'Третья категория (СС3К)',
+                                'ЮС'   => 'Юный судья (ЮС)',
+                                'ССМК' => 'Международная категория (ССМК)',
+                            ])
+                            ->helperText('Категория, присвоенная судье')
+                            ->searchable()
+                            ->nullable(),
                     ])->columns(2),
             ]);
     }
@@ -70,10 +83,19 @@ class UserResource extends Resource
                 // Показываем клуб. Если пусто — пишем "Администратор"
                 Tables\Columns\TextColumn::make('club.name')
                     ->label('Клуб / Роль')
-                    ->placeholder('Администратор') // Текст, если club_id = null
+                    ->placeholder('Администратор')
                     ->sortable()
-                    ->badge() // Делаем красивым значком
-                    ->color(fn ($state) => $state ? 'info' : 'danger'), // Админы - красные, Тренеры - синие
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'info' : 'danger'),
+
+                // --- КАТЕГОРИЯ СУДЬИ ---
+                Tables\Columns\TextColumn::make('judge_category')
+                    ->label('Категория')
+                    ->placeholder('—')
+                    ->badge()
+                    ->color('success')
+                    ->sortable()
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime('d.m.Y H:i')
@@ -82,10 +104,20 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // Можно добавить фильтр "Показать только админов" или "Показать клуб"
                 Tables\Filters\SelectFilter::make('club')
                     ->relationship('club', 'name')
                     ->label('Клуб'),
+
+                Tables\Filters\SelectFilter::make('judge_category')
+                    ->label('Категория судьи')
+                    ->options([
+                        'ССВК' => 'ССВК',
+                        'СС1К' => 'СС1К',
+                        'СС2К' => 'СС2К',
+                        'СС3К' => 'СС3К',
+                        'ЮС'   => 'ЮС',
+                        'ССМК' => 'ССМК',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

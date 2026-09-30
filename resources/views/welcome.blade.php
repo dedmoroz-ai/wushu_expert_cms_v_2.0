@@ -156,8 +156,8 @@
         <div class="h-full max-w-6xl mx-auto px-4 flex items-center justify-center gap-4 text-[11px] text-gray-400">
             <span class="inline-flex items-center gap-2">
                 <span>Разработано</span>
-                <img src="{{ asset('images/NMRULOGOWH.svg') }}" alt="NMru" class="h-6 w-auto opacity-100">
-                <span class="ml-2">&copy; 2026</span>
+                <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz" class="h-6 w-auto opacity-100">
+                <span class="ml-2">Макс Мороз &copy; 2026. Все права защищены.</span>
             </span>
         </div>
     </div>
