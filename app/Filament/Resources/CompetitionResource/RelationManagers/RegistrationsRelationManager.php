@@ -212,10 +212,12 @@ class RegistrationsRelationManager extends RelationManager
 
                         // Плотная нумерация мест по тем же правилам, что и в PDF:
                         // внутри одного соревнования, вида, возрастной группы и пола.
+                        // Группа «O» (R-6.15): место — внутри своей подгруппы.
                         $distinctHigherScores = Registration::query()
                             ->where('competition_id', $record->competition_id)
                             ->where('style_id', $record->style_id)
                             ->where('age_group_id', $record->age_group_id)
+                            ->where('is_special', (bool) $record->is_special)
                             ->whereHas('athlete', function($q) use ($record) {
                                 $q->where('gender', $record->athlete->gender);
                             })
@@ -255,23 +257,29 @@ class RegistrationsRelationManager extends RelationManager
                         ->orderBy('styles.sort_order')
                         ->orderBy('age_groups.sort_order')
                         ->orderBy('athletes.gender')
+                        // Группа «O» (R-6.15): подгруппа «(O)» сразу после основной.
+                        ->orderBy('registrations.is_special')
                         ->select('registrations.*')
                     )
                     ->getKeyFromRecordUsing(function ($record) {
                         return sprintf(
-                            '%09d_%09d_%s',
+                            '%09d_%09d_%s_%s',
                             $record->style->sort_order ?? 9999,
                             $record->ageGroup->sort_order ?? 9999,
-                            $record->athlete->gender
+                            $record->athlete->gender,
+                            // Группа «O» (R-6.15): отдельный поток для подгруппы.
+                            $record->is_special ? 'O' : 'M'
                         );
                     })
                     ->getTitleFromRecordUsing(function ($record) {
                         return sprintf(
-                            '%s — %s (%s-%s лет)',
+                            '%s — %s (%s-%s лет)%s',
                             $record->style->name,
                             $record->ageGroup->name,
                             $record->ageGroup->min_age,
-                            $record->ageGroup->max_age
+                            $record->ageGroup->max_age,
+                            // Группа «O» (R-6.15): подпись подгруппы.
+                            $record->is_special ? ' (O)' : ''
                         );
                     })
                     ->getDescriptionFromRecordUsing(function ($record) {
@@ -280,6 +288,8 @@ class RegistrationsRelationManager extends RelationManager
                             'style' => $record->style_id,
                             'age_group' => $record->age_group_id,
                             'gender' => $record->athlete->gender,
+                            // Группа «O» (R-6.15): дипломы своей подгруппы.
+                            'is_special' => $record->is_special ? 1 : 0,
                         ]);
 
                         return new HtmlString("

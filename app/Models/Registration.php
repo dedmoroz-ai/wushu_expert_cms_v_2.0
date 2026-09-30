@@ -14,6 +14,9 @@ class Registration extends Model
     protected $casts = [
         'events' => 'array',
         'is_completed' => 'boolean',
+        // Группа «O» (особые спортсмены) — R-6.15: финальная отметка,
+        // управляет разбивкой протоколов на подгруппы «(O)».
+        'is_special' => 'boolean',
         // ВАЖНО: 'double' заставляет Laravel принимать любые дробные числа без округления
         'final_score' => 'double', 
         'score' => 'double', // На всякий случай для второй колонки

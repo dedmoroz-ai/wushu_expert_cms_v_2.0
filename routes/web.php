@@ -45,6 +45,9 @@ Route::get('/competition/{competition}/scores-summary', \App\Http\Controllers\Sc
     ->name('competition.scores-summary');
 
 // --- ПЕЧАТЬ ДИПЛОМОВ ---
-// Теперь принимаем ID соревнования, вида, возрастную группу и пол
-Route::get('/competition/{competition}/diplomas/{style}/{age_group}/{gender}', [ExportController::class, 'downloadDiplomas'])
+// Теперь принимаем ID соревнования, вида, возрастную группу и пол.
+// Группа «O» (R-6.15): необязательный флаг is_special (0/1) — отдельная
+// подгруппа «(O)», места считаются внутри подгруппы.
+Route::get('/competition/{competition}/diplomas/{style}/{age_group}/{gender}/{is_special?}', [ExportController::class, 'downloadDiplomas'])
+    ->where('is_special', '[01]')
     ->name('export.diplomas');

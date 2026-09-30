@@ -133,4 +133,45 @@ class TeamStandingsTest extends TestCase
     {
         $this->assertCount(0, TeamStandings::compute([]));
     }
+
+    public function test_group_o_is_separate_subgroup_and_medals_count(): void
+    {
+        // Группа «O» (R-6.15): места считаются внутри подгруппы, медали «O»
+        // включаются в командный зачёт (решение #2).
+        // Без разбивки спортсмен клуба 3 (4.5) был бы 2-м (2 очка),
+        // но в подгруппе «O» он 1-й — 3 очка.
+        $standings = TeamStandings::compute([
+            $this->entry(TeamStandings::categoryKey(1, 1, 'male'), 5.0, [$this->club(1)]),
+            $this->entry(TeamStandings::categoryKey(1, 1, 'male'), 4.0, [$this->club(2)]),
+            $this->entry(TeamStandings::categoryKey(1, 1, 'male', true), 4.5, [$this->club(3)]),
+        ]);
+
+        $this->assertSame(3, $standings->firstWhere('club_id', 3)['points']);
+        $this->assertSame(3, $standings->firstWhere('club_id', 1)['points']);
+        // 2-е место основной подгруппы — 2 очка (шкала 3–2–1).
+        $this->assertSame(2, $standings->firstWhere('club_id', 2)['points']);
+    }
+
+    public function test_group_o_dense_rank_inside_subgroup(): void
+    {
+        // Места внутри подгруппы «O» делятся при равных баллах (1, 2, 2, 4):
+        // два 2-х места делят по 2 очка, 4-й — без очков.
+        $standings = TeamStandings::compute([
+            $this->entry(TeamStandings::categoryKey(1, 1, 'male', true), 5.0, [$this->club(1)]),
+            $this->entry(TeamStandings::categoryKey(1, 1, 'male', true), 4.5, [$this->club(2)]),
+            $this->entry(TeamStandings::categoryKey(1, 1, 'male', true), 4.5, [$this->club(3)]),
+            $this->entry(TeamStandings::categoryKey(1, 1, 'male', true), 4.0, [$this->club(4)]),
+        ]);
+
+        $this->assertSame(3, $standings->firstWhere('club_id', 1)['points']);
+        $this->assertSame(2, $standings->firstWhere('club_id', 2)['points']);
+        $this->assertSame(2, $standings->firstWhere('club_id', 3)['points']);
+        $this->assertNull($standings->firstWhere('club_id', 4)); // 4-е место — без медали
+    }
+
+    public function test_category_key_marks_special_with_o(): void
+    {
+        $this->assertSame('7-3-male', TeamStandings::categoryKey(7, 3, 'male'));
+        $this->assertSame('7-3-male-O', TeamStandings::categoryKey(7, 3, 'male', true));
+    }
 }

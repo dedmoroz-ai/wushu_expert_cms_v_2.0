@@ -16,12 +16,16 @@ class Athlete extends Model
         'gender',
         'birth_date',
         'rank',
+        // Группа «O» (особые спортсмены) — R-6.15: значение по умолчанию,
+        // финальная отметка — registrations.is_special.
+        'is_special',
     ];
 
     // САМОЕ ВАЖНОЕ:
     // Эта настройка превращает строку из базы в Дату
     protected $casts = [
         'birth_date' => 'date',
+        'is_special' => 'boolean',
     ];
 
     // Связь: Спортсмен принадлежит Клубу

@@ -52,14 +52,25 @@ final class TeamStandings
             }
 
             return [
-                // Категория как для дипломов (R-6.4).
-                'category' => sprintf('%s-%s-%s', $reg->style_id, $reg->age_group_id, $reg->athlete?->gender),
+                // Категория как для дипломов (R-6.4). Группа «O» (R-6.15): места
+                // считаются внутри подгруппы, поэтому флаг входит в ключ категории;
+                // медали группы «O» при этом включаются в общий зачёт (решение #2).
+                'category' => self::categoryKey($reg->style_id, $reg->age_group_id, $reg->athlete?->gender, (bool) $reg->is_special),
                 'score' => (float) $reg->final_score,
                 'clubs' => array_values($clubs),
             ];
         });
 
         return self::compute($entries);
+    }
+
+    /**
+     * Ключ категории: style_id-age_group_id-пол[‑O]. Для группы «O» — отдельный
+     * ключ, чтобы места 1–3 считались внутри подгруппы (R-6.15).
+     */
+    public static function categoryKey($styleId, $ageGroupId, ?string $gender, bool $isSpecial = false): string
+    {
+        return sprintf('%s-%s-%s%s', $styleId, $ageGroupId, $gender, $isSpecial ? '-O' : '');
     }
 
     /**

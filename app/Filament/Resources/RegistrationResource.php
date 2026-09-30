@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -73,6 +74,22 @@ class RegistrationResource extends Resource
             };
         };
 
+        // --- ПРАВИЛО ВАЛИДАЦИИ (Пара «O / не O» невозможна) — R-6.15 ---
+        // Отметки карточек основного и партнёра должны совпадать:
+        // либо оба «O», либо оба не «O».
+        $partnerSpecialRule = function (Get $get) {
+            return function (string $attribute, $value, Closure $fail) use ($get) {
+                if (!$value) return;
+
+                $main = \App\Models\Athlete::find($get('athlete_id'));
+                $partner = \App\Models\Athlete::find($value);
+
+                if ($main && $partner && (bool) $main->is_special !== (bool) $partner->is_special) {
+                    $fail('Пара «O / не O» невозможна: отметки карточек основного и партнёра должны совпадать (оба «O» или оба не «O»).');
+                }
+            };
+        };
+
         return $form
             ->schema([
                 Forms\Components\Section::make('Данные заявки')
@@ -97,7 +114,19 @@ class RegistrationResource extends Resource
                             ->searchable()
                             ->preload()
                             ->live()
-                            ->helperText('Начните вводить имя...'),
+                            ->helperText('Начните вводить имя...')
+                            // Группа «O» (R-6.15): авто-галочка из карточки спортсмена
+                            // (значение по умолчанию; финальная отметка — поле ниже).
+                            ->afterStateUpdated(function (Set $set, ?int $state) {
+                                $set('is_special', (bool) \App\Models\Athlete::find($state)?->is_special);
+                            }),
+
+                        // Группа «O» (особые спортсмены) — R-6.15, п. 9.16:
+                        // финальная отметка под конкретное соревнование.
+                        Forms\Components\Toggle::make('is_special')
+                            ->label('Группа «O» (особые спортсмены)')
+                            ->helperText('Отдельный зачёт внутри номинации. Значение по умолчанию — из карточки спортсмена.')
+                            ->default(false),
                     ])->columns(2),
 
                 // --- СЕКЦИЯ 1: ТАОЛУ ---
@@ -154,6 +183,8 @@ class RegistrationResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload()
+                            // R-6.15: пара «O / не O» невозможна.
+                            ->rules([$partnerSpecialRule])
                             ->options(function (Get $get) {
                                 $query = \App\Models\Athlete::query();
                                 if (auth()->check() && auth()->user()->club_id) {
@@ -187,6 +218,8 @@ class RegistrationResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload()
+                            // R-6.15: пара «O / не O» невозможна.
+                            ->rules([$partnerSpecialRule])
                             ->options(function (Get $get) {
                                 $query = \App\Models\Athlete::query();
                                 if (auth()->check() && auth()->user()->club_id) {
@@ -239,6 +272,12 @@ class RegistrationResource extends Resource
                     ->color('info')
                     ->wrap()
                     ->sortable(),
+
+                // Группа «O» (особые спортсмены) — R-6.15, п. 9.16.
+                Tables\Columns\IconColumn::make('is_special')
+                    ->label('Группа O')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\TextColumn::make('athlete.club.name')
                     ->label('Клуб')

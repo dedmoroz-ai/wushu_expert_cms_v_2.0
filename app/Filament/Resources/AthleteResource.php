@@ -88,6 +88,14 @@ class AthleteResource extends Resource
                             ->maxLength(255)
                             ->placeholder('Например: 1 дуань, КМС')
                             ->label('Разряд'),
+
+                        // Группа «O» (особые спортсмены) — R-6.15, п. 9.16.
+                        // Значение по умолчанию: при подаче заявки тренер может
+                        // оставить/снять отметку для конкретного соревнования.
+                        Forms\Components\Toggle::make('is_special')
+                            ->label('Группа «O» (особые спортсмены)')
+                            ->helperText('Выступают в отдельном зачёте внутри своей номинации. Финальная отметка — в заявке.')
+                            ->default(false),
                     ])
                     ->columns(2), // Разделяем на 2 колонки
             ]);
@@ -152,6 +160,12 @@ class AthleteResource extends Resource
 
                 Tables\Columns\TextColumn::make('rank')
                     ->label('Разряд'),
+
+                // Группа «O» (особые спортсмены) — R-6.15, п. 9.16.
+                Tables\Columns\IconColumn::make('is_special')
+                    ->label('Группа O')
+                    ->boolean()
+                    ->sortable(),
             ])
             ->filters([
                 // ВОТ ЗДЕСЬ БЫЛА ОШИБКА, Я ИСПРАВИЛ:
@@ -166,6 +180,13 @@ class AthleteResource extends Resource
                 Tables\Filters\SelectFilter::make('club')
                     ->relationship('club', 'name')
                     ->label('Клуб'),
+
+                // Группа «O» (особые спортсмены) — R-6.15, п. 9.16.
+                Tables\Filters\TernaryFilter::make('is_special')
+                    ->label('Группа O')
+                    ->placeholder('Все')
+                    ->trueLabel('Только группа O')
+                    ->falseLabel('Без группы O'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

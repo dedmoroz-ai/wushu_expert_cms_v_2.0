@@ -78,13 +78,16 @@ class PublicResults extends Component
                     return $reg;
                 });
             
-            // Группируем по категориям (как в протоколе)
-            $grouped = $registrations->groupBy(function ($reg) {
-                $ageStr = $this->formatAgeGroup($reg->ageGroup);
-                $styleName = $reg->style?->name ?? 'Стиль';
-                $groupName = $reg->ageGroup?->name ?? 'Группа';
-                return sprintf("%s — %s %s", $styleName, $groupName, $ageStr);
-            });
+            // Группируем по категориям (как в протоколе).
+            // Группа «O» (R-6.15): подгруппа «(O)» идёт сразу после основной той же
+            // номинации; порядок номинаций не меняется.
+            $grouped = \App\Support\ProtocolGroups::sortSubgroups($registrations)
+                ->groupBy(function ($reg) {
+                    $ageStr = $this->formatAgeGroup($reg->ageGroup);
+                    $styleName = $reg->style?->name ?? 'Стиль';
+                    $groupName = $reg->ageGroup?->name ?? 'Группа';
+                    return \App\Support\ProtocolGroups::title($styleName, $groupName, $ageStr, (bool) $reg->is_special);
+                });
 
             // Командный (клубный) зачёт (R-6.14)
             $standings = \App\Support\TeamStandings::forCompetition($this->competition);

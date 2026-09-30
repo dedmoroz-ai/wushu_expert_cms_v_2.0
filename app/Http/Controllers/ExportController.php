@@ -10,14 +10,17 @@ use Illuminate\Http\Request;
 
 class ExportController extends Controller
 {
-    public function downloadDiplomas($competitionId, $styleId, $ageGroupId, $gender)
+    public function downloadDiplomas($competitionId, $styleId, $ageGroupId, $gender, $isSpecial = 0)
     {
         $competition = Competition::findOrFail($competitionId);
         $style = Style::findOrFail($styleId);
 
+        // Группа «O» (R-6.15): отдельная выборка подгруппы; места 1–3 считаются
+        // внутри подгруппы (алгоритм мест не меняется, меняется только выборка).
         $allParticipants = Registration::where('competition_id', $competitionId)
             ->where('style_id', $styleId)
             ->where('age_group_id', $ageGroupId)
+            ->where('is_special', (bool) $isSpecial)
             ->whereHas('athlete', function ($query) use ($gender) {
                 $query->where('gender', $gender);
             })

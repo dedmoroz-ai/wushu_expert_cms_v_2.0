@@ -96,9 +96,14 @@ class CreateRegistration extends CreateRecord
                 $singleRowData
             );
 
-            // Если запись уже была, но у нее не тот партнер (или его не было), обновляем
+            // Если запись уже была, но у нее не тот партнер (или его не было),
+            // либо иная финальная отметка группы «O» (R-6.15) — обновляем
             if ($record->partner_id != $targetPartnerId) {
                 $record->update(['partner_id' => $targetPartnerId]);
+            }
+
+            if ((bool) $record->is_special !== (bool) ($singleRowData['is_special'] ?? false)) {
+                $record->update(['is_special' => (bool) ($singleRowData['is_special'] ?? false)]);
             }
 
             if ($record->wasRecentlyCreated) {

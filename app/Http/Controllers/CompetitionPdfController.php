@@ -114,13 +114,16 @@ class CompetitionPdfController extends Controller
             ->select('registrations.*')
             ->get();
 
-        $grouped = $registrations->groupBy(function ($reg) {
-            $ageStr = $this->formatAgeGroup($reg->ageGroup);
-            $styleName = $reg->style?->name ?? 'Стиль';
-            $groupName = $reg->ageGroup?->name ?? 'Группа';
-            // Тире в UTF-8
-            return sprintf("%s — %s %s", $styleName, $groupName, $ageStr);
-        });
+        // Группа «O» (R-6.15): подгруппа «(O)» идёт сразу после основной той же
+        // номинации; порядок номинаций не меняется.
+        $grouped = \App\Support\ProtocolGroups::sortSubgroups($registrations)
+            ->groupBy(function ($reg) {
+                $ageStr = $this->formatAgeGroup($reg->ageGroup);
+                $styleName = $reg->style?->name ?? 'Стиль';
+                $groupName = $reg->ageGroup?->name ?? 'Группа';
+                // Тире в UTF-8
+                return \App\Support\ProtocolGroups::title($styleName, $groupName, $ageStr, (bool) $reg->is_special);
+            });
 
         return $this->renderPdfWithCharset('pdf.start-list', compact(
             'competition', 'grouped', 'organizerName', 'formattedDate', 'address',
@@ -164,12 +167,15 @@ class CompetitionPdfController extends Controller
             ->select('registrations.*')
             ->get();
 
-        $grouped = $registrations->groupBy(function ($reg) {
-            $ageStr = $this->formatAgeGroup($reg->ageGroup);
-            $styleName = $reg->style?->name ?? 'Стиль';
-            $groupName = $reg->ageGroup?->name ?? 'Группа';
-            return sprintf("%s — %s %s", $styleName, $groupName, $ageStr);
-        });
+        // Группа «O» (R-6.15): подгруппа «(O)» идёт сразу после основной той же
+        // номинации; порядок номинаций не меняется.
+        $grouped = \App\Support\ProtocolGroups::sortSubgroups($registrations)
+            ->groupBy(function ($reg) {
+                $ageStr = $this->formatAgeGroup($reg->ageGroup);
+                $styleName = $reg->style?->name ?? 'Стиль';
+                $groupName = $reg->ageGroup?->name ?? 'Группа';
+                return \App\Support\ProtocolGroups::title($styleName, $groupName, $ageStr, (bool) $reg->is_special);
+            });
 
         // ===== ДАННЫЕ ДЛЯ ЛИСТА КОМАНД =====
         $athleteIds = $competition->registrations()

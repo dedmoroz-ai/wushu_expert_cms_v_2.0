@@ -113,7 +113,9 @@
         $ageGroup   = $item['registration']->ageGroup ?? null;
         $discipline = 'в дисциплине ' . $style->name;
         $age        = 'возрастная категория ' . ($ageGroup->name ?? '')
-                    . ' (' . ($ageGroup->min_age ?? 0) . '-' . ($ageGroup->max_age ?? 0) . ' лет)';
+                    . ' (' . ($ageGroup->min_age ?? 0) . '-' . ($ageGroup->max_age ?? 0) . ' лет)'
+                    // Группа «O» (R-6.15): подпись подгруппы в заголовке категории.
+                    . (($item['registration']->is_special ?? false) ? ' (O)' : '');
     @endphp
     <div class="page{{ $loop->last ? ' page-last' : '' }}">
         <div class="content">
