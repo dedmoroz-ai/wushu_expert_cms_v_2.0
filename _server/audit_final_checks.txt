@@ -1,0 +1,56 @@
+--- QrCodeController: server vs local (hunks) ---
+--- /mnt/c/wushu-server/app/Http/Controllers/QrCodeController.php	2026-02-02 21:09:27.000000000 +0300
++++ app/Http/Controllers/QrCodeController.php	2026-02-02 21:35:16.355709491 +0300
+@@ -1,46 +1,49 @@
+-<?php
+-
+-namespace App\Http\Controllers;
+-
+-use App\Models\Competition;
+-use Illuminate\Support\Str;
+-use Illuminate\Support\Facades\Schema;
+-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+-
+-class QrCodeController extends Controller
+-{
+-    public function generate(Competition $competition)
+-    {
+-        // Проверяем, существует ли колонка public_token
+-        $hasPublicTokenColumn = Schema::hasColumn('competitions', 'public_token');
+-        
+-        if ($hasPublicTokenColumn) {
+-            // Генерируем токен, если его нет
+-            if (!$competition->public_token) {
+-                $competition->public_token = Str::random(32);
+-                $competition->save();
+-            }
+-            $url = route('public.results', ['token' => $competition->public_token]);
+-        } else {
+-            // Если колонки нет, используем ID соревнования (временное решение)
+-            $url = route('public.results', ['token' => 'comp_' . $competition->id]);
+-        }
+-        
+-        // Пытаемся использовать библиотеку QR-кодов
+-        try {
+-            $qrCode = QrCode::size(300)
+-                ->format('svg')
+-                ->generate($url);
+-            
+-            return response($qrCode, 200)
+-                ->header('Content-Type', 'image/svg+xml');
+-        } catch (\Exception $e) {
+-            // Если библиотека не установлена, используем онлайн API
+-            $encodedUrl = urlencode($url);
+-            $apiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={$encodedUrl}";
+-            
+-            // Перенаправляем на API
+-            return redirect($apiUrl);
+-        }
+-    }
+-}
+\ No newline at end of file
+
+--- hotfix vs snapshot (что добавляет хотфикс) ---
+21
+@@ -209,4 +209,8 @@
+@@ -215,4 +219,5 @@

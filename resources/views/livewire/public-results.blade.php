@@ -117,7 +117,7 @@
                                                     </div>
                                                 @endif
                                                 <div class="text-xs text-gray-600">
-                                                    {{ $reg->athlete->club->city ?? ($reg->athlete->city ?? '') }}
+                                                    {{ $reg->athlete->club->name ?? '' }}
                                                 </div>
                                             </td>
                                         </tr>
@@ -138,7 +138,7 @@
                                                 @endif
                                             </td>
                                             <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $reg->athlete->club->city ?? ($reg->athlete->city ?? '') }}
+                                                {{ $reg->athlete->club->name ?? '' }}
                                             </td>
                                             <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-bold text-green-600">
                                                 {{ $reg->formatted_score }}

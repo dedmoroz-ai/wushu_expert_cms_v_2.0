@@ -1,0 +1,777 @@
+##### SERVER-DIFF: Caddyfile
+diff --git a/Caddyfile b/Caddyfile
+index 21f005bf..855bf8a7 100644
+--- a/Caddyfile
++++ b/Caddyfile
+@@ -1,3 +1,6 @@
+ competitions.crimea-wushu.ru {
+-    reverse_proxy app:8080
+-}
+\ No newline at end of file
++    reverse_proxy app:8080 {
++        header_up X-Forwarded-Proto https
++        header_up X-Forwarded-Port 443
++    }
++}
+##### SERVER-DIFF: Dockerfile
+diff --git a/Dockerfile b/Dockerfile
+index d7a15466..88aeb3bd 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -7,7 +7,6 @@ USER root
+ # ИСПРАВЛЕНИЕ: Используем специальный установщик расширений.
+-# Он работает надежнее, чем apt-get для новых версий PHP.
+ COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
+ 
+-# Устанавливаем intl через этот скрипт
+-RUN install-php-extensions intl
++# ДОБАВИЛ 'gd' СЮДА (для работы с картинками и PDF)
++RUN install-php-extensions intl gd
+ 
+##### SERVER-DIFF: docker-compose.yml
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 635ab6a0..6d65b858 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -10,15 +10,19 @@ services:
+     environment:
+-      - APP_ENV=production
+-      - APP_DEBUG=false
+-      - APP_KEY=${APP_KEY}
+-      - APP_URL=${APP_URL}
+-      - DB_CONNECTION=pgsql
+-      - DB_HOST=db
+-      - DB_PORT=5432
+-      - DB_DATABASE=${DB_DATABASE}
+-      - DB_USERNAME=${DB_USERNAME}
+-      - DB_PASSWORD=${DB_PASSWORD}
+-      - REDIS_HOST=redis
+-      - PHP_POST_MAX_SIZE=20M
+-      - PHP_UPLOAD_MAX_FILESIZE=20M
++      APP_ENV: production
++      APP_DEBUG: false
++      APP_KEY: ${APP_KEY}
++      APP_URL: ${APP_URL}
++      # ВАЖНО: Доверяем прокси, чтобы HTTPS работал
++      TRUSTED_PROXIES: "*" 
++      ASSET_URL: ${APP_URL}
++      DB_CONNECTION: pgsql
++      DB_HOST: db
++      DB_PORT: 5432
++      DB_DATABASE: ${DB_DATABASE}
++      DB_USERNAME: ${DB_USERNAME}
++      DB_PASSWORD: ${DB_PASSWORD}
++      REDIS_HOST: redis
++      PHP_POST_MAX_SIZE: 64M
++      PHP_UPLOAD_MAX_FILESIZE: 64M
++      NGINX_CLIENT_MAX_BODY_SIZE: 64M
+     depends_on:
+@@ -27,4 +31,21 @@ services:
+     volumes:
++      # ВОТ ОНА, НЕДОСТАЮЩАЯ СТРОКА! Теперь PHP пишет прямо к тебе на диск
++      - ./public:/var/www/html/public
+       - ./storage/app/public:/var/www/html/storage/app/public
+ 
++  caddy:
++    image: caddy:alpine
++    container_name: wushu_caddy
++    restart: always
++    ports:
++      - "80:80"
++      - "443:443"
++    volumes:
++      - ./public:/var/www/html/public
++      - ./Caddyfile:/etc/caddy/Caddyfile
++      - caddy_data:/data
++      - caddy_config:/config
++    depends_on:
++      - app
++
+   db:
+@@ -50 +71,3 @@ volumes:
+   redis_data:
++  caddy_data:
++  caddy_config:
+##### SERVER-DIFF: routes/web.php
+diff --git a/routes/web.php b/routes/web.php
+index e717d6bd..9b777fc2 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -19,2 +19,9 @@
+ 
++// Публичная страница результатов
++Route::get('/results/{token?}', \App\Livewire\PublicResults::class)->name('public.results');
++
++// Генерация QR-кода
++Route::get('/competition/{competition}/qr-code', [\App\Http\Controllers\QrCodeController::class, 'generate'])
++    ->name('competition.qr-code');
++
+ // --- ГЕНЕРАЦИЯ PDF ПРОТОКОЛОВ ---
+@@ -26,2 +33,6 @@
+ 
++// Титульный лист (отдельный PDF)
++Route::get('/competition/{competition}/title-page', [CompetitionPdfController::class, 'titlePage'])
++    ->name('competition.title-page');
++
+ // --- ПЕЧАТЬ ДИПЛОМОВ ---
+@@ -30 +41,6 @@
+     ->name('export.diplomas');
++
++// --- СВОДКА ОЦЕНОК (PDF) ---
++Route::get('/competition/{competition}/scores-summary', \App\Http\Controllers\ScoresSummaryPdfController::class)
++    ->middleware('auth')
++    ->name('competition.scores-summary');
+\ No newline at end of file
+##### SERVER-DIFF: resources/views/welcome.blade.php
+diff --git a/resources/views/welcome.blade.php b/resources/views/welcome.blade.php
+index a87c1ea4..389a2bca 100644
+--- a/resources/views/welcome.blade.php
++++ b/resources/views/welcome.blade.php
+@@ -154,4 +154,10 @@ class="w-full h-full object-cover opacity-60"
+     <!-- Footer -->
+-    <div class="relative z-10 w-full text-center py-4 lg:py-2 text-[10px] text-gray-600 border-t border-white/5 bg-gray-950 shrink-0">
+-        &copy; {{ date('Y') }} WUSHU EXPERT CMS
++    <div class="relative z-10 w-full h-[50px] border-t border-white/5 bg-gray-950 shrink-0">
++        <div class="h-full max-w-6xl mx-auto px-4 flex items-center justify-center gap-4 text-[11px] text-gray-400">
++            <span class="inline-flex items-center gap-2">
++                <span>Разработано</span>
++                <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz" class="h-6 w-auto opacity-100">
++                <span class="ml-2">Макс Мороз &copy; 2026. Все права защищены.</span>
++            </span>
++        </div>
+     </div>
+##### SERVER-DIFF: app/Models/User.php
+diff --git a/app/Models/User.php b/app/Models/User.php
+index 2f665652..2109fe22 100644
+--- a/app/Models/User.php
++++ b/app/Models/User.php
+@@ -26,2 +26,3 @@ class User extends Authenticatable implements FilamentUser
+         'is_active_judge',
++        'judge_category',
+     ];
+@@ -84,3 +85,2 @@ public function club()
+      * Связь: Соревнования (как судья).
+-     * ПЕРЕИМЕНОВАЛИ ИЗ competitionsAsJudge В competitions, ЧТОБЫ УБРАТЬ ОШИБКУ
+      */
+@@ -92,2 +92,2 @@ public function competitions()
+     }
+-}
++}
+\ No newline at end of file
+##### SERVER-DIFF: app/Models/Score.php
+diff --git a/app/Models/Score.php b/app/Models/Score.php
+index 01654df0..f92c7723 100644
+--- a/app/Models/Score.php
++++ b/app/Models/Score.php
+@@ -10,2 +10,7 @@ class Score extends Model
+ 
++    protected $casts = [
++        // 'double' гарантирует, что оценка 8.865 не превратится в 8.87
++        'score' => 'double', 
++    ];
++
+     public function judge()
+##### SERVER-DIFF: app/Models/Registration.php
+diff --git a/app/Models/Registration.php b/app/Models/Registration.php
+index 308f9f8f..0f80e4a4 100644
+--- a/app/Models/Registration.php
++++ b/app/Models/Registration.php
+@@ -11,3 +11,2 @@ class Registration extends Model
+ 
+-    // Разрешаем запись во все поля (удобно для Filament)
+     protected $guarded = [];
+@@ -15,7 +14,10 @@ class Registration extends Model
+     protected $casts = [
+-        'events' => 'array', // Для хранения JSON (если используется)
+-        'final_score' => 'decimal:2', // Чтобы оценка всегда была числом (9.50)
++        'events' => 'array',
++        'is_completed' => 'boolean',
++        // ВАЖНО: 'double' заставляет Laravel принимать любые дробные числа без округления
++        'final_score' => 'double', 
++        'score' => 'double', // На всякий случай для второй колонки
+     ];
+ 
+-    // --- ОСНОВНЫЕ СВЯЗИ ---
++    // --- СВЯЗИ ---
+ 
+@@ -36,5 +38,2 @@ public function partner()
+ 
+-    // --- СВЯЗИ ДЛЯ СОРТИРОВКИ (ОБЯЗАТЕЛЬНЫ) ---
+-    // Именно по ним работает твой алгоритм "Вид -> Группа"
+-
+     public function style()
+@@ -49,8 +48,2 @@ public function ageGroup()
+ 
+-    // --- СВЯЗЬ ДЛЯ СУДЕЙСТВА ---
+-    
+-    /**
+-     * Связь с оценками судей.
+-     * Используем модель Score, которую мы создали ранее.
+-     */
+     public function scores()
+##### SERVER-DIFF: app/Livewire/Scoreboard.php
+diff --git a/app/Livewire/Scoreboard.php b/app/Livewire/Scoreboard.php
+index eb59e180..57882d26 100644
+--- a/app/Livewire/Scoreboard.php
++++ b/app/Livewire/Scoreboard.php
+@@ -9,2 +9,3 @@
+ use Carbon\Carbon;
++use Illuminate\Support\Facades\Schema;
+ 
+@@ -103,2 +104,25 @@ public function render()
+ 
++        // Генерируем URL для публичной страницы и QR-кода (если соревнование в паузе)
++        $publicUrl = null;
++        $qrCodeUrl = null;
++        
++        if ($competition && $competition->status_code == 2) {
++            // Проверяем, существует ли колонка public_token
++            $hasPublicTokenColumn = \Schema::hasColumn('competitions', 'public_token');
++            
++            if ($hasPublicTokenColumn) {
++                // Генерируем токен, если его нет
++                if (!$competition->public_token) {
++                    $competition->public_token = \Illuminate\Support\Str::random(32);
++                    $competition->save();
++                }
++                $publicUrl = route('public.results', ['token' => $competition->public_token]);
++            } else {
++                // Если колонки нет, используем ID соревнования (временное решение)
++                $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
++            }
++            
++            $qrCodeUrl = route('competition.qr-code', $competition);
++        }
++
+         return view('livewire.scoreboard', [
+@@ -109,2 +133,4 @@ public function render()
+             'showFinal' => $showFinal,
++            'publicUrl' => $publicUrl,
++            'qrCodeUrl' => $qrCodeUrl,
+         ])->layout('components.layouts.base');
+##### SERVER-DIFF: app/Filament/Pages/SuperJudgePad.php
+diff --git a/app/Filament/Pages/SuperJudgePad.php b/app/Filament/Pages/SuperJudgePad.php
+index d89acedc..2e5d870b 100644
+--- a/app/Filament/Pages/SuperJudgePad.php
++++ b/app/Filament/Pages/SuperJudgePad.php
+@@ -80,3 +80,3 @@ public function loadState()
+ 
+-        // 1. ЗАПОЛНЕНИЕ ДАННЫХ (УМЕНЬШАЕМ ШРИФТ ДЛЯ ПАР)
++        // 1. ЗАПОЛНЕНИЕ ДАННЫХ
+         $mainName = $currentReg->athlete->surname . ' ' . $currentReg->athlete->name;
+@@ -85,8 +85,4 @@ public function loadState()
+             $partnerName = $currentReg->partner->surname . ' ' . $currentReg->partner->name;
+-            
+-            // ЕСЛИ ПАРА: Оборачиваем в div с font-size: 0.7em (70% от обычного размера)
+-            // Имена одинакового размера, друг под другом
+             $fullName = "<div style='font-size: 0.7em; line-height: 1.1;'>{$mainName}<br>{$partnerName}</div>";
+         } else {
+-            // ЕСЛИ ОДИН: Оставляем как есть (будет крупно, 3rem из CSS)
+             $fullName = $mainName;
+@@ -95,4 +91,3 @@ public function loadState()
+         $this->athleteName = $fullName;
+-        // ----------------------------------------------------
+-
++        
+         $this->athleteStyle = $currentReg->style->name ?? '';
+@@ -159,2 +154,3 @@ public function loadState()
+                 $count = count($scoresForCalc);
++                // ОКРУГЛЕНИЕ ДО 3 ЗНАКОВ (Как вы просили)
+                 $avg = round($sum / $count, 3); 
+@@ -183,5 +179,7 @@ public function addNumber($num) {
+ 
+-        // Режим 1: Моя оценка
++        // Режим 1: Моя оценка (КАК СУДЬИ)
+         if (!$this->myScoreSaved) {
+-            if (strlen($this->myScore) >= 4) return;
++            // ИСПРАВИЛ ЗДЕСЬ: Было 4, стало 6.
++            // Теперь можно ввести "8.125" (5 символов). Раньше на "8.12" блокировало.
++            if (strlen($this->myScore) >= 6) return;
+             
+@@ -189,3 +187,4 @@ public function addNumber($num) {
+                 if ($num === '.') return;
+-                if (is_numeric($num) && $num < 5) return;
++                // Разрешаем начинать с любой цифры (если вдруг оценка низкая)
++                if (is_numeric($num) && $num < 0) return; 
+             }
+@@ -197,5 +196,8 @@ public function addNumber($num) {
+ 
+-        // Режим 2: Финал
++        // Режим 2: Финал (РЕДАКТИРОВАНИЕ ИТОГА)
+         if ($this->canFinalize) {
+-            if (strlen($this->finalScoreInput) >= 6) return;
++            // ИСПРАВИЛ ЗДЕСЬ: Было 6, стало 8.
++            // Чтобы можно было комфортно редактировать длинные дроби.
++            if (strlen($this->finalScoreInput) >= 8) return;
++            
+             if ($num === '.' && str_contains($this->finalScoreInput, '.')) return;
+@@ -229,3 +231,4 @@ public function submitMyScore() {
+         if ($this->myScoreSaved) return;
+-        if (strlen($this->myScore) < 3) return;
++        // Разрешаем сохранять, даже если введено мало символов (например, ровно "9")
++        if (strlen($this->myScore) < 1) return;
+         
+@@ -234,2 +237,3 @@ public function submitMyScore() {
+             'judge_id' => Auth::id(),
++            // Сохраняем как float (благодаря Model и DB оно сохранится точно)
+             'score' => floatval($this->myScore),
+@@ -261,2 +265,3 @@ public function finalizeProtocol()
+             
++            // Сохраняем (БД и Модель уже настроены на double/decimal:4)
+             $reg->final_score = $finalVal;
+##### SERVER-DIFF: app/Filament/Resources/UserResource.php
+diff --git a/app/Filament/Resources/UserResource.php b/app/Filament/Resources/UserResource.php
+index b730325c..0312f67f 100644
+--- a/app/Filament/Resources/UserResource.php
++++ b/app/Filament/Resources/UserResource.php
+@@ -16,3 +16,3 @@ class UserResource extends Resource
+ 
+-    protected static ?string $navigationIcon = 'heroicon-o-users'; // Поменял иконку на "люди"
++    protected static ?string $navigationIcon = 'heroicon-o-users';
+     protected static ?string $navigationLabel = 'Пользователи';
+@@ -21,3 +21,3 @@ class UserResource extends Resource
+     protected static ?string $navigationGroup = 'Управление';
+-    protected static ?int $navigationSort = 1; // Поднимем повыше в меню
++    protected static ?int $navigationSort = 1;
+ 
+@@ -42,8 +42,6 @@ public static function form(Form $form): Form
+                             ->password()
+-                            // Логика пароля: обновляем хеш только если поле заполнено
+                             ->dehydrated(fn ($state) => filled($state))
+-                            // Обязателен только при создании нового пользователя
+                             ->required(fn (string $context): bool => $context === 'create'),
+ 
+-                        // --- ВЫБОР КЛУБА (САМОЕ ВАЖНОЕ) ---
++                        // --- ВЫБОР КЛУБА ---
+                         Forms\Components\Select::make('club_id')
+@@ -54,2 +52,17 @@ public static function form(Form $form): Form
+                             ->preload(),
++
++                        // --- КАТЕГОРИЯ СУДЬИ ---
++                        Forms\Components\Select::make('judge_category')
++                            ->label('Судейская категория')
++                            ->options([
++                                'ССВК' => 'Всероссийская категория (ССВК)',
++                                'СС1К' => 'Первая категория (СС1К)',
++                                'СС2К' => 'Вторая категория (СС2К)',
++                                'СС3К' => 'Третья категория (СС3К)',
++                                'ЮС'   => 'Юный судья (ЮС)',
++                                'ССМК' => 'Международная категория (ССМК)',
++                            ])
++                            ->helperText('Категория, присвоенная судье')
++                            ->searchable()
++                            ->nullable(),
+                     ])->columns(2),
+@@ -72,6 +85,15 @@ public static function table(Table $table): Table
+                     ->label('Клуб / Роль')
+-                    ->placeholder('Администратор') // Текст, если club_id = null
++                    ->placeholder('Администратор')
+                     ->sortable()
+-                    ->badge() // Делаем красивым значком
+-                    ->color(fn ($state) => $state ? 'info' : 'danger'), // Админы - красные, Тренеры - синие
++                    ->badge()
++                    ->color(fn ($state) => $state ? 'info' : 'danger'),
++
++                // --- КАТЕГОРИЯ СУДЬИ ---
++                Tables\Columns\TextColumn::make('judge_category')
++                    ->label('Категория')
++                    ->placeholder('—')
++                    ->badge()
++                    ->color('success')
++                    ->sortable()
++                    ->toggleable(),
+ 
+@@ -84,3 +106,2 @@ public static function table(Table $table): Table
+             ->filters([
+-                // Можно добавить фильтр "Показать только админов" или "Показать клуб"
+                 Tables\Filters\SelectFilter::make('club')
+@@ -88,2 +109,13 @@ public static function table(Table $table): Table
+                     ->label('Клуб'),
++
++                Tables\Filters\SelectFilter::make('judge_category')
++                    ->label('Категория судьи')
++                    ->options([
++                        'ССВК' => 'ССВК',
++                        'СС1К' => 'СС1К',
++                        'СС2К' => 'СС2К',
++                        'СС3К' => 'СС3К',
++                        'ЮС'   => 'ЮС',
++                        'ССМК' => 'ССМК',
++                    ]),
+             ])
+@@ -115,2 +147,2 @@ public static function getPages(): array
+     }
+-}
++}
+\ No newline at end of file
+##### SERVER-DIFF: app/Filament/Resources/JudgeResource.php
+diff --git a/app/Filament/Resources/JudgeResource.php b/app/Filament/Resources/JudgeResource.php
+index 937e2e09..90baa02d 100644
+--- a/app/Filament/Resources/JudgeResource.php
++++ b/app/Filament/Resources/JudgeResource.php
+@@ -29,3 +29,2 @@ public static function getEloquentQuery(): Builder
+ 
+-    // ВАЖНО: Добавлено слово static
+     public static function form(Form $form): Form
+@@ -62,2 +61,17 @@ public static function form(Form $form): Form
+ 
++                // --- НОВОЕ: КАТЕГОРИЯ СУДЬИ ---
++                Forms\Components\Select::make('judge_category')
++                    ->label('Судейская категория')
++                    ->options([
++                        'ССМК' => 'Международная категория (ССМК)',
++                        'ССВК' => 'Всероссийская категория (ССВК)',
++                        'СС1К' => 'Первая категория (СС1К)',
++                        'СС2К' => 'Вторая категория (СС2К)',
++                        'СС3К' => 'Третья категория (СС3К)',
++                        'ЮС'   => 'Юный судья (ЮС)',
++                    ])
++                    ->helperText('Категория, присвоенная судье')
++                    ->searchable()
++                    ->nullable(),
++
+                 Forms\Components\Toggle::make('is_active_judge')
+@@ -70,3 +84,2 @@ public static function form(Form $form): Form
+ 
+-    // ВАЖНО: Добавлено слово static
+     public static function table(Table $table): Table
+@@ -97,2 +110,18 @@ public static function table(Table $table): Table
+ 
++                // --- НОВАЯ КОЛОНКА: КАТЕГОРИЯ ---
++                Tables\Columns\TextColumn::make('judge_category')
++                    ->label('Категория')
++                    ->badge()
++                    ->placeholder('—')
++                    ->sortable()
++                    ->color(fn (?string $state): string => match ($state) {
++                        'ССМК' => 'success',   // зелёный — международная
++                        'ССВК' => 'success',   // зелёный — высшая
++                        'СС1К' => 'warning',   // оранжевый — первая
++                        'СС2К' => 'info',      // синий — вторая
++                        'СС3К' => 'gray',      // серый — третья
++                        'ЮС'   => 'gray',      // юный судья
++                        default => 'gray',
++                    }),
++
+                 Tables\Columns\IconColumn::make('is_active_judge')
+@@ -101,2 +130,27 @@ public static function table(Table $table): Table
+             ])
++            ->filters([
++                // --- НОВЫЙ ФИЛЬТР: ПО КАТЕГОРИИ ---
++                Tables\Filters\SelectFilter::make('judge_category')
++                    ->label('Категория')
++                    ->options([
++                        'ССМК' => 'ССМК',
++                        'ССВК' => 'ССВК',
++                        'СС1К' => 'СС1К',
++                        'СС2К' => 'СС2К',
++                        'СС3К' => 'СС3К',
++                        'ЮС'   => 'ЮС',
++                    ]),
++
++                // --- ФИЛЬТР ПО РОЛИ ---
++                Tables\Filters\SelectFilter::make('role')
++                    ->label('Роль')
++                    ->options([
++                        'judge' => 'Линейный судья',
++                        'head_judge' => 'Старший судья',
++                    ]),
++
++                // --- ФИЛЬТР ПО АКТИВНОСТИ ---
++                Tables\Filters\TernaryFilter::make('is_active_judge')
++                    ->label('Активен'),
++            ])
+             ->actions([
+@@ -120,2 +174,2 @@ public static function getPages(): array
+     }
+-}
++}
+\ No newline at end of file
+##### SERVER-DIFF: app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php
+diff --git a/app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php b/app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php
+index da83f6ee..58c0f59f 100644
+--- a/app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php
++++ b/app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php
+@@ -7,2 +7,3 @@
+ use Filament\Resources\Pages\EditRecord;
++use Illuminate\Support\Facades\Schema;
+ 
+@@ -19,3 +20,3 @@ protected function getHeaderActions(): array
+                 ->icon('heroicon-o-printer')
+-                ->color('success') // Серый цвет
++                ->color('success')
+                 ->url(fn ($record) => route('competition.start-list', $record))
+@@ -23,3 +24,11 @@ protected function getHeaderActions(): array
+ 
+-            // 2. Кнопка "Итоговый протокол"
++            // 2. Кнопка "Титульный лист"
++            Actions\Action::make('title_page')
++                ->label('Титульный лист (PDF)')
++                ->icon('heroicon-o-document-text')
++                ->color('warning')
++                ->url(fn ($record) => route('competition.title-page', $record))
++                ->openUrlInNewTab(),
++
++            // 3. Кнопка "Итоговый протокол"
+             Actions\Action::make('final_protocol')
+@@ -27,3 +36,3 @@ protected function getHeaderActions(): array
+                 ->icon('heroicon-o-trophy')
+-                ->color('success') // Зеленый цвет
++                ->color('success')
+                 ->url(fn ($record) => route('competition.final-results', $record))
+@@ -31,3 +40,37 @@ protected function getHeaderActions(): array
+ 
+-            // 3. Стандартная кнопка удаления
++            // 4. Кнопка "QR-код для публичной страницы"
++            Actions\Action::make('qr_code')
++                ->label('QR-код для публичной страницы')
++                ->icon('heroicon-o-qr-code')
++                ->color('info')
++                ->modalHeading('QR-код для публичной страницы результатов')
++                ->modalContent(function () {
++                    $competition = $this->record;
++
++                    // Проверяем, существует ли колонка public_token
++                    $hasPublicTokenColumn = Schema::hasColumn('competitions', 'public_token');
++
++                    if ($hasPublicTokenColumn) {
++                        // Генерируем токен, если его нет
++                        if (!$competition->public_token) {
++                            $competition->public_token = \Illuminate\Support\Str::random(32);
++                            $competition->save();
++                        }
++                        $publicUrl = route('public.results', ['token' => $competition->public_token]);
++                    } else {
++                        // Если колонки нет, используем ID соревнования (временное решение)
++                        $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
++                    }
++
++                    $qrCodeUrl = route('competition.qr-code', $competition);
++
++                    return view('filament.resources.competition-resource.pages.qr-code-modal', [
++                        'publicUrl' => $publicUrl,
++                        'qrCodeUrl' => $qrCodeUrl,
++                    ]);
++                })
++                ->modalSubmitAction(false)
++                ->modalCancelActionLabel('Закрыть'),
++
++            // 5. Стандартная кнопка удаления
+             Actions\DeleteAction::make(),
+@@ -35,2 +78,2 @@ protected function getHeaderActions(): array
+     }
+-}
++}
+\ No newline at end of file
+##### SERVER-DIFF: app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php
+diff --git a/app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php b/app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php
+index a28446d5..8c7fdc69 100644
+--- a/app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php
++++ b/app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php
+@@ -54,2 +54,16 @@ public function table(Table $table): Table
+ 
++                // НОВАЯ КОЛОНКА: Судейская категория
++                Tables\Columns\TextColumn::make('judge_category')
++                    ->label('Категория')
++                    ->badge()
++                    ->placeholder('—')
++                    ->color(fn (?string $state): string => match ($state) {
++                        'ССВК' => 'success',   // зелёный — высшая
++                        'СС1К' => 'warning',   // оранжевый — первая
++                        'СС2К' => 'info',      // синий — вторая
++                        'СС3К' => 'gray',      // серый — третья
++                        'ЮС'   => 'gray',      // юный судья
++                        default => 'gray',
++                    }),
++
+                 // Показываем роль на ЭТОМ турнире
+@@ -80,2 +94,2 @@ public function table(Table $table): Table
+     }
+-}
++}
+\ No newline at end of file
+##### SERVER-DIFF: app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php
+diff --git a/app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php b/app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php
+index 349b12ef..cc6cb3a1 100644
+--- a/app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php
++++ b/app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php
+@@ -13,2 +13,3 @@
+ use App\Models\Registration;
++use App\Models\Style;
+ use Illuminate\Support\HtmlString; 
+@@ -38,3 +39,4 @@ public function form(Form $form): Form
+                     ->preload()
+-                    ->required(),
++                    ->required()
++                    ->live(),
+ 
+@@ -47,2 +49,23 @@ public function form(Form $form): Form
+                     ->required(),
++
++                Forms\Components\Select::make('partner_id')
++                    ->relationship('partner', 'name')
++                    ->label('Второй участник (Партнер)')
++                    ->searchable()
++                    ->preload()
++                    ->visible(function (Forms\Get $get) {
++                        $styleId = $get('style_id');
++                        if (!$styleId) return false;
++                        $style = Style::find($styleId);
++                        if (!$style) return false;
++                        return str_contains($style->name, 'Дуйлянь') || str_contains($style->name, 'Дуйда');
++                    }),
++
++                // === ДОБАВИЛ ПОЛЕ ВВОДА ОЦЕНКИ ===
++                Forms\Components\TextInput::make('final_score')
++                    ->label('Оценка')
++                    ->numeric()
++                    ->step(0.001) // ЭТО САМОЕ ГЛАВНОЕ: Разрешает вводить 3 знака
++                    ->maxValue(10)
++                    ->placeholder('0.000'),
+             ]);
+@@ -55,3 +78,2 @@ public function table(Table $table): Table
+             ->columns([
+-                // № п/п
+                 Tables\Columns\TextColumn::make('sort_order')
+@@ -63,3 +85,2 @@ public function table(Table $table): Table
+ 
+-                // Статус
+                 Tables\Columns\TextColumn::make('virtual_status')
+@@ -88,3 +109,2 @@ public function table(Table $table): Table
+ 
+-                // --- СПОРТСМЕН ---
+                 Tables\Columns\TextColumn::make('athlete.name')
+@@ -96,11 +116,6 @@ public function table(Table $table): Table
+                         $mainName = "{$record->athlete->surname} {$record->athlete->name}";
+-                        
+                         if ($record->partner) {
+                             $partnerName = "{$record->partner->surname} {$record->partner->name}";
+-                            return "
+-                                <div>{$mainName}</div>
+-                                <div>{$partnerName}</div>
+-                            ";
++                            return "<div>{$mainName}</div><div>{$partnerName}</div>";
+                         }
+-                        
+                         return $mainName;
+@@ -109,3 +124,2 @@ public function table(Table $table): Table
+ 
+-                // Вид
+                 Tables\Columns\TextColumn::make('style.name')
+@@ -114,3 +128,2 @@ public function table(Table $table): Table
+ 
+-                // Группа
+                 Tables\Columns\TextColumn::make('age_group_label')
+@@ -126,3 +139,2 @@ public function table(Table $table): Table
+ 
+-                // Пол
+                 Tables\Columns\IconColumn::make('athlete.gender')
+@@ -140,3 +152,5 @@ public function table(Table $table): Table
+ 
+-                // Оценка
++                // ===============================================
++                // КОЛОНКА С ОЦЕНКОЙ (Форматирование вывода)
++                // ===============================================
+                 Tables\Columns\TextColumn::make('final_score')
+@@ -146,5 +160,18 @@ public function table(Table $table): Table
+                     ->color('success')
+-                    ->placeholder('-'),
++                    ->placeholder('-')
++                    ->formatStateUsing(function ($state) {
++                        if ($state === null || $state === '') {
++                            return '-';
++                        }
++                        $val = floatval($state);
++                        
++                        if ($val == 0 && $state !== '0' && $state !== 0) {
++                             return $state;
++                        }
++
++                        // Принудительно 3 знака
++                        return number_format($val, 3, '.', '');
++                    }),
++                // ===============================================
+ 
+-                // Место
+                 Tables\Columns\TextColumn::make('place')
+@@ -156,2 +183,4 @@ public function table(Table $table): Table
+ 
++                        // Плотная нумерация мест по тем же правилам, что и в PDF:
++                        // внутри одного соревнования, вида, возрастной группы и пола.
+                         $distinctHigherScores = Registration::query()
+@@ -159,3 +188,3 @@ public function table(Table $table): Table
+                             ->where('style_id', $record->style_id)
+-                            ->where('age_group_label', $record->age_group_label)
++                            ->where('age_group_id', $record->age_group_id)
+                             ->whereHas('athlete', function($q) use ($record) {
+@@ -164,2 +193,3 @@ public function table(Table $table): Table
+                             ->where('is_completed', true)
++                            ->whereNotNull('final_score')
+                             ->where('final_score', '>', $record->final_score)
+@@ -168,2 +198,3 @@ public function table(Table $table): Table
+ 
++                        // dense ranking: 1 + количество различных более высоких оценок
+                         return $distinctHigherScores + 1;
+@@ -187,3 +218,2 @@ public function table(Table $table): Table
+ 
+-            // --- ГРУППИРОВКА ---
+             ->groups([
+@@ -208,4 +238,2 @@ public function table(Table $table): Table
+                     })
+-                    
+-                    // 1. ЗАГОЛОВОК - ТОЛЬКО ТЕКСТ (Чтобы починить верстку)
+                     ->getTitleFromRecordUsing(function ($record) {
+@@ -219,4 +247,2 @@ public function table(Table $table): Table
+                     })
+-
+-                    // 2. КНОПКА - В ОПИСАНИИ (Безопасно и слева)
+                     ->getDescriptionFromRecordUsing(function ($record) {
+@@ -229,4 +255,2 @@ public function table(Table $table): Table
+ 
+-                        // Используем HtmlString здесь - это разрешено
+-                        // div без стилей выравнивания встанет СЛЕВА (по умолчанию)
+                         return new HtmlString("
+@@ -236,16 +260,5 @@ public function table(Table $table): Table
+                                    onclick='event.stopPropagation();'
+-                                   style='
+-                                     display: inline-flex; 
+-                                     align-items: center; 
+-                                     gap: 5px; 
+-                                     padding: 4px 10px; 
+-                                     background-color: #d97706; 
+-                                     color: black; 
+-                                     font-size: 13px; 
+-                                     font-weight: bold; 
+-                                     border-radius: 6px; 
+-                                     text-decoration: none;'
++                                   style='display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background-color: #d97706; color: black; font-size: 13px; font-weight: bold; border-radius: 6px; text-decoration: none;'
+                                    onmouseover=\"this.style.backgroundColor='#b45309'\"
+-                                   onmouseout=\"this.style.backgroundColor='#d97706'\"
+-                                >
++                                   onmouseout=\"this.style.backgroundColor='#d97706'\">
+                                     <svg xmlns='http://www.w3.org/2000/svg' style='width: 14px; height: 14px;' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='currentColor'>
+@@ -273,9 +286,4 @@ public function table(Table $table): Table
+                         $competition = $livewire->getOwnerRecord();
+-                        
+-                        $registrations = $competition->registrations()
+-                            ->with(['style', 'ageGroup'])
+-                            ->get();
+-
++                        $registrations = $competition->registrations()->with(['style', 'ageGroup'])->get();
+                         $buckets = [];
+-
+                         foreach ($registrations as $reg) {
+@@ -286,5 +294,3 @@ public function table(Table $table): Table
+                         }
+-
+                         ksort($buckets);
+-
+                         $counter = 1;
+@@ -296,3 +302,2 @@ public function table(Table $table): Table
+                         }
+-
+                         Notification::make()
+@@ -302,3 +307,2 @@ public function table(Table $table): Table
+                             ->send();
+-                        
+                         $livewire->dispatch('refresh-table'); 

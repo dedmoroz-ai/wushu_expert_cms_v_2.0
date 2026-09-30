@@ -1,0 +1,84 @@
+##### LOCAL-vs-SERVER hunks: app/Http/Controllers/CompetitionPdfController.php
+@@ -6,3 +5,0 @@
+@@ -71 +68 @@
+@@ -99 +96 @@
+@@ -112,2 +109,2 @@
+@@ -133 +130 @@
+@@ -138 +135 @@
+@@ -147 +144 @@
+@@ -153 +149,0 @@
+@@ -163 +159 @@
+@@ -174,47 +169,0 @@
+@@ -224,3 +173 @@
+@@ -231,44 +178 @@
+@@ -308 +212 @@
+@@ -323 +227 @@
+@@ -327 +231 @@
+@@ -337 +241 @@
+##### LOCAL-vs-SERVER hunks: resources/views/pdf/final-results.blade.php
+@@ -7,2 +7 @@
+@@ -11 +10 @@
+@@ -16 +15 @@
+@@ -19 +18 @@
+@@ -23,3 +22,3 @@
+@@ -27 +26 @@
+@@ -40 +39 @@
+@@ -58 +57 @@
+@@ -61,4 +60,4 @@
+@@ -75,3 +73,0 @@
+@@ -130,7 +125,0 @@
+@@ -150,3 +139,4 @@
+@@ -160,0 +151 @@
+@@ -166,5 +157,5 @@
+@@ -182,0 +174,2 @@
+@@ -185,0 +179 @@
+@@ -194 +188 @@
+##### LOCAL-vs-SERVER hunks: app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php
+@@ -21 +21 @@
+@@ -25,9 +25 @@
+@@ -37 +29 @@
+@@ -41 +33 @@
+@@ -49,2 +41,3 @@
+@@ -52 +45 @@
+@@ -61 +54,5 @@
+@@ -64 +61 @@
+@@ -66 +63 @@
+@@ -75 +72 @@
+@@ -79 +76 @@
+##### LOCAL-vs-SERVER hunks: app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php
+@@ -4,0 +5 @@
+@@ -25,0 +27,3 @@
+@@ -28,0 +33,10 @@
+@@ -55,14 +68,0 @@
+@@ -72,0 +73,8 @@
+@@ -86,0 +95 @@
+@@ -95 +104 @@
+##### LOCAL-vs-SERVER hunks: app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php
+@@ -12,0 +13,2 @@
+@@ -14,0 +17 @@
+@@ -64 +67,2 @@
+@@ -66 +70 @@
+@@ -68,2 +72,6 @@
+@@ -70,0 +79,9 @@
+@@ -73,0 +91,12 @@
+@@ -312 +341,29 @@
+23:    public static function shouldRegisterNavigation(): bool
+32:    public function getHeading(): string { return ''; }
+94:    public function mount()
+107:    public function loadState()
+336:    protected function calculateAb(array $panelScores, array $panelExpected, ScoreRange $range): void
+380:    public function addNumber($num) {
+443:    protected function appendDigit(string $current, $num, int $maxIntegerDigits = 2): ?string
+470:    public function pressCode($codeId)
+503:    public function undoLastCode()
+511:    protected function currentAScore(): string
+522:    public function getPressCountsProperty(): array
+531:    protected function isPrefixAcceptable(string $candidate): bool
+539:    public function backspace() {
+558:    public function submitMyScore() {
+669:    public function editMyScore()
+696:    public function resetJudgeScore($judgeId)
+760:    public function finalizeProtocol()
+893:    protected function finalizationDetails(Registration $reg, Competition $competition, ?float $autoValue): array
+921:    protected function resetData($msg) {
+949:    public function logout()

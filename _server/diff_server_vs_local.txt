@@ -1,0 +1,87 @@
+Only in /home/iotebook/wushu-expert: .dockerignore
+Files /mnt/c/wushu-server/.env and /home/iotebook/wushu-expert/.env differ
+Only in /home/iotebook/wushu-expert: .env.production.backup
+Files /mnt/c/wushu-server/.gitignore and /home/iotebook/wushu-expert/.gitignore differ
+Files /mnt/c/wushu-server/Caddyfile and /home/iotebook/wushu-expert/Caddyfile differ
+Only in /home/iotebook/wushu-expert: DEPLOYMENT_QR_PUBLIC_RESULTS.md
+Files /mnt/c/wushu-server/Dockerfile and /home/iotebook/wushu-expert/Dockerfile differ
+Only in /home/iotebook/wushu-expert: WINSCP_DEPLOYMENT_INSTRUCTIONS.md
+Only in /home/iotebook/wushu-expert: _server
+Only in /mnt/c/wushu-server/app/Filament/Pages: Analytics.php
+Files /mnt/c/wushu-server/app/Filament/Pages/JudgePad.php and /home/iotebook/wushu-expert/app/Filament/Pages/JudgePad.php differ
+Only in /mnt/c/wushu-server/app/Filament/Pages: ScoresSummary.php
+Files /mnt/c/wushu-server/app/Filament/Pages/SuperJudgePad.php and /home/iotebook/wushu-expert/app/Filament/Pages/SuperJudgePad.php differ
+Files /mnt/c/wushu-server/app/Filament/Resources/AgeGroupResource.php and /home/iotebook/wushu-expert/app/Filament/Resources/AgeGroupResource.php differ
+Files /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php and /home/iotebook/wushu-expert/app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php differ
+Only in /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource/Pages: EditCompetition.php.backup
+Only in /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource/Pages: EditCompetition.php.bak.titlesep
+Files /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php and /home/iotebook/wushu-expert/app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php differ
+Files /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php and /home/iotebook/wushu-expert/app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php differ
+Files /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource.php and /home/iotebook/wushu-expert/app/Filament/Resources/CompetitionResource.php differ
+Only in /home/iotebook/wushu-expert/app/Filament/Resources: DeductionCodeResource
+Only in /home/iotebook/wushu-expert/app/Filament/Resources: DeductionCodeResource.php
+Files /mnt/c/wushu-server/app/Filament/Resources/JudgeResource.php and /home/iotebook/wushu-expert/app/Filament/Resources/JudgeResource.php differ
+Only in /home/iotebook/wushu-expert/app/Filament/Resources: JudgingLogResource
+Only in /home/iotebook/wushu-expert/app/Filament/Resources: JudgingLogResource.php
+Files /mnt/c/wushu-server/app/Filament/Resources/UserResource.php and /home/iotebook/wushu-expert/app/Filament/Resources/UserResource.php differ
+Files /mnt/c/wushu-server/app/Http/Controllers/CompetitionPdfController.php and /home/iotebook/wushu-expert/app/Http/Controllers/CompetitionPdfController.php differ
+Only in /mnt/c/wushu-server/app/Http/Controllers: CompetitionPdfController.php.bak
+Only in /mnt/c/wushu-server/app/Http/Controllers: CompetitionPdfController.php.bak.titlesep
+Files /mnt/c/wushu-server/app/Http/Controllers/QrCodeController.php and /home/iotebook/wushu-expert/app/Http/Controllers/QrCodeController.php differ
+Only in /mnt/c/wushu-server/app/Http/Controllers: ScoresSummaryPdfController.php
+Files /mnt/c/wushu-server/app/Livewire/Scoreboard.php and /home/iotebook/wushu-expert/app/Livewire/Scoreboard.php differ
+Files /mnt/c/wushu-server/app/Models/AgeGroup.php and /home/iotebook/wushu-expert/app/Models/AgeGroup.php differ
+Files /mnt/c/wushu-server/app/Models/Competition.php and /home/iotebook/wushu-expert/app/Models/Competition.php differ
+Only in /home/iotebook/wushu-expert/app/Models: DeductionCode.php
+Only in /home/iotebook/wushu-expert/app/Models: JudgingLog.php
+Files /mnt/c/wushu-server/app/Models/Registration.php and /home/iotebook/wushu-expert/app/Models/Registration.php differ
+Files /mnt/c/wushu-server/app/Models/Score.php and /home/iotebook/wushu-expert/app/Models/Score.php differ
+Only in /home/iotebook/wushu-expert/app/Models: ScoreDeduction.php
+Files /mnt/c/wushu-server/app/Models/User.php and /home/iotebook/wushu-expert/app/Models/User.php differ
+Only in /home/iotebook/wushu-expert/app: Support
+Only in /home/iotebook/wushu-expert/app: TODO_1.md
+Only in /home/iotebook/wushu-expert/bootstrap/cache: packages.php
+Only in /home/iotebook/wushu-expert/bootstrap/cache: services.php
+Only in /mnt/c/wushu-server: composer.json.backup
+Only in /home/iotebook/wushu-expert/database/migrations: 2026_01_28_105148_add_score_limits_to_categories_table.php
+Only in /mnt/c/wushu-server/database/migrations: 2026_05_15_065700_add_judge_category_to_users_table.php
+Only in /home/iotebook/wushu-expert/database/migrations: 2026_09_23_100000_change_scores_score_precision.php
+Only in /home/iotebook/wushu-expert/database/migrations: 2026_09_23_100100_add_score_limits_to_age_groups_table.php
+Only in /home/iotebook/wushu-expert/database/migrations: 2026_09_23_100200_create_judging_logs_table.php
+Only in /home/iotebook/wushu-expert/database/migrations: 2026_09_24_100000_add_judging_scheme_and_panels.php
+Only in /home/iotebook/wushu-expert/database/migrations: 2026_09_24_100100_create_deduction_codes_tables.php
+Only in /home/iotebook/wushu-expert/database/migrations: 2026_09_24_100200_add_details_to_judging_logs_table.php
+Only in /home/iotebook/wushu-expert/database/seeders: DeductionCodeSeeder.php
+Only in /home/iotebook/wushu-expert/database/seeders: JudgingAbDemoSeeder.php
+Only in /home/iotebook/wushu-expert/database/seeders: JudgingDemoSeeder.php
+Files /mnt/c/wushu-server/docker-compose.yml and /home/iotebook/wushu-expert/docker-compose.yml differ
+Only in /home/iotebook/wushu-expert: docs
+Only in /mnt/c/wushu-server/public: analytics.html
+Only in /mnt/c/wushu-server/public/images: c989.svg
+Only in /mnt/c/wushu-server/resources/views/filament/pages: analytics.blade.php
+Files /mnt/c/wushu-server/resources/views/filament/pages/judge-pad.blade.php and /home/iotebook/wushu-expert/resources/views/filament/pages/judge-pad.blade.php differ
+Only in /mnt/c/wushu-server/resources/views/filament/pages: scores-summary.blade.php
+Files /mnt/c/wushu-server/resources/views/filament/pages/super-judge-pad.blade.php and /home/iotebook/wushu-expert/resources/views/filament/pages/super-judge-pad.blade.php differ
+Only in /home/iotebook/wushu-expert/resources/views/filament/resources: judging-log-details.blade.php
+Files /mnt/c/wushu-server/resources/views/pdf/diplomas_blank.blade.php and /home/iotebook/wushu-expert/resources/views/pdf/diplomas_blank.blade.php differ
+Only in /home/iotebook/wushu-expert/resources/views/pdf: diplomas_blank_old.blade.php
+Files /mnt/c/wushu-server/resources/views/pdf/final-results.blade.php and /home/iotebook/wushu-expert/resources/views/pdf/final-results.blade.php differ
+Only in /mnt/c/wushu-server/resources/views/pdf: final-results.blade.php.bak
+Only in /mnt/c/wushu-server/resources/views/pdf: final-results.blade.php.bak.titlesep
+Only in /mnt/c/wushu-server/resources/views/pdf: parts
+Only in /mnt/c/wushu-server/resources/views/pdf: scores-summary.blade.php
+Only in /mnt/c/wushu-server/resources/views/pdf: title-page-standalone.blade.php
+Files /mnt/c/wushu-server/resources/views/welcome.blade.php and /home/iotebook/wushu-expert/resources/views/welcome.blade.php differ
+Only in /mnt/c/wushu-server/resources/views: welcome.blade.php.bak
+Only in /mnt/c/wushu-server/resources/views: welcome.blade1.php
+Files /mnt/c/wushu-server/routes/web.php and /home/iotebook/wushu-expert/routes/web.php differ
+Only in /mnt/c/wushu-server/routes: web.php.backup
+Only in /mnt/c/wushu-server/routes: web.php.bak.titlesep
+Only in /home/iotebook/wushu-expert: scripts
+Only in /home/iotebook/wushu-expert/tests/Feature: AbJudgingFlowTest.php
+Only in /home/iotebook/wushu-expert/tests/Feature: JudgingRulesTest.php
+Only in /home/iotebook/wushu-expert/tests/Unit: JudgePadInputTest.php
+Only in /home/iotebook/wushu-expert/tests/Unit: JudgingCalculatorTest.php
+Only in /home/iotebook/wushu-expert/tests/Unit: ScoreRangePanelTest.php
+Only in /home/iotebook/wushu-expert/tests/Unit: ScoreRangePrefixTest.php
+Only in /home/iotebook/wushu-expert/tests/Unit: ScoreRangeTest.php

@@ -1,0 +1,32 @@
+--- CompetitionPdfController.php	2026-05-15 18:17:58.000000000 +0300
++++ CompetitionPdfController.hotfix.php	2026-09-28 19:49:54.178760532 +0300
+@@ -206,16 +206,21 @@
+         $chiefJudgeName = $competition->chief_judge_name;
+         $chiefSecretaryName = $competition->chief_secretary_name;
+ 
+-        $headJudges = User::with('club')
+-            ->where('role', 'head_judge')
+-            ->where('is_active_judge', true)
+-            ->orderBy('name')
++        // ХОТФИКС 8.4/8.5: в листе «СОСТАВ СУДЕЙСКОЙ КОЛЛЕГИИ» — только бригада
++        // ЭТОГО турнира (competition_user), а не все активные судьи системы.
++        // Судьи вне бригады остаются в системе, но в протокол не попадают.
++        $headJudges = $competition->judges()
++            ->with('club')
++            ->where('users.role', 'head_judge')
++            ->where('users.is_active_judge', true)
++            ->orderBy('users.name')
+             ->get();
+ 
+-        $lineJudges = User::with('club')
+-            ->where('role', 'judge')
+-            ->where('is_active_judge', true)
+-            ->orderBy('name')
++        $lineJudges = $competition->judges()
++            ->with('club')
++            ->where('users.role', 'judge')
++            ->where('users.is_active_judge', true)
++            ->orderBy('users.name')
+             ->get();
+ 
+         return $this->renderPdfWithCharset('pdf.final-results', compact(

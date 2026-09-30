@@ -190,7 +190,7 @@
                                 <b>{{ $reg->partner->surname }} {{ $reg->partner->name }}</b>
                             @endif
                         </td>
-                        <td class="text-left">{{ $reg->athlete->club->city ?? '' }}</td>
+                        <td class="text-left">{{ $reg->athlete->club->name ?? '' }}</td>
                         <td></td>
                     </tr>
                     @endforeach

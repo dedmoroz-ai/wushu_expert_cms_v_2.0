@@ -1,0 +1,8 @@
+--- local CompetitionPdfController: есть titlePage? ---
+84:    public function startList(Competition $competition)
+132:    public function finalResults(Competition $competition)
+--- hotfix == local app-файл? ---
+NO
+--- применён ли хотфикс 8.4-8.8 (SuperJudgePad) на сервере? ---
+NOT_APPLIED_or_DIFFERS
+SNAPSHOT_MATCHES_SERVER

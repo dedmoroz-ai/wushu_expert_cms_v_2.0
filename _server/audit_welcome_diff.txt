@@ -1,0 +1,15 @@
+--- /mnt/c/wushu-server/resources/views/welcome.blade.php	2026-05-18 12:21:14.000000000 +0300
++++ resources/views/welcome.blade.php	2026-02-10 19:07:33.505767888 +0300
+@@ -156,8 +156,8 @@
+         <div class="h-full max-w-6xl mx-auto px-4 flex items-center justify-center gap-4 text-[11px] text-gray-400">
+             <span class="inline-flex items-center gap-2">
+                 <span>Разработано</span>
+-                <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz" class="h-6 w-auto opacity-100">
+-                <span class="ml-2">Макс Мороз &copy; 2026. Все права защищены.</span>
++                <img src="{{ asset('images/NMRULOGOWH.svg') }}" alt="NMru" class="h-6 w-auto opacity-100">
++                <span class="ml-2">&copy; 2026</span>
+             </span>
+         </div>
+     </div>
+457:            if (strlen($decimals) > ScoreRange::PRECISION) return null;
+458:        } elseif (strlen($candidate) > $maxIntegerDigits) {

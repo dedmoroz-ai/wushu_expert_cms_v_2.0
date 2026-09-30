@@ -4,26 +4,27 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Итоговый протокол</title>
     <style>
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; }
+        /* counter-reset: page 1 → нумерация на 1-й странице покажет 2 */
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; counter-reset: page 1; }
 
         @page {
-            margin: 180px 30px 200px 30px; 
+            margin: 180px 30px 200px 30px;
         }
 
         header {
             position: fixed;
-            top: -160px; 
+            top: -160px;
             left: 0;
             right: 0;
-            height: 145px; 
+            height: 145px;
         }
 
         footer {
-            position: fixed; 
-            bottom: -195px; 
-            left: 0px; 
+            position: fixed;
+            bottom: -195px;
+            left: 0px;
             right: 0px;
-            height: 140px; 
+            height: 140px;
         }
 
         .page-number {
@@ -36,7 +37,7 @@
             color: #555;
         }
         .page-number:before {
-            content: "-- " counter(page) " --";
+            content: "- " counter(page) " -";
         }
 
         .header-table { width: 100%; border-collapse: collapse; border: none; }
@@ -54,13 +55,13 @@
         .data-tbl th, .data-tbl td { border: 1px solid black; padding: 4px; text-align: center; vertical-align: middle; }
         .data-tbl th { background-color: #f0f0f0; }
         .text-left { text-align: left; }
-        
+
         .group-head { background:rgb(211, 211, 211); color: black; padding: 6px; font-weight: bold; font-size: 12px; text-align: center; border: 1px solid black; border-bottom: none; }
 
-        /* Цвета мест */
-        .rank-1 { background-color:rgb(255, 255, 255); } 
-        .rank-2 { background-color:rgb(255, 255, 255); } 
-        .rank-3 { background-color:rgb(255, 255, 255); } 
+                /* Цвета мест */
+        .rank-1 { background-color:rgb(255, 255, 255); }
+        .rank-2 { background-color:rgb(255, 255, 255); }
+        .rank-3 { background-color:rgb(255, 255, 255); }
 
         .footer-tbl { width: 100%; border: none; }
         .footer-tbl td { border: none; vertical-align: bottom; height: 90px; position: relative; }
@@ -71,6 +72,9 @@
         .name { font-size: 14px; font-style: italic; margin-top: 3px; }
         .sign-img { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); max-height: 60px; z-index: 1; }
         .stamp-img { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); max-width: 190px; opacity: 0.9; z-index: 2; }
+
+        /* ===== СТИЛИ ДЛЯ ДОПОЛНИТЕЛЬНЫХ ЛИСТОВ ===== */
+        .data-tbl tfoot td { background-color: #f0f0f0; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -123,6 +127,13 @@
 
     <div class="page-number"></div>
 
+    {{-- ===== ЛИСТ 1: СПИСОК КОМАНД ===== --}}
+    @include('pdf.parts.teams-page')
+
+    {{-- ===== ЛИСТ 2: АДМИНИСТРАЦИЯ ===== --}}
+    @include('pdf.parts.admin-page')
+
+    {{-- ===== ОСНОВНОЙ ПРОТОКОЛ ===== --}}
     @foreach($grouped as $groupName => $items)
         <div class="group-wrap">
             <div class="group-head">{!! $groupName !!}</div>
@@ -136,10 +147,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php 
-                        // Плотная нумерация мест: 1, 2, 2, 3, 4, 4, 5 ...
-                        $rank = 1; 
-                        $prevScore = null; 
+                    @php
+                        $rank = 1;
+                        $prevScore = null;
                     @endphp
                     @foreach($items as $reg)
                         @php
@@ -148,17 +158,16 @@
                             if ($prevScore === null) {
                                 $rank = 1;
                             } elseif ($score < $prevScore) {
-                                // Следующее место только если оценка строго ниже предыдущей
                                 $rank++;
                             }
 
                             $prevScore = $score;
 
-                            $bg = match($rank) { 
-                                1 => 'rank-1', 
-                                2 => 'rank-2', 
-                                3 => 'rank-3', 
-                                default => '' 
+                            $bg = match($rank) {
+                                1 => 'rank-1',
+                                2 => 'rank-2',
+                                3 => 'rank-3',
+                                default => ''
                             };
                         @endphp
                         <tr class="{{ $bg }}">
@@ -170,13 +179,10 @@
                                     <b>{{ $reg->partner->surname }} {{ $reg->partner->name }}</b>
                                 @endif
                             </td>
-                            <td class="text-left">{{ $reg->athlete->club->name ?? '' }}</td>
-                            
-                            <!-- ЗДЕСЬ ИСПРАВЛЕНИЕ: 3 знака после запятой -->
+                            <td class="text-left">{{ $reg->athlete->club->city ?? '' }}</td>
                             <td>
                                 <b>{{ number_format((float)$reg->final_score, 3, '.', '') }}</b>
                             </td>
-                            
                         </tr>
                     @endforeach
                 </tbody>

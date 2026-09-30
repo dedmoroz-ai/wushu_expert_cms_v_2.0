@@ -1,0 +1,17 @@
+IDENTICAL       app/Livewire/PublicResults.php
+IDENTICAL       resources/views/livewire/public-results.blade.php
+IDENTICAL       resources/views/filament/resources/competition-resource/pages/qr-code-modal.blade.php
+IDENTICAL       public/images/NMRULOGOWH.svg
+IDENTICAL       database/migrations/2026_01_29_120000_add_public_token_to_competitions_table.php
+IDENTICAL       resources/views/components/layouts/public.blade.php
+DIFFERENT(91)   app/Models/Competition.php
+DIFFERENT(15)   app/Models/AgeGroup.php
+DIFFERENT(61)   app/Filament/Resources/AgeGroupResource.php
+DIFFERENT(9)   app/Filament/Resources/CompetitionResource.php
+IDENTICAL       app/Http/Controllers/ExportController.php
+--- PDF hotfix vs server controller ---
+HOTFIX_DIFFERS
+SERVER == _server/CompetitionPdfController.php snapshot
+final-results == _server snapshot
+admin-page == _server snapshot
+teams-page == _server snapshot

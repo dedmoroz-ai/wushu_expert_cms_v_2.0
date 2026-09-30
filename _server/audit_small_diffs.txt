@@ -1,0 +1,168 @@
+##### LOCAL-vs-SERVER: app/Models/User.php
+--- /mnt/c/wushu-server/app/Models/User.php	2026-05-15 08:12:33.000000000 +0300
++++ app/Models/User.php	2026-09-24 19:00:56.896616637 +0300
+@@ -24,7 +24,6 @@
+         'club_id',
+         'role',
+         'is_active_judge',
+-        'judge_category',
+     ];
+ 
+     /**
+@@ -83,11 +82,12 @@
+ 
+     /**
+      * Связь: Соревнования (как судья).
++     * ПЕРЕИМЕНОВАЛИ ИЗ competitionsAsJudge В competitions, ЧТОБЫ УБРАТЬ ОШИБКУ
+      */
+     public function competitions()
+     {
+         return $this->belongsToMany(Competition::class, 'competition_user')
+-                    ->withPivot('role_on_tournament')
++                    ->withPivot('role_on_tournament', 'panel')
+                     ->withTimestamps();
+     }
+-}
+\ No newline at end of file
++}
+##### LOCAL-vs-SERVER: app/Models/Score.php
+--- /mnt/c/wushu-server/app/Models/Score.php	2026-01-28 00:29:17.000000000 +0300
++++ app/Models/Score.php	2026-09-24 19:01:01.115017079 +0300
+@@ -6,13 +6,19 @@
+ 
+ class Score extends Model
+ {
+-    protected $fillable = ['registration_id', 'judge_id', 'score'];
++    protected $fillable = ['registration_id', 'judge_id', 'score', 'panel'];
+ 
+     protected $casts = [
++        // Правило 8.1: scores.score = decimal(5,3), единая точность 3 знака.
+         // 'double' гарантирует, что оценка 8.865 не превратится в 8.87
+         'score' => 'double', 
+     ];
+ 
++    public function logs()
++    {
++        return $this->hasMany(JudgingLog::class, 'registration_id', 'registration_id');
++    }
++
+     public function judge()
+     {
+         return $this->belongsTo(User::class, 'judge_id');
+@@ -22,4 +28,12 @@
+     {
+         return $this->belongsTo(Registration::class);
+     }
++
++    /**
++     * Правило R-3.12: сбавки судьи A, из которых сложилась оценка.
++     */
++    public function deductions()
++    {
++        return $this->hasMany(ScoreDeduction::class)->orderBy('id');
++    }
+ }
+##### LOCAL-vs-SERVER: app/Models/Registration.php
+--- /mnt/c/wushu-server/app/Models/Registration.php	2026-01-28 00:28:41.000000000 +0300
++++ app/Models/Registration.php	2026-09-24 19:01:09.602769864 +0300
+@@ -17,6 +17,9 @@
+         // ВАЖНО: 'double' заставляет Laravel принимать любые дробные числа без округления
+         'final_score' => 'double', 
+         'score' => 'double', // На всякий случай для второй колонки
++        // Правило R-4.20: средние панелей A и B (сценарий A/B).
++        'score_a' => 'double',
++        'score_b' => 'double',
+     ];
+ 
+     // --- СВЯЗИ ---
+@@ -50,4 +53,21 @@
+     {
+         return $this->hasMany(Score::class);
+     }
++
++    /**
++     * Журнал судейских действий по этой заявке (правило 8.9).
++     */
++    public function judgingLogs()
++    {
++        return $this->hasMany(JudgingLog::class);
++    }
++
++    /**
++     * Правила 8.2, 8.3: диапазон допустимых оценок для этого выступления
++     * (с учётом лимитов возрастной категории).
++     */
++    public function scoreRange(): \App\Support\ScoreRange
++    {
++        return \App\Support\ScoreRange::forRegistration($this);
++    }
+ }
+##### LOCAL-vs-SERVER: app/Livewire/Scoreboard.php
+--- /mnt/c/wushu-server/app/Livewire/Scoreboard.php	2026-02-02 10:37:55.000000000 +0300
++++ app/Livewire/Scoreboard.php	2026-02-24 08:45:47.676183542 +0300
+@@ -107,8 +107,9 @@
+         $qrCodeUrl = null;
+         
+         if ($competition && $competition->status_code == 2) {
+-            // Проверяем, существует ли колонка public_token
+-            $hasPublicTokenColumn = \Schema::hasColumn('competitions', 'public_token');
++            // Проверяем наличие колонки (для совместимости)
++            try {
++                $hasPublicTokenColumn = Schema::hasColumn('competitions', 'public_token');
+             
+             if ($hasPublicTokenColumn) {
+                 // Генерируем токен, если его нет
+@@ -118,7 +119,11 @@
+                 }
+                 $publicUrl = route('public.results', ['token' => $competition->public_token]);
+             } else {
+-                // Если колонки нет, используем ID соревнования (временное решение)
++                    // Если колонки нет, используем ID соревнования
++                    $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
++                }
++            } catch (\Exception $e) {
++                // Fallback: используем ID соревнования
+                 $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
+             }
+             
+##### LOCAL-vs-SERVER: routes/web.php
+--- /mnt/c/wushu-server/routes/web.php	2026-05-15 17:21:20.000000000 +0300
++++ routes/web.php	2026-02-02 09:51:34.530379205 +0300
+@@ -31,16 +31,7 @@
+ Route::get('/competition/{competition}/final-results', [CompetitionPdfController::class, 'finalResults'])
+     ->name('competition.final-results');
+ 
+-// Титульный лист (отдельный PDF)
+-Route::get('/competition/{competition}/title-page', [CompetitionPdfController::class, 'titlePage'])
+-    ->name('competition.title-page');
+-
+ // --- ПЕЧАТЬ ДИПЛОМОВ ---
+ // Теперь принимаем ID соревнования, вида, возрастную группу и пол
+ Route::get('/competition/{competition}/diplomas/{style}/{age_group}/{gender}', [ExportController::class, 'downloadDiplomas'])
+     ->name('export.diplomas');
+-
+-// --- СВОДКА ОЦЕНОК (PDF) ---
+-Route::get('/competition/{competition}/scores-summary', \App\Http\Controllers\ScoresSummaryPdfController::class)
+-    ->middleware('auth')
+-    ->name('competition.scores-summary');
+\ No newline at end of file
+##### LOCAL-vs-SERVER: app/Filament/Resources/CompetitionResource.php
+--- /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource.php	2026-01-21 10:12:18.000000000 +0300
++++ app/Filament/Resources/CompetitionResource.php	2026-09-24 19:10:47.594589187 +0300
+@@ -151,6 +151,16 @@
+                             ->label('Включить дисциплины Дуйлянь')
+                             ->inline(false)
+                             ->default(false),
++
++                        // Правило R-2.11: сценарий судейства турнира.
++                        Forms\Components\Select::make('judging_scheme')
++                            ->label('Сценарий судейства')
++                            ->options(Competition::schemeLabels())
++                            ->default(Competition::SCHEME_SIMPLE)
++                            ->required()
++                            ->native(false)
++                            ->helperText('A/B: назначьте каждому судье функцию A или B во вкладке «Судейская бригада». Не меняйте сценарий во время турнира.')
++                            ->columnSpanFull(),
+                     ])
+                     ->columns(2)
+                     ->collapsible() 

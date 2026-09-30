@@ -1,0 +1,143 @@
+===== EditCompetition: LOCAL vs SERVER =====
+--- /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php	2026-05-15 17:22:31.000000000 +0300
++++ app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php	2026-02-24 08:45:49.040183542 +0300
+@@ -19,25 +19,17 @@
+                 ->label('Стартовый протокол (PDF)')
+                 ->icon('heroicon-o-printer')
+-                ->color('success')
++                ->color('success') // Серый цвет
+                 ->url(fn ($record) => route('competition.start-list', $record))
+                 ->openUrlInNewTab(),
+ 
+-            // 2. Кнопка "Титульный лист"
+-            Actions\Action::make('title_page')
+-                ->label('Титульный лист (PDF)')
+-                ->icon('heroicon-o-document-text')
+-                ->color('warning')
+-                ->url(fn ($record) => route('competition.title-page', $record))
+-                ->openUrlInNewTab(),
+-
+-            // 3. Кнопка "Итоговый протокол"
++            // 2. Кнопка "Итоговый протокол"
+             Actions\Action::make('final_protocol')
+                 ->label('Итоговый протокол (PDF)')
+                 ->icon('heroicon-o-trophy')
+-                ->color('success')
++                ->color('success') // Зеленый цвет
+                 ->url(fn ($record) => route('competition.final-results', $record))
+                 ->openUrlInNewTab(),
+ 
+-            // 4. Кнопка "QR-код для публичной страницы"
++            // 3. Кнопка "QR-код для публичной страницы"
+             Actions\Action::make('qr_code')
+                 ->label('QR-код для публичной страницы')
+@@ -47,8 +39,9 @@
+                 ->modalContent(function () {
+                     $competition = $this->record;
+-
+-                    // Проверяем, существует ли колонка public_token
++                    
++                    // Проверяем наличие колонки (для совместимости с версиями без миграции)
++                    try {
+                     $hasPublicTokenColumn = Schema::hasColumn('competitions', 'public_token');
+-
++                    
+                     if ($hasPublicTokenColumn) {
+                         // Генерируем токен, если его нет
+@@ -59,10 +52,14 @@
+                         $publicUrl = route('public.results', ['token' => $competition->public_token]);
+                     } else {
+-                        // Если колонки нет, используем ID соревнования (временное решение)
++                            // Если колонки нет, используем ID соревнования
++                            $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
++                        }
++                    } catch (\Exception $e) {
++                        // Fallback: используем ID соревнования
+                         $publicUrl = route('public.results', ['token' => 'comp_' . $competition->id]);
+                     }
+-
++                    
+                     $qrCodeUrl = route('competition.qr-code', $competition);
+-
++                    
+                     return view('filament.resources.competition-resource.pages.qr-code-modal', [
+                         'publicUrl' => $publicUrl,
+@@ -73,7 +70,7 @@
+                 ->modalCancelActionLabel('Закрыть'),
+ 
+-            // 5. Стандартная кнопка удаления
++            // 4. Стандартная кнопка удаления
+             Actions\DeleteAction::make(),
+         ];
+
+===== JudgesRelationManager: LOCAL vs SERVER =====
+--- /mnt/c/wushu-server/app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php	2026-05-15 08:36:30.000000000 +0300
++++ app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php	2026-09-24 19:10:56.350779927 +0300
+@@ -3,4 +3,5 @@
+ namespace App\Filament\Resources\CompetitionResource\RelationManagers;
+ 
++use App\Models\Competition;
+ use Filament\Forms;
+ use Filament\Forms\Form;
+@@ -24,7 +25,20 @@
+                     ->label('Роль на турнире')
+                     ->placeholder('Например: Рефери, Боковой судья'),
++
++                // Правило R-4.18: функция судьи в сценарии A/B.
++                self::panelSelect(),
+             ]);
+     }
+ 
++    protected static function panelSelect(): Forms\Components\Select
++    {
++        return Forms\Components\Select::make('panel')
++            ->label('Функция судьи (сценарий A/B)')
++            ->options(Competition::panelLabels())
++            ->placeholder('Не назначена')
++            ->native(false)
++            ->helperText('Используется только в турнирах со сценарием A/B. Старший судья тоже может быть A или B.');
++    }
++
+     public function table(Table $table): Table
+     {
+@@ -53,22 +67,16 @@
+                     }),
+ 
+-                // НОВАЯ КОЛОНКА: Судейская категория
+-                Tables\Columns\TextColumn::make('judge_category')
+-                    ->label('Категория')
+-                    ->badge()
+-                    ->placeholder('—')
+-                    ->color(fn (?string $state): string => match ($state) {
+-                        'ССВК' => 'success',   // зелёный — высшая
+-                        'СС1К' => 'warning',   // оранжевый — первая
+-                        'СС2К' => 'info',      // синий — вторая
+-                        'СС3К' => 'gray',      // серый — третья
+-                        'ЮС'   => 'gray',      // юный судья
+-                        default => 'gray',
+-                    }),
+-
+                 // Показываем роль на ЭТОМ турнире
+                 Tables\Columns\TextColumn::make('pivot.role_on_tournament')
+                     ->label('Роль на турнире')
+                     ->placeholder('По умолчанию'),
++
++                Tables\Columns\TextColumn::make('pivot.panel')
++                    ->label('Функция')
++                    ->badge()
++                    ->color(fn (?string $state): string => $state ? 'primary' : 'gray')
++                    ->formatStateUsing(fn (?string $state): string => $state ? 'Судья ' . $state : '—')
++                    ->placeholder('—')
++                    ->visible(fn (): bool => $this->getOwnerRecord()->isAbScheme()),
+             ])
+             ->headerActions([
+@@ -85,4 +93,5 @@
+                         Forms\Components\TextInput::make('role_on_tournament')
+                             ->label('Роль на этом турнире (необязательно)'),
++                        self::panelSelect(),
+                     ]),
+             ])
+@@ -93,3 +102,3 @@
+             ]);
+     }
+-}

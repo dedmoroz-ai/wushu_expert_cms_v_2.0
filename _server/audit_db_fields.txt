@@ -1,0 +1,4 @@
+      3 final_score
+      2 is_completed
+      3 judge_category
+      6 public_token

@@ -1,0 +1,56 @@
+ M Caddyfile
+ M Dockerfile
+ M app/Filament/Pages/SuperJudgePad.php
+ M app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php
+ M app/Filament/Resources/CompetitionResource/RelationManagers/JudgesRelationManager.php
+ M app/Filament/Resources/CompetitionResource/RelationManagers/RegistrationsRelationManager.php
+ M app/Filament/Resources/JudgeResource.php
+ M app/Filament/Resources/RegistrationResource.php
+ M app/Filament/Resources/RegistrationResource/Pages/CreateRegistration.php
+ M app/Filament/Resources/StyleResource.php
+ M app/Filament/Resources/UserResource.php
+ M app/Http/Controllers/CompetitionPdfController.php
+ M app/Livewire/Scoreboard.php
+ M app/Models/Registration.php
+ M app/Models/Score.php
+ M app/Models/User.php
+ M app/Providers/AppServiceProvider.php
+ M composer.json
+ M composer.lock
+ M docker-compose.yml
+ M resources/views/livewire/scoreboard.blade.php
+ M resources/views/pdf/diplomas_blank.blade.php
+ M resources/views/pdf/final-results.blade.php
+ M resources/views/pdf/start-list.blade.php
+ M resources/views/welcome.blade.php
+ M routes/web.php
+?? app/Filament/Pages/Analytics.php
+?? app/Filament/Pages/ScoresSummary.php
+?? app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php.backup
+?? app/Filament/Resources/CompetitionResource/Pages/EditCompetition.php.bak.titlesep
+?? app/Http/Controllers/CompetitionPdfController.php.bak
+?? app/Http/Controllers/CompetitionPdfController.php.bak.titlesep
+?? app/Http/Controllers/QrCodeController.php
+?? app/Http/Controllers/ScoresSummaryPdfController.php
+?? app/Livewire/PublicResults.php
+?? auto_backup.sql
+?? composer.json.backup
+?? database/migrations/2026_01_29_120000_add_public_token_to_competitions_table.php
+?? database/migrations/2026_05_15_065700_add_judge_category_to_users_table.php
+?? public/analytics.html
+?? public/images/NMRULOGOWH.svg
+?? public/images/c989.svg
+?? resources/views/components/layouts/public.blade.php
+?? resources/views/filament/pages/analytics.blade.php
+?? resources/views/filament/pages/scores-summary.blade.php
+?? resources/views/filament/resources/competition-resource/pages/qr-code-modal.blade.php
+?? resources/views/livewire/public-results.blade.php
+?? resources/views/pdf/final-results.blade.php.bak
+?? resources/views/pdf/final-results.blade.php.bak.titlesep
+?? resources/views/pdf/parts/
+?? resources/views/pdf/scores-summary.blade.php
+?? resources/views/pdf/title-page-standalone.blade.php
+?? resources/views/welcome.blade.php.bak
+?? resources/views/welcome.blade1.php
+?? routes/web.php.backup
+?? routes/web.php.bak.titlesep

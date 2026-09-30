@@ -1,0 +1,27 @@
+ Caddyfile                                          |   7 +-
+ Dockerfile                                         |   5 +-
+ app/Filament/Pages/SuperJudgePad.php               |  31 ++-
+ .../CompetitionResource/Pages/EditCompetition.php  |  53 +++-
+ .../RelationManagers/JudgesRelationManager.php     |  16 +-
+ .../RegistrationsRelationManager.php               |  98 +++----
+ app/Filament/Resources/JudgeResource.php           |  60 +++-
+ app/Filament/Resources/RegistrationResource.php    |  62 +++--
+ .../Pages/CreateRegistration.php                   |  48 ++--
+ app/Filament/Resources/StyleResource.php           |  23 +-
+ app/Filament/Resources/UserResource.php            |  52 +++-
+ app/Http/Controllers/CompetitionPdfController.php  | 301 +++++++++++++++++----
+ app/Livewire/Scoreboard.php                        |  26 ++
+ app/Models/Registration.php                        |  19 +-
+ app/Models/Score.php                               |   5 +
+ app/Models/User.php                                |   4 +-
+ app/Providers/AppServiceProvider.php               |  27 +-
+ composer.json                                      |   3 +-
+ composer.lock                                      | 174 +++++++++++-
+ docker-compose.yml                                 |  49 +++-
+ resources/views/livewire/scoreboard.blade.php      |  30 +-
+ resources/views/pdf/diplomas_blank.blade.php       |  34 ++-
+ resources/views/pdf/final-results.blade.php        | 138 ++++------
+ resources/views/pdf/start-list.blade.php           |  49 ++--
+ resources/views/welcome.blade.php                  |  10 +-
+ routes/web.php                                     |  16 ++
+ 26 files changed, 983 insertions(+), 357 deletions(-)
