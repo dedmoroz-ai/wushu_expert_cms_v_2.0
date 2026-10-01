@@ -168,14 +168,14 @@ class AdminPanelProvider extends PanelProvider
                 </style>'
             )
 
-            // 4. ФУТЕР ПРИЛОЖЕНИЯ (50px): версия слева, год + копирайт + лого разработчика справа
+            // 4. ФУТЕР ПРИЛОЖЕНИЯ (50px): версия слева, копирайт + год + лого разработчика справа
             ->renderHook(
                 'panels::body.end',
                 fn (): string => Blade::render(<<<'HTML'
                     <footer class="wushu-app-footer">
                         <span>Wushu Expert CMS {{ config('app.version') }}</span>
                         <span class="wushu-app-footer__copy">
-                            <span>2026 &copy;</span>
+                            <span>&copy; 2026</span>
                             <img class="wushu-app-footer__logo-light-theme" src="{{ asset('images/d989.svg') }}" alt="Max Moroz">
                             <img class="wushu-app-footer__logo-dark-theme" src="{{ asset('images/c989.svg') }}" alt="Max Moroz">
                             <span>Макс Мороз</span>

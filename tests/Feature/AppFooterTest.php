@@ -9,9 +9,10 @@ use Tests\TestCase;
 
 /**
  * Замечание заказчика (30.09): футер приложения 50px на всю ширину —
- * «Wushu Expert CMS 3.0» слева, «2026 © Макс Мороз» + лого разработчика
+ * «Wushu Expert CMS 3.0» слева, «© 2026 Макс Мороз» + лого разработчика
  * справа; белый текст на тёмной теме, чёрный на светлой. В админ-панели
- * и на welcome.
+ * и на welcome. Порядок «© 2026» (сначала знак копирайта, потом год) —
+ * по замечанию заказчика (01.10).
  */
 class AppFooterTest extends TestCase
 {
@@ -47,13 +48,14 @@ class AppFooterTest extends TestCase
         $this->assertNotSame('', config('app.version'));
     }
 
-    /** Welcome: футер 50px — версия слева, год + копирайт + лого разработчика справа. */
+    /** Welcome: футер 50px — версия слева, копирайт + год + лого разработчика справа. */
     public function test_welcome_page_shows_app_footer(): void
     {
         $response = $this->get('/')->assertOk();
 
         $response->assertSee('Wushu Expert CMS '.config('app.version'));
-        $response->assertSee('2026');
+        // Порядок (01.10): сначала знак копирайта, потом год.
+        $response->assertSee('&copy; 2026', false);
         $response->assertSee('Макс Мороз');
         $response->assertSee('images/c989.svg', false);
         // Welcome — тёмный дизайн: только c989.svg, светлого варианта d989.svg нет.
@@ -69,6 +71,8 @@ class AppFooterTest extends TestCase
 
         $response->assertSee('wushu-app-footer', false);
         $response->assertSee('Wushu Expert CMS '.config('app.version'));
+        // Порядок (01.10): сначала знак копирайта, потом год.
+        $response->assertSee('&copy; 2026', false);
         $response->assertSee('Макс Мороз');
         // Лого разработчика зависит от темы: d989.svg (светлая) + c989.svg (тёмная).
         $response->assertSee('images/d989.svg', false);
@@ -86,6 +90,8 @@ class AppFooterTest extends TestCase
 
         $response->assertSee('wushu-app-footer', false);
         $response->assertSee('Wushu Expert CMS '.config('app.version'));
+        // Порядок (01.10): сначала знак копирайта, потом год.
+        $response->assertSee('&copy; 2026', false);
         $response->assertSee('Макс Мороз');
         // Лого разработчика зависит от темы: d989.svg (светлая) + c989.svg (тёмная).
         $response->assertSee('images/d989.svg', false);

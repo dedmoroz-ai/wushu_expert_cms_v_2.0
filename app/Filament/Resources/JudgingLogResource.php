@@ -28,7 +28,7 @@ class JudgingLogResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Журнал судейства';
 
-    protected static ?string $navigationGroup = 'Соревнования';
+    protected static ?string $navigationGroup = 'Турнир';
 
     protected static ?int $navigationSort = 90;
 
