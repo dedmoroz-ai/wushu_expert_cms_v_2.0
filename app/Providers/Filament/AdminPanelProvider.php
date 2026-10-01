@@ -95,7 +95,74 @@ class AdminPanelProvider extends PanelProvider
                         display: flex;
                         align-items: center;
                     }
+
+                    /* 4. ФУТЕР ПРИЛОЖЕНИЯ (50px, на всю ширину окна).
+                          Стили здесь, а не Tailwind-классами: HTML renderHook
+                          не попадает в сборку CSS Filament. */
+                    .wushu-app-footer {
+                        position: fixed;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        z-index: 20;
+                        height: 50px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        padding: 0 1.5rem;
+                        background: #f9fafb;
+                        color: #030712;
+                        border-top: 1px solid rgba(0, 0, 0, 0.1);
+                        font-family: "Exo 2", sans-serif;
+                        font-size: 12px;
+                    }
+
+                    /* Тёмная тема — белый текст, тёмный фон (bg-gray-950) */
+                    :root.dark .wushu-app-footer {
+                        background: #030712;
+                        color: #fff;
+                        border-top-color: rgba(255, 255, 255, 0.12);
+                    }
+
+                    .wushu-app-footer__copy {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                    }
+
+                    .wushu-app-footer img {
+                        height: 22px;
+                        width: auto;
+                    }
+
+                    /* Компенсация фиксированной полосы футера */
+                    body {
+                        padding-bottom: 50px;
+                    }
+
+                    .fi-layout {
+                        min-height: calc(100vh - 50px) !important;
+                    }
+
+                    .fi-sidebar-nav {
+                        padding-bottom: 50px;
+                    }
                 </style>'
+            )
+
+            // 4. ФУТЕР ПРИЛОЖЕНИЯ (50px): версия слева, год + копирайт + лого разработчика справа
+            ->renderHook(
+                'panels::body.end',
+                fn (): string => Blade::render(<<<'HTML'
+                    <footer class="wushu-app-footer">
+                        <span>Wushu Expert CMS {{ config('app.version') }}</span>
+                        <span class="wushu-app-footer__copy">
+                            <span>2026 &copy;</span>
+                            <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz">
+                            <span>Макс Мороз</span>
+                        </span>
+                    </footer>
+                HTML),
             )
 
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')

@@ -151,13 +151,14 @@
         </div>
     </main>
     
-    <!-- Footer -->
+    <!-- Footer (50px, на всю ширину): версия слева, год + копирайт + лого разработчика справа -->
     <div class="relative z-10 w-full h-[50px] border-t border-white/5 bg-gray-950 shrink-0">
-        <div class="h-full max-w-6xl mx-auto px-4 flex items-center justify-center gap-4 text-[11px] text-gray-400">
+        <div class="h-full w-full px-4 md:px-6 flex items-center justify-between text-[11px] text-white">
+            <span>Wushu Expert CMS {{ config('app.version') }}</span>
             <span class="inline-flex items-center gap-2">
-                <span>Разработано</span>
-                <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz" class="h-6 w-auto opacity-100">
-                <span class="ml-2">Макс Мороз &copy; 2026. Все права защищены.</span>
+                <span>2026 &copy;</span>
+                <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz" class="h-6 w-auto">
+                <span>Макс Мороз</span>
             </span>
         </div>
     </div>
