@@ -44,7 +44,7 @@ class AgeGroupsMemoTest extends TestCase
         parent::setUp();
     }
 
-    /** Админ и старший судья получают PDF; судья — 403, гость — на логин. */
+    /** PDF — только админу; старший судья и судья — 403, гость — на логин. */
     public function test_access_to_limits_memo_pdf(): void
     {
         $competition = $this->makeCompetition();
@@ -54,20 +54,19 @@ class AgeGroupsMemoTest extends TestCase
         $this->get(route('competition.age-groups-memo', $competition))
             ->assertRedirect(route('filament.admin.auth.login'));
 
+        $this->actingAs($this->makeUser('limits-admin@test.local', 'admin'))
+            ->get(route('competition.age-groups-memo', $competition))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
         foreach ([
-            'limits-admin@test.local' => 'admin',
             'limits-hj@test.local' => 'head_judge',
+            'limits-judge@test.local' => 'judge',
         ] as $email => $role) {
             $this->actingAs($this->makeUser($email, $role))
                 ->get(route('competition.age-groups-memo', $competition))
-                ->assertOk()
-                ->assertHeader('Content-Type', 'application/pdf');
+                ->assertForbidden();
         }
-
-        $judge = $this->makeUser('limits-judge@test.local', 'judge');
-        $this->actingAs($judge)
-            ->get(route('competition.age-groups-memo', $competition))
-            ->assertForbidden();
     }
 
     /** Памятка: две таблицы лимитов — категории и судей B — по всем группам. */
@@ -101,7 +100,7 @@ class AgeGroupsMemoTest extends TestCase
         $this->assertStringContainsString('лимиты категории не применяются', $html);
     }
 
-    /** В разделе «Возрастные группы» есть кнопка «Памятка (PDF)» и она отрабатывает. */
+    /** Кнопка «Памятка (PDF)» — только админу; у старшего судьи её нет. */
     public function test_list_page_has_memo_button(): void
     {
         $competition = $this->makeCompetition();
@@ -113,6 +112,19 @@ class AgeGroupsMemoTest extends TestCase
             ->assertSee('Памятка (PDF)')
             ->callAction('memo_pdf', ['competition_id' => $competition->id])
             ->assertHasNoActionErrors();
+
+        Livewire::actingAs($this->makeUser('limits-btn-hj@test.local', 'head_judge'))
+            ->test(ListAgeGroups::class)
+            ->assertDontSee('Памятка (PDF)');
+    }
+
+    /** JS кнопки — валидное выражение (регресс: экранированные кавычки давали SyntaxError). */
+    public function test_memo_button_js_opens_pdf_in_new_tab(): void
+    {
+        $this->assertSame(
+            'window.open("https://demo.test/competition/1/age-groups-memo", "_blank")',
+            ListAgeGroups::openInNewTabJs('https://demo.test/competition/1/age-groups-memo'),
+        );
     }
 
     private function makeCompetition(): Competition

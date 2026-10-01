@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AgeGroupResource\Pages;
 
 use App\Filament\Resources\AgeGroupResource;
+use App\Http\Controllers\AgeGroupsMemoPdfController;
 use App\Models\Competition;
 use Filament\Actions;
 use Filament\Forms;
@@ -23,6 +24,7 @@ class ListAgeGroups extends ListRecords
                 ->tooltip('Памятка судьям: лимиты оценок по возрастным группам (PDF)')
                 ->icon('heroicon-o-printer')
                 ->color('success')
+                ->visible(fn (): bool => AgeGroupsMemoPdfController::canAccess())
                 ->form([
                     Forms\Components\Select::make('competition_id')
                         ->label('Соревнование')
@@ -40,9 +42,19 @@ class ListAgeGroups extends ListRecords
                     $competition = Competition::find($data['competition_id']);
 
                     if ($competition) {
-                        $this->js('window.open(\"'.route('competition.age-groups-memo', $competition).'\", \"_blank\")');
+                        $this->js(static::openInNewTabJs(route('competition.age-groups-memo', $competition)));
                     }
                 }),
         ];
+    }
+
+    /**
+     * JS-выражение для `$this->js()`: открыть PDF в новой вкладке.
+     * Livewire выполняет строку как есть, поэтому кавычки — обычные «"»
+     * (лишнее экранирование даёт SyntaxError, и кнопка «молча» не работает).
+     */
+    public static function openInNewTabJs(string $url): string
+    {
+        return 'window.open("'.$url.'", "_blank")';
     }
 }

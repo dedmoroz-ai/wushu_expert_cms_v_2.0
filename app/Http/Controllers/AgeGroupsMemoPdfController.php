@@ -21,7 +21,7 @@ class AgeGroupsMemoPdfController extends Controller
 {
     public function __invoke(Competition $competition)
     {
-        // Доступ — как к памятке по кодам сбавок (админ и старший судья).
+        // Доступ — только админ (по требованию заказчика; остальным — 403).
         abort_unless(static::canAccess(), 403);
 
         $html = view('pdf.age-groups-memo', static::memoData($competition))->render();
@@ -37,13 +37,13 @@ class AgeGroupsMemoPdfController extends Controller
         return $pdf->stream('age-groups-memo-'.$competition->id.'.pdf');
     }
 
-    /** Доступ к памятке: админ и старший судья (как к памятке по кодам сбавок). */
+    /** Доступ к памятке: только админ (по требованию заказчика). */
     public static function canAccess(): bool
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        return $user !== null && ($user->isAdmin() || $user->isHeadJudge());
+        return $user !== null && $user->isAdmin();
     }
 
     /**
