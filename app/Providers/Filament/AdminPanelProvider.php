@@ -135,6 +135,24 @@ class AdminPanelProvider extends PanelProvider
                         width: auto;
                     }
 
+                    /* Логотип разработчика зависит от темы: в светлой — d989.svg,
+                       в тёмной — c989.svg (обе версии в разметке, переключение CSS) */
+                    .wushu-app-footer__logo-light-theme {
+                        display: inline-block;
+                    }
+
+                    .wushu-app-footer__logo-dark-theme {
+                        display: none;
+                    }
+
+                    :root.dark .wushu-app-footer__logo-light-theme {
+                        display: none;
+                    }
+
+                    :root.dark .wushu-app-footer__logo-dark-theme {
+                        display: inline-block;
+                    }
+
                     /* Компенсация фиксированной полосы футера */
                     body {
                         padding-bottom: 50px;
@@ -158,7 +176,8 @@ class AdminPanelProvider extends PanelProvider
                         <span>Wushu Expert CMS {{ config('app.version') }}</span>
                         <span class="wushu-app-footer__copy">
                             <span>2026 &copy;</span>
-                            <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz">
+                            <img class="wushu-app-footer__logo-light-theme" src="{{ asset('images/d989.svg') }}" alt="Max Moroz">
+                            <img class="wushu-app-footer__logo-dark-theme" src="{{ asset('images/c989.svg') }}" alt="Max Moroz">
                             <span>Макс Мороз</span>
                         </span>
                     </footer>

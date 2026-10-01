@@ -56,6 +56,8 @@ class AppFooterTest extends TestCase
         $response->assertSee('2026');
         $response->assertSee('Макс Мороз');
         $response->assertSee('images/c989.svg', false);
+        // Welcome — тёмный дизайн: только c989.svg, светлого варианта d989.svg нет.
+        $response->assertDontSee('images/d989.svg', false);
         // Высота полосы — 50px (по уточнению заказчика).
         $response->assertSee('h-[50px]', false);
     }
@@ -68,7 +70,11 @@ class AppFooterTest extends TestCase
         $response->assertSee('wushu-app-footer', false);
         $response->assertSee('Wushu Expert CMS '.config('app.version'));
         $response->assertSee('Макс Мороз');
+        // Лого разработчика зависит от темы: d989.svg (светлая) + c989.svg (тёмная).
+        $response->assertSee('images/d989.svg', false);
         $response->assertSee('images/c989.svg', false);
+        $response->assertSee('wushu-app-footer__logo-light-theme', false);
+        $response->assertSee('wushu-app-footer__logo-dark-theme', false);
     }
 
     /** Админ-панель: футер на авторизованной странице (дашборд). */
@@ -81,6 +87,9 @@ class AppFooterTest extends TestCase
         $response->assertSee('wushu-app-footer', false);
         $response->assertSee('Wushu Expert CMS '.config('app.version'));
         $response->assertSee('Макс Мороз');
+        // Лого разработчика зависит от темы: d989.svg (светлая) + c989.svg (тёмная).
+        $response->assertSee('images/d989.svg', false);
+        $response->assertSee('images/c989.svg', false);
         // Компенсация фиксированной полосы футера — контент не прячется под ней.
         $response->assertSee('padding-bottom: 50px', false);
     }
