@@ -60,17 +60,21 @@
     <thead>
     <tr>
         <th>Возрастная группа</th>
-        <th style="width: 110px;">Мин. балл (B)</th>
-        <th style="width: 110px;">Макс. балл (B)</th>
+        <th style="width: 60px;">Пол</th>
+        <th style="width: 85px;">Возраст, лет</th>
+        <th style="width: 90px;">Мин. балл (B)</th>
+        <th style="width: 90px;">Макс. балл (B)</th>
     </tr>
     </thead>
     <tbody>
     @if(count($rows) === 0)
-        <tr><td colspan="3" style="text-align: center;">Возрастные группы не заданы</td></tr>
+        <tr><td colspan="5" style="text-align: center;">Возрастные группы не заданы</td></tr>
     @endif
     @foreach($rows as $row)
         <tr>
             <td class="group">{{ $row['name'] }}</td>
+            <td class="num">{{ $row['gender'] }}</td>
+            <td class="num">{{ $row['age'] }}</td>
             <td class="num">{{ $row['bMin'] }}</td>
             <td class="num">{{ $row['bMax'] }}</td>
         </tr>
@@ -80,8 +84,7 @@
 
 <ul class="notes">
     <li><strong>Судья A (качество исполнения):</strong> всегда от 5.000 вниз по кодам сбавок (0.000–5.000), лимиты категории не применяются.</li>
-    <li><strong>Судья B (впечатление):</strong> оценка — в пределах «Мин. балл (B)» … «Макс. балл (B)»; если лимиты B в справочнике не заполнены — действуют лимиты категории, ограниченные шкалой 0.000–5.000 (R-4.19).</li>
-    <li>Пустые лимиты категории в справочнике означают общий диапазон 0.000 – 10.000 (правила 8.2, 8.3).</li>
+    <li><strong>Судья B (впечатление):</strong> оценка — в пределах «Мин. балл (B)» … «Макс. балл (B)».</li>
     <li>Итоговый балл (A+B) проверяется в диапазоне категории; точность оценок — три знака после точки.</li>
 </ul>
 

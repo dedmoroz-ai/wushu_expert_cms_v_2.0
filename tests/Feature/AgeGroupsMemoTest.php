@@ -98,6 +98,18 @@ class AgeGroupsMemoTest extends TestCase
 
         // Пояснения для судей.
         $this->assertStringContainsString('лимиты категории не применяются', $html);
+        $this->assertStringContainsString('Судья B (впечатление)', $html);
+
+        // Таблицы приведены к единому виду: одинаковые колонки (группа, пол, возраст, мин/макс).
+        $this->assertSame(2, substr_count($html, '<th>Возрастная группа</th>'));
+        $this->assertSame(2, substr_count($html, '<th style="width: 60px;">Пол</th>'));
+        $this->assertSame(2, substr_count($html, '<th style="width: 85px;">Возраст, лет</th>'));
+        $this->assertSame(2, substr_count($html, '<th style="width: 90px;">Мин. балл'));
+        $this->assertSame(2, substr_count($html, '<th style="width: 90px;">Макс. балл'));
+
+        // Пояснения про пустые лимиты убраны по требованию заказчика (30.09).
+        $this->assertStringNotContainsString('если лимиты B в справочнике не заполнены', $html);
+        $this->assertStringNotContainsString('Пустые лимиты категории', $html);
     }
 
     /** Кнопка «Памятка (PDF)» — только админу; у старшего судьи её нет. */
