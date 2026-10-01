@@ -221,6 +221,31 @@ class JudgingRulesTest extends TestCase
         $table->assertTableColumnFormattedStateSet('registration.athlete.name', '—', $orphan);
     }
 
+    /**
+     * Замечание заказчика (30.09): таблица журнала не умещалась по горизонтали —
+     * колонка «Судья» убрана, осталась только «Кто выполнил».
+     */
+    public function test_judging_log_table_shows_actor_but_not_judge_column(): void
+    {
+        $reg = $this->makeRegistration();
+        $judge = $this->makeJudge('Судья З');
+
+        $log = JudgingLog::record(JudgingLog::ACTION_SCORE_CREATED, [
+            'competition_id' => $reg->competition_id,
+            'registration_id' => $reg->id,
+            'judge_id' => $judge->id,
+            'new_value' => 8.500,
+        ]);
+
+        $this->actingAs($this->makeJudge('Админ К', true, 'admin'));
+
+        Livewire::test(ListJudgingLogs::class)
+            ->assertCanSeeTableRecords([$log])
+            ->assertTableColumnDoesNotExist('judge.name')
+            ->assertTableColumnExists('actor.name')
+            ->assertTableColumnVisible('actor.name');
+    }
+
     // --- Сценарий A/B (R-2.11, R-3.12–R-3.16, R-4.18–R-4.20, R-6.13) ---
 
     public function test_new_ab_columns_and_tables_exist(): void

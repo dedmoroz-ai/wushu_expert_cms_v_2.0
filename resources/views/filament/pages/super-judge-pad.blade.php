@@ -145,6 +145,8 @@
         document.addEventListener('alpine:init', () => {
             Alpine.data('judgePad', () => ({
                 init() {
+                    {{-- Режим просмотра (админ): ввод с клавиатуры отключён --}}
+                    @if(!$isViewOnly)
                     window.addEventListener('keydown', (e) => {
                         const key = e.key;
                         if ((key >= '0' && key <= '9') || key === '.') { @this.addNumber(key); }
@@ -157,6 +159,7 @@
                             }
                         }
                     });
+                    @endif
                 }
             }))
         })
@@ -224,7 +227,7 @@
                             <div class="judge-val text-white">{{ $j['score'] ?? '...' }}</div>
 
                             {{-- Правило 8.7: снять оценку судьи для перевыставления --}}
-                            @if(!is_null($j['score']))
+                            @if(!$isViewOnly && !is_null($j['score']))
                                 <button wire:click="resetJudgeScore({{ $j['id'] }})"
                                         onclick="return confirm('Снять оценку судьи {{ $j['name'] }}? Он выставит её заново.')"
                                         style="margin-top: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #fca5a5; background: transparent; border: 1px solid #7f1d1d; border-radius: 6px; padding: 2px 8px; cursor: pointer;">
@@ -234,7 +237,8 @@
                         </div>
                     @endforeach
                     
-                    {{-- Я --}}
+                    {{-- Я (плашка «ст. судья»); админ не судья — в режиме просмотра карточки нет --}}
+                    @if(!$isViewOnly)
                     <div class="judge-card me">
                         <div class="judge-label" style="color: #60a5fa;">
                             {{ $mySurname }} (ст. судья)@if($scheme === 'ab') [{{ $myPanel ?? 'без функции' }}]@endif
@@ -256,6 +260,7 @@
                             </button>
                         @endif
                     </div>
+                    @endif
                 </div>
 
                 {{-- Правила 8.2, 8.3, 8.4: диапазон и готовность бригады --}}
@@ -298,7 +303,7 @@
                 </div>
 
                 {{-- Правила R-3.12–R-3.15: старший судья в функции A ставит оценку сбавками --}}
-                @if($myPanel === 'A' && !$myScoreSaved)
+                @if(!$isViewOnly && $myPanel === 'A' && !$myScoreSaved)
                     <div style="width: 1000px; max-width: 95%; margin-bottom: 20px;">
                         @if(count($deductionCodes) === 0)
                             <div style="color:#fca5a5; text-align:center;">Справочник кодов сбавок пуст.</div>
@@ -327,7 +332,7 @@
                         <div class="cb-title">Итоговый балл</div>
                         <div class="cb-val">
                             @if($canFinalize)
-                                {{ $finalScoreInput }}<span class="blink" style="height: 60px; display:inline-block;"></span>
+                                {{ $finalScoreInput }}@if(!$isViewOnly)<span class="blink" style="height: 60px; display:inline-block;"></span>@endif
                             @else
                                 -
                             @endif
@@ -348,7 +353,7 @@
                 </div>
 
                 {{-- Правило 8.9: обоснование ручной правки итогового балла --}}
-                @if($canFinalize && $calculatedAvg !== null && $finalScoreInput !== $calculatedAvg)
+                @if(!$isViewOnly && $canFinalize && $calculatedAvg !== null && $finalScoreInput !== $calculatedAvg)
                     <div style="width: 1000px; max-width: 95%; margin-bottom: 20px;">
                         <input type="text" wire:model.live.debounce.500ms="finalScoreReason"
                                placeholder="Причина отклонения от авто-расчёта (будет записана в журнал)"
@@ -358,7 +363,11 @@
 
                 {{-- КНОПКА --}}
                 <div style="padding-bottom: 35px;">
-                    @if($canFinalize)
+                    @if($isViewOnly)
+                        <button disabled class="btn-green-huge">
+                            РЕЖИМ ПРОСМОТРА
+                        </button>
+                    @elseif($canFinalize)
                         <button wire:click="finalizeProtocol" 
                                 onclick="confirm('В ПРОТОКОЛ?') || event.stopImmediatePropagation()"
                                 class="btn-green-huge">

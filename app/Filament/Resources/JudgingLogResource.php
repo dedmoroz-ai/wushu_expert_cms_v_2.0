@@ -123,11 +123,8 @@ class JudgingLogResource extends Resource
                     ->placeholder('—')
                     ->searchable(['name']),
 
-                Tables\Columns\TextColumn::make('judge.name')
-                    ->label('Судья')
-                    ->placeholder('—')
-                    ->searchable(),
-
+                // Замечание заказчика (30.09): колонка «Судья» убрана — таблица не умещалась
+                // по горизонтали. Кто выполнил действие — в колонке «Кто выполнил».
                 // Правило R-6.13: панель судьи (сценарий A/B).
                 Tables\Columns\TextColumn::make('details.panel')
                     ->label('Панель')

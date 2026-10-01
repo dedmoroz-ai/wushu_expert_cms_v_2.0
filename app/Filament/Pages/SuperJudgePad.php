@@ -73,6 +73,10 @@ class SuperJudgePad extends Page
     public $iAmInBrigade = false;
     public $canScoreSelf = false;
 
+    // Замечание заказчика (30.09): админ не судья — пульт ему доступен только
+    // для просмотра (без плашки «Я» и без действий).
+    public $isViewOnly = false;
+
     // Диапазон итогового балла (в simple совпадает с диапазоном оценки судьи).
     public $totalMin = ScoreRange::GLOBAL_MIN;
     public $totalMax = ScoreRange::GLOBAL_MAX;
@@ -112,6 +116,10 @@ class SuperJudgePad extends Page
     // --- ГЛАВНЫЙ ЦИКЛ ОБНОВЛЕНИЯ (POLLING) ---
     public function loadState()
     {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $this->isViewOnly = $user->isAdmin() && !$user->isHeadJudge();
+
         $competition = Competition::active();
 
         if (!$competition || !$competition->currentRegistration) {
@@ -204,8 +212,9 @@ class SuperJudgePad extends Page
         $lineJudges = $brigade->where('id', '!=', Auth::id());
 
         // Участвует ли сам старший судья в выставлении оценок:
-        // да — если он входит в бригаду турнира.
-        $iAmInBrigade = $brigade->contains('id', Auth::id());
+        // да — если он входит в бригаду турнира. Админ в режиме просмотра — не судья,
+        // его оценка не требуется (даже если он привязан к бригаде).
+        $iAmInBrigade = !$this->isViewOnly && $brigade->contains('id', Auth::id());
         $this->iAmInBrigade = $iAmInBrigade;
 
         $this->judgesScores = [];
@@ -512,6 +521,10 @@ class SuperJudgePad extends Page
      */
     public function undoLastCode()
     {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        if ($user->isAdmin() && !$user->isHeadJudge()) return;
+
         if ($this->myScoreSaved || $this->myPanel !== Competition::PANEL_A) return;
 
         array_pop($this->pressedCodes);

@@ -190,6 +190,52 @@ class AbJudgingFlowTest extends TestCase
             ->assertDontSee('ДИАПАЗОН', false);
     }
 
+    /**
+     * Замечание заказчика (30.09): пульт старшего судьи в аккаунте админа — только
+     * просмотр: без плашки «ст. судья» (админ не судья) и без действий.
+     */
+    public function test_super_pad_is_view_only_for_admin(): void
+    {
+        [, $reg, $judges] = $this->makeAbTournament();
+
+        // Судья B1 выставил оценку — для судей была бы видна кнопка «Снять».
+        $this->actingAs($judges['b1']);
+        Livewire::test(JudgePad::class)
+            ->call('addNumber', '4')
+            ->call('addNumber', '.')
+            ->call('addNumber', '2')
+            ->call('submitScore');
+
+        $admin = User::create([
+            'name' => 'Иванов Админ',
+            'email' => str()->random(12) . '@test.local',
+            'password' => Hash::make('secret'),
+            'role' => 'admin',
+            'is_active_judge' => true,
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(SuperJudgePad::class)
+            ->assertSet('isViewOnly', true)
+            ->assertSet('canScoreSelf', false)
+            ->assertDontSee('ст. судья', false)
+            ->assertDontSee('Снять', false)
+            ->assertDontSee('В ПРОТОКОЛ', false)
+            ->assertDontSee('ПОДТВЕРДИТЬ ОЦЕНКУ', false)
+            ->assertSee('РЕЖИМ ПРОСМОТРА', false)
+            ->call('addNumber', '4')
+            ->assertSet('myScore', '')
+            ->call('submitMyScore')
+            ->call('resetJudgeScore', $judges['b1']->id)
+            ->call('finalizeProtocol');
+
+        // Ни оценка админа не создана, ни оценка B1 не снята, протокол не утверждён.
+        $this->assertSame(0, Score::where('judge_id', $admin->id)->count());
+        $this->assertSame(1, Score::where('judge_id', $judges['b1']->id)->count());
+        $this->assertFalse((bool) $reg->fresh()->is_completed);
+    }
+
     public function test_linear_pad_hides_range_for_panel_a(): void
     {
         [, $reg, $judges] = $this->makeAbTournament();
