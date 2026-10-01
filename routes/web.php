@@ -49,6 +49,11 @@ Route::get('/competition/{competition}/deduction-codes-memo', \App\Http\Controll
     ->middleware('auth')
     ->name('competition.deduction-codes-memo');
 
+// --- ПАМЯТКА СУДЬЯМ: ЛИМИТЫ ОЦЕНОК ПО ВОЗРАСТНЫМ ГРУППАМ (PDF, печать/раздача) ---
+Route::get('/competition/{competition}/age-groups-memo', \App\Http\Controllers\AgeGroupsMemoPdfController::class)
+    ->middleware('auth')
+    ->name('competition.age-groups-memo');
+
 // --- ПЕЧАТЬ ДИПЛОМОВ ---
 // Теперь принимаем ID соревнования, вида, возрастную группу и пол.
 // Группа «O» (R-6.15): необязательный флаг is_special (0/1) — отдельная
