@@ -142,8 +142,8 @@
         {{-- КЛАВИАТУРА --}}
         @if($canVote)
             <div class="w-full max-w-md flex-grow">
-                {{-- Правила 8.2, 8.3: допустимый диапазон оценки для этой категории --}}
-                @if($scoreRangeLabel)
+                {{-- Правила 8.2, 8.3: допустимый диапазон оценки; для судьи A (сбавки) не показываем --}}
+                @if($scoreRangeLabel && $panel !== 'A')
                     <div class="text-center text-sm font-bold uppercase tracking-widest mb-2" style="color: #64748b;">
                         Диапазон: {{ $scoreRangeLabel }}
                     </div>

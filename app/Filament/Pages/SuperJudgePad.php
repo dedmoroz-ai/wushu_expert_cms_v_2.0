@@ -67,6 +67,9 @@ class SuperJudgePad extends Page
     // Правила R-2.11, R-4.18–R-4.20: сценарий A/B.
     public $scheme = Competition::SCHEME_SIMPLE;
     public $myPanel = null;
+
+    // Плашка «я» на экране: фамилия текущего судьи («Иванов (ст. судья)»).
+    public $mySurname = '';
     public $iAmInBrigade = false;
     public $canScoreSelf = false;
 
@@ -74,6 +77,9 @@ class SuperJudgePad extends Page
     public $totalMin = ScoreRange::GLOBAL_MIN;
     public $totalMax = ScoreRange::GLOBAL_MAX;
     public $totalRangeLabel = '';
+
+    // Правила R-4.11, R-4.20: максимум итога для возрастной категории (плашка «МАКСИМУМ»).
+    public $totalMaxLabel = '';
 
     // Счётчики и средние по панелям.
     public $expectedA = 0;
@@ -131,6 +137,7 @@ class SuperJudgePad extends Page
         $this->scheme = $competition->judgingScheme();
         $isAb = $competition->isAbScheme();
         $this->myPanel = $isAb ? $competition->panelOf(Auth::user()) : null;
+        $this->mySurname = $this->surnameOf((string) (Auth::user()->name ?? ''));
 
         // Правила 8.2, 8.3, R-4.19: диапазон своей оценки (по функции) и итога.
         $range = ScoreRange::forJudge($currentReg, $this->myPanel);
@@ -142,6 +149,9 @@ class SuperJudgePad extends Page
         $this->totalMin = $totalRange->min;
         $this->totalMax = $totalRange->max;
         $this->totalRangeLabel = $totalRange->label();
+
+        // Правила R-4.11, R-4.20: максимум итога для возрастной категории.
+        $this->totalMaxLabel = $this->buildTotalMaxLabel($currentReg, $isAb);
 
         if ($this->myPanel === Competition::PANEL_A) {
             $this->deductionCodes = DeductionCode::active()->ordered()->get()
@@ -944,6 +954,54 @@ class SuperJudgePad extends Page
         $this->avgB = null;
         $this->unassignedJudges = 0;
         $this->totalRangeLabel = '';
+        $this->totalMaxLabel = '';
+    }
+
+    /**
+     * Плашка «я»: фамилия судьи (первое слово ФИО).
+     */
+    protected function surnameOf(string $fullName): string
+    {
+        $fullName = trim($fullName);
+
+        if ($fullName === '') {
+            return 'Ст. судья';
+        }
+
+        $spacePos = strpos($fullName, ' ');
+
+        return $spacePos === false ? $fullName : substr($fullName, 0, $spacePos);
+    }
+
+    /**
+     * Правила R-4.11, R-4.20: максимум итогового балла для возрастной категории.
+     * A/B: максимум панели A + максимум панели B, например «8.5 (5.0+3.5)».
+     */
+    protected function buildTotalMaxLabel(Registration $currentReg, bool $isAb): string
+    {
+        if (!$isAb) {
+            return $this->formatShort(ScoreRange::totalRange($currentReg)->max);
+        }
+
+        $maxA = (float) ScoreRange::PANEL_MAX;
+        $maxB = ScoreRange::forPanel($currentReg->ageGroup, Competition::PANEL_B)->max;
+
+        return sprintf(
+            '%s (%s+%s)',
+            $this->formatShort($maxA + $maxB),
+            $this->formatShort($maxA),
+            $this->formatShort($maxB)
+        );
+    }
+
+    /**
+     * Короткий формат оценки: «5.000» → «5.0», «8.500» → «8.5», «3.250» → «3.25».
+     */
+    protected function formatShort(float $value): string
+    {
+        $formatted = rtrim(number_format($value, ScoreRange::PRECISION, '.', ''), '0');
+
+        return str_ends_with($formatted, '.') ? $formatted . '0' : $formatted;
     }
 
     public function logout()

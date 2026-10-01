@@ -237,7 +237,7 @@
                     {{-- Я --}}
                     <div class="judge-card me">
                         <div class="judge-label" style="color: #60a5fa;">
-                            Я (Гл. Судья)@if($scheme === 'ab') [{{ $myPanel ?? 'без функции' }}]@endif
+                            {{ $mySurname }} (ст. судья)@if($scheme === 'ab') [{{ $myPanel ?? 'без функции' }}]@endif
                         </div>
                         <div class="judge-val">
                             @if(!$myScoreSaved)
@@ -260,8 +260,9 @@
 
                 {{-- Правила 8.2, 8.3, 8.4: диапазон и готовность бригады --}}
                 <div style="margin-top: -20px; margin-bottom: 30px; text-align: center; font-size: 0.9rem; color: #94a3b8; letter-spacing: 1px;">
-                    @if($scoreRangeLabel)
-                        <span>ДИАПАЗОН: <b style="color:#e2e8f0;">{{ $scoreRangeLabel }}</b></span>
+                    {{-- Для судьи A (сбавки) диапазон не показываем; для B указываем, чей он --}}
+                    @if($scoreRangeLabel && $myPanel !== 'A')
+                        <span>@if($myPanel === 'B')ДЛЯ СУДЬИ "B" - @endifДИАПАЗОН: <b style="color:#e2e8f0;">{{ $scoreRangeLabel }}</b></span>
                     @endif
                     @if($scheme === 'ab')
                         {{-- Правила R-4.18, R-4.19: счётчики по панелям --}}
@@ -271,8 +272,8 @@
                         <span style="margin-left: 20px;">
                             B: <b style="color:#e2e8f0;">{{ $receivedB }} / {{ $expectedB }}</b>
                         </span>
-                        @if($totalRangeLabel)
-                            <span style="margin-left: 20px;">ИТОГ: <b style="color:#e2e8f0;">{{ $totalRangeLabel }}</b></span>
+                        @if($totalMaxLabel)
+                            <span style="margin-left: 20px;">МАКСИМУМ: <b style="color:#e2e8f0;">{{ $totalMaxLabel }}</b></span>
                         @endif
                         @if($unassignedJudges > 0)
                             <span style="margin-left: 20px; color: #fca5a5;">

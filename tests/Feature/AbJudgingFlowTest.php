@@ -154,6 +154,59 @@ class AbJudgingFlowTest extends TestCase
             ->assertSet('score', '10');
     }
 
+    public function test_super_pad_shows_head_surname_role_and_category_max(): void
+    {
+        [, $reg, , $head] = $this->makeAbTournament();
+        $reg->ageGroup->update(['b_min_score' => 3.0, 'b_max_score' => 3.5]);
+        $head->update(['name' => 'Петров Пётр Петрович']);
+
+        $this->actingAs($head);
+
+        Livewire::test(SuperJudgePad::class)
+            ->assertSet('myPanel', 'B')
+            ->assertSet('mySurname', 'Петров')
+            ->assertSet('scoreRangeLabel', '3.000 – 3.500')
+            ->assertSet('totalMaxLabel', '8.5 (5.0+3.5)')
+            // В HTML между blade-директивами Livewire вставляет свои маркеры,
+            // поэтому строки проверяем по непрерывным фрагментам.
+            ->assertSee('Петров (ст. судья)', false)
+            ->assertSee('ДЛЯ СУДЬИ "B" - ', false)
+            ->assertSee('ДИАПАЗОН:', false)
+            ->assertSee('МАКСИМУМ:', false)
+            ->assertSee('8.5 (5.0+3.5)', false)
+            ->assertDontSee('Я (Гл. Судья)', false)
+            ->assertDontSee('ИТОГ:', false);
+    }
+
+    public function test_super_pad_hides_range_when_head_judges_panel_a(): void
+    {
+        [$competition, , , $head] = $this->makeAbTournament();
+        $competition->judges()->updateExistingPivot($head->id, ['panel' => 'A']);
+
+        $this->actingAs($head);
+
+        Livewire::test(SuperJudgePad::class)
+            ->assertSet('myPanel', 'A')
+            ->assertDontSee('ДИАПАЗОН', false);
+    }
+
+    public function test_linear_pad_hides_range_for_panel_a(): void
+    {
+        [, $reg, $judges] = $this->makeAbTournament();
+        $reg->ageGroup->update(['b_min_score' => 3.0, 'b_max_score' => 3.5]);
+
+        $this->actingAs($judges['a1']);
+        Livewire::test(JudgePad::class)
+            ->assertSet('panel', 'A')
+            ->assertSet('inputMode', 'codes')
+            ->assertDontSee('Диапазон', false);
+
+        $this->actingAs($judges['b1']);
+        Livewire::test(JudgePad::class)
+            ->assertSet('panel', 'B')
+            ->assertSee('Диапазон: 3.000 – 3.500', false);
+    }
+
     /**
      * @return array{0: Competition, 1: Registration, 2: array<string, User>, 3: User}
      */
