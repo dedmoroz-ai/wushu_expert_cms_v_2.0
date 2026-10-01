@@ -222,10 +222,10 @@ class JudgingRulesTest extends TestCase
     }
 
     /**
-     * Замечание заказчика (30.09): таблица журнала не умещалась по горизонтали —
-     * колонка «Судья» убрана, осталась только «Кто выполнил».
+     * Замечание заказчика (30.09, повторное): «Судья» возвращена в таблицу журнала,
+     * убрана «Причина» — она дублирует содержимое кнопки «Подробно» (details-модалка).
      */
-    public function test_judging_log_table_shows_actor_but_not_judge_column(): void
+    public function test_judging_log_table_shows_judge_and_actor_but_not_reason_column(): void
     {
         $reg = $this->makeRegistration();
         $judge = $this->makeJudge('Судья З');
@@ -241,9 +241,11 @@ class JudgingRulesTest extends TestCase
 
         Livewire::test(ListJudgingLogs::class)
             ->assertCanSeeTableRecords([$log])
-            ->assertTableColumnDoesNotExist('judge.name')
+            ->assertTableColumnExists('judge.name')
+            ->assertTableColumnVisible('judge.name')
             ->assertTableColumnExists('actor.name')
-            ->assertTableColumnVisible('actor.name');
+            ->assertTableColumnVisible('actor.name')
+            ->assertTableColumnDoesNotExist('reason');
     }
 
     // --- Сценарий A/B (R-2.11, R-3.12–R-3.16, R-4.18–R-4.20, R-6.13) ---

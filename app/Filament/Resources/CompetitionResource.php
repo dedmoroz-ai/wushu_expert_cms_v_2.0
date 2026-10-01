@@ -10,7 +10,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
 
 class CompetitionResource extends Resource
 {
@@ -210,41 +209,13 @@ class CompetitionResource extends Resource
 
                 Tables\Actions\EditAction::make(),
 
-                // --- КНОПКА ГЕНЕРАЦИИ ПРОТОКОЛА ---
-                Tables\Actions\Action::make('generate_protocol')
-                    ->label('Протокол')
-                    ->icon('heroicon-o-document-text')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Сформировать стартовый протокол')
-                    ->modalDescription('Система расставит всех спортсменов по порядку: Стиль -> Возраст -> Пол -> Алфавит. Старые номера жеребьевки будут перезаписаны.')
-                    ->action(function (Competition $record) {
-                        $registrations = $record->registrations()
-                            ->with(['style', 'ageGroup', 'athlete'])
-                            ->get();
-
-                        $sorted = $registrations->sortBy([
-                            ['style.sort_order', 'asc'],    
-                            ['ageGroup.sort_order', 'asc'], 
-                            ['athlete.gender', 'desc'],     
-                            ['athlete.name', 'asc'],        
-                        ]);
-
-                        $counter = 1;
-                        foreach ($sorted as $reg) {
-                            $reg->update([
-                                'sort_order' => $counter++,
-                                'status' => 0,
-                                'score' => null
-                            ]);
-                        }
-                        
-                        Notification::make()
-                            ->title('Протокол сформирован!')
-                            ->body("Упорядочено участников: " . ($counter - 1))
-                            ->success()
-                            ->send();
-                    }),
+                // --- КНОПКА ТАБЛО (замена «Протокол», 30.09) ---
+                // Публичное табло /scoreboard (R-5.1) — открывается в новой вкладке.
+                Tables\Actions\Action::make('scoreboard')
+                    ->label('Табло')
+                    ->icon('heroicon-o-tv')
+                    ->color('info')
+                    ->url(fn (): string => route('scoreboard'), shouldOpenInNewTab: true),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

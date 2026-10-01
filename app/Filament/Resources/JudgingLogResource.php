@@ -123,8 +123,11 @@ class JudgingLogResource extends Resource
                     ->placeholder('—')
                     ->searchable(['name']),
 
-                // Замечание заказчика (30.09): колонка «Судья» убрана — таблица не умещалась
-                // по горизонтали. Кто выполнил действие — в колонке «Кто выполнил».
+                Tables\Columns\TextColumn::make('judge.name')
+                    ->label('Судья')
+                    ->placeholder('—')
+                    ->searchable(),
+
                 // Правило R-6.13: панель судьи (сценарий A/B).
                 Tables\Columns\TextColumn::make('details.panel')
                     ->label('Панель')
@@ -154,12 +157,8 @@ class JudgingLogResource extends Resource
                     ->label('Кто выполнил')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('reason')
-                    ->label('Причина')
-                    ->wrap()
-                    ->placeholder('—')
-                    ->toggleable(),
-
+                // Замечание заказчика (30.09, повторное): колонка «Причина» убрана —
+                // она дублирует содержимое кнопки «Подробно» (details-модалка журнала).
                 Tables\Columns\TextColumn::make('ip_address')
                     ->label('IP')
                     ->toggleable(isToggledHiddenByDefault: true),
