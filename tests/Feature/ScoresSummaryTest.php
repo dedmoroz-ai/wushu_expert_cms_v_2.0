@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\ScoresSummary;
 use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Club;
@@ -173,6 +174,44 @@ class ScoresSummaryTest extends TestCase
         $this->assertStringContainsString('inline', (string) $response->headers->get('Content-Disposition'));
     }
 
+    /**
+     * PDF-шаблон выводит ФИО спортсмена и партнёра (в модели Athlete одно поле name;
+     * раньше шаблон читал несуществующие last_name/first_name — вместо имён стояло «—»),
+     * а таблица укладывается в ширину листа: table-layout: fixed + процентные ширины
+     * колонок (иначе dompdf расширял её за край страницы, и правые колонки обрезались).
+     */
+    public function test_pdf_template_shows_athlete_names_and_fits_table_to_page_width(): void
+    {
+        [$competition, $reg, $judges] = $this->makeTournament(Competition::SCHEME_SIMPLE);
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j1']->id, 'score' => 8.0]);
+
+        $partner = Athlete::create([
+            'club_id' => $reg->athlete->club_id,
+            'name' => 'Петрова Мария',
+            'birth_date' => '2013-06-01',
+            'gender' => 'female',
+        ]);
+        $reg->update(['partner_id' => $partner->id]);
+
+        $html = view('pdf.scores-summary', [
+            'competition' => $competition,
+            'matrix' => ScoresSummaryMatrix::build($competition->fresh()),
+            'dateStr' => '1 марта 2026 г.',
+            'warn' => ScoresSummary::WARN_THRESHOLD,
+            'danger' => ScoresSummary::DANGER_THRESHOLD,
+        ])->render();
+
+        // ФИО спортсмена и партнёра видны, «—» вместо имени не подставляется.
+        $this->assertStringContainsString('Иванов Иван', $html);
+        $this->assertStringContainsString('Петрова Мария', $html);
+        $this->assertStringNotContainsString('<b>—</b>', $html);
+
+        // Таблица фиксирована по ширине листа, длинный текст переносится.
+        $this->assertStringContainsString('table-layout: fixed', $html);
+        $this->assertStringContainsString('overflow-wrap: anywhere', $html);
+        $this->assertStringContainsString('width:22%', $html);
+    }
+
     /** Рендер A/B: двухуровневая шапка панелей на странице и в PDF. */
     public function test_ab_page_and_pdf_render_with_panel_headers(): void
     {
@@ -196,6 +235,20 @@ class ScoresSummaryTest extends TestCase
             ->get(route('competition.scores-summary', $competition))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf');
+
+        // PDF-шаблон A/B: имена на месте, таблица укладывается в ширину листа.
+        $html = view('pdf.scores-summary', [
+            'competition' => $competition,
+            'matrix' => ScoresSummaryMatrix::build($competition->fresh()),
+            'dateStr' => '1 марта 2026 г.',
+            'warn' => ScoresSummary::WARN_THRESHOLD,
+            'danger' => ScoresSummary::DANGER_THRESHOLD,
+        ])->render();
+
+        $this->assertStringContainsString('Иванов Иван', $html);
+        $this->assertStringContainsString('table-layout: fixed', $html);
+        $this->assertStringContainsString('width:22%', $html);
+        $this->assertStringContainsString('Расчёт (A+B)', $html);
     }
 
     /** Судья не из списка доступа получает 403 и на странице, и в PDF. */

@@ -4,15 +4,21 @@
     <meta charset="utf-8">
     <title>Сводка оценок — {{ $competition->name }}</title>
     <style>
+        @page { margin: 10mm 10mm 12mm 10mm; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 9pt; color: #000; }
         h1 { font-size: 13pt; margin: 0 0 4px 0; text-align: center; }
         .subtitle { text-align: center; font-size: 10pt; margin-bottom: 12px; color: #444; }
 
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #444; padding: 3px 4px; vertical-align: middle; }
+        /* ВАЖНО (dompdf): при auto-раскладке таблица расширяется до минимальной
+           ширины контента и правые колонки уходят за край листа. table-layout: fixed
+           (включается только вместе с явной шириной таблицы) + процентные ширины
+           ячеек первой строки удерживают таблицу в ширине страницы, а длинные
+           ФИО/клубы переносятся (overflow-wrap), не раздувая колонки. */
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+        th, td { border: 1px solid #444; padding: 2px 3px; vertical-align: middle; word-wrap: break-word; overflow-wrap: anywhere; }
         th { background: #eee; text-align: center; font-weight: bold; }
         td.left { text-align: left; }
-        td.center { text-align: center; }
+        td.center { text-align: center; font-size: 8pt; }
 
         .warn   { background: #fff3a3; }
         .danger { background: #f5b5b5; font-weight: bold; }
@@ -49,17 +55,17 @@
         <thead>
             @if ($isAb)
                 <tr>
-                    <th rowspan="2">#</th>
-                    <th rowspan="2">Спортсмен / Клуб</th>
-                    <th rowspan="2">Стиль</th>
-                    <th rowspan="2">Группа</th>
+                    <th rowspan="2" style="width:3%">#</th>
+                    <th rowspan="2" style="width:22%">Спортсмен / Клуб</th>
+                    <th rowspan="2" style="width:7%">Стиль</th>
+                    <th rowspan="2" style="width:7%">Группа</th>
                     @foreach ($matrix['groupsOrder'] as $g)
                         @if (count($matrix['judgesByGroup'][$g]) > 0)
                             <th class="group" colspan="{{ count($matrix['judgesByGroup'][$g]) + 1 }}">{{ $groupLabels[$g] }}</th>
                         @endif
                     @endforeach
-                    <th rowspan="2">Расчёт (A+B)</th>
-                    <th rowspan="2">Итог</th>
+                    <th rowspan="2" style="width:7%">Расчёт (A+B)</th>
+                    <th rowspan="2" style="width:6%">Итог</th>
                 </tr>
                 <tr>
                     @foreach ($matrix['groupsOrder'] as $g)
@@ -73,15 +79,15 @@
                 </tr>
             @else
                 <tr>
-                    <th>#</th>
-                    <th>Спортсмен / Клуб</th>
-                    <th>Стиль</th>
-                    <th>Группа</th>
+                    <th style="width:3%">#</th>
+                    <th style="width:22%">Спортсмен / Клуб</th>
+                    <th style="width:7%">Стиль</th>
+                    <th style="width:7%">Группа</th>
                     @foreach ($matrix['judgesByGroup'][\App\Support\ScoresSummaryMatrix::GROUP_NONE] as $judge)
                         <th>{{ $judge->name }}</th>
                     @endforeach
-                    <th>Сред.</th>
-                    <th>Итог</th>
+                    <th style="width:6%">Сред.</th>
+                    <th style="width:6%">Итог</th>
                 </tr>
             @endif
         </thead>
@@ -90,15 +96,23 @@
                 @php
                     $reg = $row['reg'];
                     $athlete = $reg->athlete;
-                    $name = trim(($athlete?->last_name ?? '') . ' ' . ($athlete?->first_name ?? ''));
+                    // ФИО хранится одним полем athletes.name (как на странице сводки):
+                    // полей last_name/first_name в модели Athlete нет.
+                    $name = trim((string) ($athlete?->full_name ?? $athlete?->name ?? ''));
                     if ($reg->partner) {
-                        $name .= ' / ' . $reg->partner->last_name . ' ' . $reg->partner->first_name;
+                        $partnerName = trim((string) ($reg->partner->full_name ?? $reg->partner->name ?? ''));
+                        if ($partnerName !== '') {
+                            $name = ($name !== '' ? $name . ' / ' : '') . $partnerName;
+                        }
+                    }
+                    if ($name === '') {
+                        $name = '—';
                     }
                 @endphp
                 <tr>
                     <td class="center">{{ $i + 1 }}</td>
                     <td class="left">
-                        <b>{{ $name !== '' ? $name : '—' }}</b>
+                        <b>{{ $name }}</b>
                         @if ($athlete?->club)
                             <br><span style="font-size:8pt; color:#555;">{{ $athlete->club->name }}</span>
                         @endif
