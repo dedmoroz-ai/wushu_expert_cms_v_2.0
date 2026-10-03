@@ -15,11 +15,22 @@ class UserResource extends Resource
     protected static ?string $model = User::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
+
     protected static ?string $navigationLabel = 'Пользователи';
+
     protected static ?string $modelLabel = 'Пользователь';
+
     protected static ?string $pluralModelLabel = 'Пользователи';
+
     protected static ?string $navigationGroup = 'Управление';
+
     protected static ?int $navigationSort = 1;
+
+    /** Замечание заказчика (01.10): у судей свой набор пунктов меню. */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! auth()->user()->isJudge();
+    }
 
     public static function form(Form $form): Form
     {
@@ -27,6 +38,14 @@ class UserResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Данные пользователя')
                     ->schema([
+                        // Замечание заказчика (02.10): вместо заглушек —
+                        // круглые аватары, заменяющие заглушки на дашборде.
+                        Forms\Components\FileUpload::make('avatar_path')
+                            ->label('Фото профиля')
+                            ->avatar() // круглая зона загрузки, кроп 1:1
+                            ->directory('avatars')
+                            ->columnSpanFull(),
+
                         Forms\Components\TextInput::make('name')
                             ->label('Имя')
                             ->required()
@@ -52,16 +71,12 @@ class UserResource extends Resource
                             ->preload(),
 
                         // --- КАТЕГОРИЯ СУДЬИ ---
+                        // Замечание заказчика (02.10): единый словарь категорий —
+                        // как в карточке судьи («Судейская коллегия») и на плашке
+                        // «Добро пожаловать» дашборда судьи.
                         Forms\Components\Select::make('judge_category')
                             ->label('Судейская категория')
-                            ->options([
-                                'ССВК' => 'Всероссийская категория (ССВК)',
-                                'СС1К' => 'Первая категория (СС1К)',
-                                'СС2К' => 'Вторая категория (СС2К)',
-                                'СС3К' => 'Третья категория (СС3К)',
-                                'ЮС'   => 'Юный судья (ЮС)',
-                                'ССМК' => 'Международная категория (ССМК)',
-                            ])
+                            ->options(User::judgeCategoryOptions())
                             ->helperText('Категория, присвоенная судье')
                             ->searchable()
                             ->nullable(),
@@ -73,6 +88,10 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('avatar_path')
+                    ->label('Фото')
+                    ->circular(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Имя')
                     ->searchable(),
@@ -115,7 +134,7 @@ class UserResource extends Resource
                         'СС1К' => 'СС1К',
                         'СС2К' => 'СС2К',
                         'СС3К' => 'СС3К',
-                        'ЮС'   => 'ЮС',
+                        'ЮС' => 'ЮС',
                         'ССМК' => 'ССМК',
                     ]),
             ])

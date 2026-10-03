@@ -26,6 +26,12 @@ class StyleResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    /** Замечание заказчика (01.10): у судей свой набор пунктов меню. */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! auth()->user()->isJudge();
+    }
+
     public static function form(Form $form): Form
     {
         return $form

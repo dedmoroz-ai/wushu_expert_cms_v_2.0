@@ -16,13 +16,22 @@ class AgeGroupResource extends Resource
     protected static ?string $model = AgeGroup::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users'; // Иконка
-    
+
     protected static ?string $navigationLabel = 'Возрастные группы';
+
     protected static ?string $modelLabel = 'Группа';
+
     protected static ?string $pluralModelLabel = 'Возрастные группы';
+
     protected static ?string $navigationGroup = 'Справочники';
+
     protected static ?int $navigationSort = 2;
 
+    /** Замечание заказчика (01.10): у судей свой набор пунктов меню. */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! auth()->user()->isJudge();
+    }
 
     public static function form(Form $form): Form
     {
@@ -41,7 +50,7 @@ class AgeGroupResource extends Resource
                     ])
                     ->required()
                     ->label('Пол'),
-                
+
                 // --- НОВОЕ ПОЛЕ: ПОРЯДОК СОРТИРОВКИ ---
                 Forms\Components\TextInput::make('sort_order')
                     ->numeric()
@@ -56,7 +65,7 @@ class AgeGroupResource extends Resource
                             ->required()
                             ->label('Мин. возраст')
                             ->suffix('лет'),
-                        
+
                         Forms\Components\TextInput::make('max_age')
                             ->numeric()
                             ->required()
@@ -74,7 +83,7 @@ class AgeGroupResource extends Resource
                             ->maxValue(ScoreRange::GLOBAL_MAX)
                             ->label('Мин. балл')
                             ->placeholder(number_format(ScoreRange::GLOBAL_MIN, 3, '.', ''))
-                            ->helperText('Пусто = общесистемный минимум ' . number_format(ScoreRange::GLOBAL_MIN, 3, '.', '')),
+                            ->helperText('Пусто = общесистемный минимум '.number_format(ScoreRange::GLOBAL_MIN, 3, '.', '')),
 
                         Forms\Components\TextInput::make('max_score')
                             ->numeric()
@@ -83,7 +92,7 @@ class AgeGroupResource extends Resource
                             ->maxValue(ScoreRange::GLOBAL_MAX)
                             ->label('Макс. балл')
                             ->placeholder(number_format(ScoreRange::GLOBAL_MAX, 3, '.', ''))
-                            ->helperText('Пусто = общесистемный максимум ' . number_format(ScoreRange::GLOBAL_MAX, 3, '.', ''))
+                            ->helperText('Пусто = общесистемный максимум '.number_format(ScoreRange::GLOBAL_MAX, 3, '.', ''))
                             ->gte('min_score'),
                     ])
                     ->columns(2),

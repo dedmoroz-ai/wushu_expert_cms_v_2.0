@@ -117,11 +117,16 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
             </svg>
             <p style="margin:0 0 8px 0;font-size:16px;font-weight:500;">Отчётов пока нет</p>
-            <p style="margin:0;font-size:13px;">
-                Поместите HTML-файлы в папку<br>
-                <code>storage/app/public/reports/</code><br>
-                и они автоматически появятся здесь.
-            </p>
+
+            {{-- Замечание заказчика (02.10): памятка о папке reports/ — только
+                 для админа; остальным аккаунтам подсказку не показываем. --}}
+            @if(auth()->user()?->isAdmin())
+                <p style="margin:0;font-size:13px;">
+                    Поместите HTML-файлы в папку<br>
+                    <code>storage/app/public/reports/</code><br>
+                    и они автоматически появятся здесь.
+                </p>
+            @endif
         </div>
     @else
         <div class="reports-grid">

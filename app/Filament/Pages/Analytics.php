@@ -4,15 +4,50 @@ namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class Analytics extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
+
     protected static ?string $navigationLabel = 'Аналитика';
+
     protected static ?string $title = 'Аналитика — отчёты';
+
     protected static ?int $navigationSort = 100;
 
     protected static string $view = 'filament.pages.analytics';
+
+    /**
+     * Замечание заказчика (01.10): раздел «Аналитика» входит в набор меню судей
+     * и включён по умолчанию; админ может выключить его в настройках судей.
+     */
+    public static function canAccess(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user && (! $user->isJudge() || $user->show_analytics);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
+
+    public function mount(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
+    /** Позиция в наборе пунктов меню судьи: Инфопанель(1), Пульт(2), Аналитика(3), … */
+    public static function getNavigationSort(): ?int
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user && $user->isJudge() ? 3 : parent::getNavigationSort();
+    }
 
     /**
      * Возвращает список отчётов из storage/app/public/reports
@@ -25,7 +60,7 @@ class Analytics extends Page
             return [];
         }
 
-        $files = glob($dir . '/*.html');
+        $files = glob($dir.'/*.html');
         if (! $files) {
             return [];
         }
@@ -59,14 +94,14 @@ class Analytics extends Page
             }
 
             $reports[] = [
-                'slug'        => $slug,
-                'filename'    => $filename,
-                'title'       => $title ?: $slug,
+                'slug' => $slug,
+                'filename' => $filename,
+                'title' => $title ?: $slug,
                 'description' => $description,
-                'url'         => '/reports/' . $filename,
-                'mtime'       => Carbon::createFromTimestamp(filemtime($path)),
+                'url' => '/reports/'.$filename,
+                'mtime' => Carbon::createFromTimestamp(filemtime($path)),
                 'report_date' => $reportDate,
-                'size'        => filesize($path),
+                'size' => filesize($path),
             ];
         }
 
@@ -74,6 +109,7 @@ class Analytics extends Page
         usort($reports, function ($a, $b) {
             $aDate = $a['report_date'] ?? $a['mtime'];
             $bDate = $b['report_date'] ?? $b['mtime'];
+
             return $bDate <=> $aDate;
         });
 

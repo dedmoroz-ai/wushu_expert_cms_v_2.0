@@ -11,10 +11,12 @@ class Competition extends Model
 
     // Правило R-2.11: сценарии судейства турнира.
     public const SCHEME_SIMPLE = 'simple';
+
     public const SCHEME_AB = 'ab';
 
     // Правило R-4.18: функции (панели) судей в сценарии A/B.
     public const PANEL_A = 'A';
+
     public const PANEL_B = 'B';
 
     // Разрешаем заполнять все поля
@@ -60,7 +62,7 @@ class Competition extends Model
      */
     public function panelOf(?User $user): ?string
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -73,6 +75,9 @@ class Competition extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'status_code' => 'integer',
+        // Замечание заказчика (02.10): окно подачи заявок тренерами.
+        'registration_opens_at' => 'datetime',
+        'registration_closes_at' => 'datetime',
     ];
 
     // --- СУЩЕСТВУЮЩИЕ СВЯЗИ ---
@@ -106,8 +111,8 @@ class Competition extends Model
     public function judges()
     {
         return $this->belongsToMany(User::class, 'competition_user')
-                    ->withPivot('role_on_tournament', 'panel') // Роль и функция судьи (A/B)
-                    ->withTimestamps();
+            ->withPivot('role_on_tournament', 'panel') // Роль и функция судьи (A/B)
+            ->withTimestamps();
     }
 
     /**
@@ -120,8 +125,8 @@ class Competition extends Model
     public function activeJudges()
     {
         return $this->judges()
-                    ->whereIn('role', ['judge', 'head_judge'])
-                    ->where('is_active_judge', true);
+            ->whereIn('role', ['judge', 'head_judge'])
+            ->where('is_active_judge', true);
     }
 
     /**
@@ -130,7 +135,7 @@ class Competition extends Model
      */
     public function hasActiveJudge(?User $user): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -154,5 +159,171 @@ class Competition extends Model
     public static function active(): ?self
     {
         return static::where('status_code', 1)->first();
+    }
+
+    // --- ЗАМЕЧАНИЕ ЗАКАЗЧИКА (02.10): АКТУАЛЬНОЕ СОРЕВНОВАНИЕ И СЕССИЯ РЕГИСТРАЦИИ ---
+
+    /**
+     * Статус сессии регистрации заявок от тренеров: окно ещё не открыто.
+     */
+    public const REG_SESSION_PENDING = 'pending';
+
+    /**
+     * Статус сессии регистрации: заявки принимаются прямо сейчас.
+     */
+    public const REG_SESSION_OPEN = 'open';
+
+    /**
+     * Статус сессии регистрации: приём заявок закрыт.
+     */
+    public const REG_SESSION_CLOSED = 'closed';
+
+    /**
+     * Статус сессии регистрации: окно дат в настройках не задано.
+     */
+    public const REG_SESSION_UNKNOWN = 'unknown';
+
+    /**
+     * «Актуальное» соревнование для дашборда администратора (плашка
+     * «Актуальное соревнование» и счётчик заявок текущей сессии).
+     *
+     * Приоритет: идёт прямо сейчас (status_code = 1) → ближайшее по дате
+     * начала (сегодня или позже) → последнее по дате начала.
+     */
+    public static function actual(): ?self
+    {
+        $running = static::active();
+
+        if ($running) {
+            return $running;
+        }
+
+        $upcoming = static::whereDate('start_date', '>=', now()->toDateString())
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->first();
+
+        return $upcoming ?? static::orderByDesc('start_date')->orderByDesc('id')->first();
+    }
+
+    /**
+     * Статус сессии регистрации заявок от тренеров.
+     *
+     * Считается от текущего времени по окну дат из настроек соревнования:
+     * до открытия — «Ожидает открытия», в окне — «Идёт регистрация»,
+     * после закрытия — «Регистрация завершена», окно не задано — «Не задано».
+     */
+    public function registrationSessionStatus(): string
+    {
+        if (! $this->registration_opens_at && ! $this->registration_closes_at) {
+            return self::REG_SESSION_UNKNOWN;
+        }
+
+        $now = now();
+
+        if ($this->registration_opens_at && $now->lt($this->registration_opens_at)) {
+            return self::REG_SESSION_PENDING;
+        }
+
+        if ($this->registration_closes_at && $now->gt($this->registration_closes_at)) {
+            return self::REG_SESSION_CLOSED;
+        }
+
+        return self::REG_SESSION_OPEN;
+    }
+
+    public function registrationSessionStatusLabel(): string
+    {
+        return match ($this->registrationSessionStatus()) {
+            self::REG_SESSION_PENDING => 'Ожидает открытия',
+            self::REG_SESSION_OPEN => 'Идёт регистрация',
+            self::REG_SESSION_CLOSED => 'Регистрация завершена',
+            default => 'Не задано',
+        };
+    }
+
+    /**
+     * Цвет бейджа статуса (цвета badge: gray / warning / success / danger).
+     */
+    public function registrationSessionStatusColor(): string
+    {
+        return match ($this->registrationSessionStatus()) {
+            self::REG_SESSION_PENDING => 'warning',
+            self::REG_SESSION_OPEN => 'success',
+            self::REG_SESSION_CLOSED => 'danger',
+            default => 'gray',
+        };
+    }
+
+    // --- ЗАМЕЧАНИЕ ЗАКАЗЧИКА (02.10): СТАТУС СОРЕВНОВАНИЯ НА ДАШБОРДЕ СУДЬИ ---
+
+    /**
+     * Статус соревнования (status_code): «Скоро», «Запущено», «На паузе»,
+     * «Завершено» — как на пульте управления (ManageCompetition).
+     */
+    public function statusLabel(): string
+    {
+        return match ((int) $this->status_code) {
+            1 => 'Запущено',
+            2 => 'На паузе',
+            3 => 'Завершено',
+            default => 'Скоро',
+        };
+    }
+
+    /**
+     * Цвет бейджа статуса соревнования (цвета badge: gray / info / success / warning).
+     */
+    public function statusColor(): string
+    {
+        return match ((int) $this->status_code) {
+            1 => 'success',
+            2 => 'warning',
+            3 => 'gray',
+            default => 'info',
+        };
+    }
+
+    /**
+     * Логотип федерации (из настроек соревнования: organization_logo),
+     * с фолбэком на логотип федерации — как на табло.
+     */
+    public function logoUrl(): ?string
+    {
+        $path = $this->organization_logo;
+
+        if (! $path && $this->federation) {
+            $path = $this->federation->logo_path ?? $this->federation->logo;
+        }
+
+        return $path ? asset('storage/'.$path) : null;
+    }
+
+    /**
+     * Календарные даты проведения: «01.02.2026» или «01.02.2026 — 03.02.2026».
+     */
+    public function datesLabel(): string
+    {
+        if (! $this->start_date) {
+            return '—';
+        }
+
+        $start = $this->start_date->format('d.m.Y');
+
+        if (! $this->end_date || $this->end_date->isSameDay($this->start_date)) {
+            return $start;
+        }
+
+        return $start.' — '.$this->end_date->format('d.m.Y');
+    }
+
+    /**
+     * Адрес проведения: «Москва, Дворец спорта «Лужники»».
+     */
+    public function placeLabel(): string
+    {
+        $parts = array_filter([$this->city, $this->address], fn ($value) => filled($value));
+
+        return $parts ? implode(', ', $parts) : '—';
     }
 }

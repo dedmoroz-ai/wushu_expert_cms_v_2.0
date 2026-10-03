@@ -22,22 +22,34 @@ class DeductionCodeResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-minus-circle';
 
     protected static ?string $navigationLabel = 'Коды сбавок (судья A)';
+
     protected static ?string $modelLabel = 'Код сбавки';
+
     protected static ?string $pluralModelLabel = 'Коды сбавок';
+
     protected static ?string $navigationGroup = 'Справочники';
+
     protected static ?int $navigationSort = 3;
 
+    /**
+     * Замечание заказчика (01.10): у судей свой набор пунктов меню,
+     * «Коды сбавок» в него не входит — в меню раздел видит только админ.
+     * Сам доступ старшего судьи к странице сохранён (памятки, работа с кодами).
+     */
     public static function shouldRegisterNavigation(): bool
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        return $user && ($user->isAdmin() || $user->isHeadJudge());
+        return $user && $user->isAdmin();
     }
 
     public static function canViewAny(): bool
     {
-        return static::shouldRegisterNavigation();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user && ($user->isAdmin() || $user->isHeadJudge());
     }
 
     public static function form(Form $form): Form
@@ -104,7 +116,7 @@ class DeductionCodeResource extends Resource
                 Tables\Columns\TextColumn::make('value')
                     ->label('Сбавка')
                     ->alignCenter()
-                    ->formatStateUsing(fn ($state) => '−' . number_format((float) $state, 3, '.', '')),
+                    ->formatStateUsing(fn ($state) => '−'.number_format((float) $state, 3, '.', '')),
 
                 Tables\Columns\TextColumn::make('label')
                     ->label('Описание')

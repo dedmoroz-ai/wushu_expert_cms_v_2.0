@@ -16,11 +16,15 @@ class CompetitionResource extends Resource
     protected static ?string $model = Competition::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-trophy';
-    
+
     protected static ?string $navigationLabel = 'Соревнования';
+
     protected static ?string $modelLabel = 'Соревнование';
+
     protected static ?string $pluralModelLabel = 'Соревнования';
+
     protected static ?string $navigationGroup = 'Турнир';
+
     protected static ?int $navigationSort = 3;
 
     // --- СКРЫВАЕМ ОТ СУДЕЙ ---
@@ -75,7 +79,7 @@ class CompetitionResource extends Resource
                                     ->label('Адрес (Спорткомплекс)'),
                             ]),
                     ])
-                    ->collapsible() 
+                    ->collapsible()
                     ->collapsed(),  // Свернуто по умолчанию
 
                 // --- СЕКЦИЯ 2: ОФОРМЛЕНИЕ И ПЕЧАТЬ ---
@@ -108,7 +112,7 @@ class CompetitionResource extends Resource
                                 Forms\Components\TextInput::make('chief_judge_name')
                                     ->label('ФИО Главного судьи')
                                     ->placeholder('Иванов И.И.')
-                                    ->required(), 
+                                    ->required(),
 
                                 Forms\Components\FileUpload::make('chief_judge_signature')
                                     ->label('Факсимиле Главного судьи')
@@ -162,7 +166,26 @@ class CompetitionResource extends Resource
                             ->columnSpanFull(),
                     ])
                     ->columns(2)
-                    ->collapsible() 
+                    ->collapsible()
+                    ->collapsed(),
+
+                // СЕКЦИЯ 4: Замечание заказчика (02.10): сессия регистрации заявок
+                Forms\Components\Section::make('Сессия регистрации заявок')
+                    ->description('Окно подачи заявок тренерами. По нему дашборд считает статус сессии: «Ожидает открытия», «Идёт регистрация» или «Регистрация завершена».')
+                    ->schema([
+                        Forms\Components\DateTimePicker::make('registration_opens_at')
+                            ->label('Открытие подачи заявок')
+                            ->seconds(false)
+                            ->helperText('С этого момента тренеры могут подавать заявки.'),
+
+                        Forms\Components\DateTimePicker::make('registration_closes_at')
+                            ->label('Закрытие подачи заявок')
+                            ->seconds(false)
+                            ->afterOrEqual('registration_opens_at')
+                            ->helperText('После этого момента приём заявок закрывается.'),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
                     ->collapsed(),
             ]);
     }
@@ -191,7 +214,7 @@ class CompetitionResource extends Resource
                     ->date('d.m.Y')
                     ->sortable()
                     ->label('Начало'),
-                    
+
                 Tables\Columns\TextColumn::make('end_date')
                     ->date('d.m.Y')
                     ->label('Конец'),
@@ -238,7 +261,7 @@ class CompetitionResource extends Resource
             'index' => Pages\ListCompetitions::route('/'),
             'create' => Pages\CreateCompetition::route('/create'),
             'edit' => Pages\EditCompetition::route('/{record}/edit'),
-            
+
             // --- НОВЫЙ МАРШРУТ ДЛЯ ПУЛЬТА ---
             'manage' => Pages\ManageCompetition::route('/{record}/manage'),
         ];

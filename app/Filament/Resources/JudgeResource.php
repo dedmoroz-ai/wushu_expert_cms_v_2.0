@@ -17,10 +17,20 @@ class JudgeResource extends Resource
     protected static ?string $model = User::class;
 
     protected static ?string $navigationLabel = 'Судейская коллегия';
+
     protected static ?string $navigationIcon = 'heroicon-o-users';
+
     protected static ?string $modelLabel = 'Судья';
+
     protected static ?string $pluralModelLabel = 'Судьи';
+
     protected static ?string $navigationGroup = 'Справочники';
+
+    /** Замечание заказчика (01.10): у судей свой набор пунктов меню. */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! auth()->user()->isJudge();
+    }
 
     public static function getEloquentQuery(): Builder
     {
@@ -35,14 +45,14 @@ class JudgeResource extends Resource
                     ->label('ФИО Судьи')
                     ->required()
                     ->maxLength(255),
-                
+
                 Forms\Components\TextInput::make('email')
                     ->email()
                     ->required()
                     ->label('Email (Логин)')
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
-                
+
                 Forms\Components\TextInput::make('password')
                     ->password()
                     ->label('Пароль')
@@ -60,16 +70,11 @@ class JudgeResource extends Resource
                     ->required(),
 
                 // --- НОВОЕ: КАТЕГОРИЯ СУДЬИ ---
+                // Замечание заказчика (02.10): единый словарь категорий —
+                // как на плашке «Добро пожаловать» дашборда судьи.
                 Forms\Components\Select::make('judge_category')
                     ->label('Судейская категория')
-                    ->options([
-                        'ССМК' => 'Международная категория (ССМК)',
-                        'ССВК' => 'Всероссийская категория (ССВК)',
-                        'СС1К' => 'Первая категория (СС1К)',
-                        'СС2К' => 'Вторая категория (СС2К)',
-                        'СС3К' => 'Третья категория (СС3К)',
-                        'ЮС'   => 'Юный судья (ЮС)',
-                    ])
+                    ->options(User::judgeCategoryOptions())
                     ->helperText('Категория, присвоенная судье')
                     ->searchable()
                     ->nullable(),
@@ -78,6 +83,29 @@ class JudgeResource extends Resource
                     ->label('Допущен к судейству (Активен)')
                     ->helperText('Включите, чтобы судья мог войти в пульт.')
                     ->default(true)
+                    ->columnSpanFull(),
+
+                // --- ЗАМЕЧАНИЕ ЗАКАЗЧИКА (01.10): НАСТРОЙКИ МЕНЮ СУДЬИ ---
+                // У судей свой набор пунктов меню: «Инфопанель», «Судейский пульт»
+                // и «Аналитика» (по умолчанию), плюс опциональные «Сводка оценок»
+                // и «Журнал судейства» — их включает/выключает админ.
+                Forms\Components\Section::make('Разделы меню судьи')
+                    ->description('«Инфопанель», «Судейский пульт» и «Аналитика» доступны судье всегда. Остальные разделы включайте по необходимости.')
+                    ->schema([
+                        Forms\Components\Toggle::make('show_analytics')
+                            ->label('Аналитика')
+                            ->default(true)
+                            ->helperText('Включена по умолчанию.'),
+
+                        Forms\Components\Toggle::make('show_scores_summary')
+                            ->label('Сводка оценок')
+                            ->default(false),
+
+                        Forms\Components\Toggle::make('show_judging_log')
+                            ->label('Журнал судейства')
+                            ->default(false),
+                    ])
+                    ->columns(3)
                     ->columnSpanFull(),
             ]);
     }
@@ -94,7 +122,7 @@ class JudgeResource extends Resource
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
                     ->searchable(),
-                
+
                 Tables\Columns\TextColumn::make('role')
                     ->label('Роль')
                     ->badge()
@@ -120,7 +148,7 @@ class JudgeResource extends Resource
                         'СС1К' => 'warning',   // оранжевый — первая
                         'СС2К' => 'info',      // синий — вторая
                         'СС3К' => 'gray',      // серый — третья
-                        'ЮС'   => 'gray',      // юный судья
+                        'ЮС' => 'gray',      // юный судья
                         default => 'gray',
                     }),
 
@@ -138,7 +166,7 @@ class JudgeResource extends Resource
                         'СС1К' => 'СС1К',
                         'СС2К' => 'СС2К',
                         'СС3К' => 'СС3К',
-                        'ЮС'   => 'ЮС',
+                        'ЮС' => 'ЮС',
                     ]),
 
                 // --- ФИЛЬТР ПО РОЛИ ---

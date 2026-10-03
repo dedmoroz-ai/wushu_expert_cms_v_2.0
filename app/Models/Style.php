@@ -28,4 +28,28 @@ class Style extends Model
     {
         return self::CATEGORIES[$key] ?? (string) $key;
     }
+
+    /**
+     * Дуйлянь — парный вид: заявка ведётся с партнёром.
+     */
+    public function isDuilian(): bool
+    {
+        return str_contains(mb_strtolower($this->name), 'дуйлянь');
+    }
+
+    /**
+     * Гуйдин Дуйда — парный вид: заявка ведётся с партнёром.
+     */
+    public function isDuida(): bool
+    {
+        return str_contains(mb_strtolower($this->name), 'дуйда');
+    }
+
+    /**
+     * Парный вид (Дуйлянь / Дуйда): у заявки заполняется партнёр (R-6.15).
+     */
+    public function isPair(): bool
+    {
+        return $this->isDuilian() || $this->isDuida();
+    }
 }

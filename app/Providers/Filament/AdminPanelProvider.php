@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\AccountWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -10,14 +11,13 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -31,7 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Wushu Expert CMS')
             ->colors([
                 'primary' => Color::Sky,
-                'danger' => '#dd0000'
+                'danger' => '#dd0000',
             ])
             ->navigationGroups([
                 'Управление',
@@ -48,7 +48,7 @@ class AdminPanelProvider extends PanelProvider
             // 2. ПОДКЛЮЧЕНИЕ МАНИФЕСТА И ИКОНОК
             ->renderHook(
                 'panels::head.start',
-                fn (): string => Blade::render(<<<HTML
+                fn (): string => Blade::render(<<<'HTML'
                     <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
                     <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
                     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
@@ -108,7 +108,8 @@ class AdminPanelProvider extends PanelProvider
                         height: 50px;
                         display: flex;
                         align-items: center;
-                        justify-content: space-between;
+                        justify-content: center;
+                        gap: 0.5rem;
                         padding: 0 1.5rem;
                         background: #f9fafb;
                         color: #030712;
@@ -168,7 +169,7 @@ class AdminPanelProvider extends PanelProvider
                 </style>'
             )
 
-            // 4. ФУТЕР ПРИЛОЖЕНИЯ (50px): версия слева, копирайт + год + лого разработчика справа
+            // 4. ФУТЕР ПРИЛОЖЕНИЯ (50px): версия, копирайт + год + лого разработчика — по центру
             ->renderHook(
                 'panels::body.end',
                 fn (): string => Blade::render(<<<'HTML'
@@ -191,7 +192,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                Widgets\AccountWidget::class,
+                AccountWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

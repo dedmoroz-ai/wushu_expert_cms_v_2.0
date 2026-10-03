@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\RegistrationResource\Pages;
 
 use App\Filament\Resources\RegistrationResource;
-use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Competition;
 use App\Models\Style;
+use App\Support\AgeGroupResolver;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -38,25 +38,14 @@ class CreateRegistration extends CreateRecord
         // partner_id тоже чистим, так как мы его будем назначать вручную ниже
         unset($data['partner_id']);
 
-        // 2. ОПРЕДЕЛЕНИЕ ВОЗРАСТНОЙ ГРУППЫ
-        $athlete = Athlete::find($data['athlete_id']);
-        $competition = Competition::find($data['competition_id']);
+        // 2. ОПРЕДЕЛЕНИЕ ВОЗРАСТНОЙ ГРУППЫ (единый AgeGroupResolver — как при редактировании)
+        $resolved = AgeGroupResolver::resolve(
+            Athlete::find($data['athlete_id']),
+            Competition::find($data['competition_id']),
+        );
 
-        $data['age_group_id'] = null;
-        $data['age_group_label'] = 'Не определено';
-
-        if ($athlete && $competition && $athlete->birth_date) {
-            $age = $competition->start_date->year - $athlete->birth_date->year;
-            $dbGroup = $this->findAgeGroupInDb($athlete, $age);
-
-            if ($dbGroup) {
-                $data['age_group_id'] = $dbGroup->id;
-                $data['age_group_label'] = "{$dbGroup->name} ({$dbGroup->min_age}-{$dbGroup->max_age} лет)";
-            } else {
-                $data['age_group_id'] = null;
-                $data['age_group_label'] = $this->calculateManualLabel($athlete, $age);
-            }
-        }
+        $data['age_group_id'] = $resolved['age_group_id'];
+        $data['age_group_label'] = $resolved['age_group_label'];
 
         $record = null;
         $countNew = 0;
@@ -133,44 +122,5 @@ class CreateRegistration extends CreateRecord
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
-    }
-
-    protected function findAgeGroupInDb($athlete, $age)
-    {
-        $genderRaw = mb_strtolower($athlete->gender ?? '');
-        $gender = in_array($genderRaw, ['male', 'm', 'man', 'мужской', 'муж', 'м']) ? 'male' : 'female';
-
-        return AgeGroup::query()
-            ->where('gender', $gender)
-            ->where('min_age', '<=', $age)
-            ->where('max_age', '>=', $age)
-            ->first();
-    }
-
-    protected function calculateManualLabel($athlete, $age)
-    {
-        $genderRaw = mb_strtolower($athlete->gender ?? '');
-        $isMale = in_array($genderRaw, ['male', 'm', 'man', 'мужской', 'муж', 'м']);
-
-        if ($age < 9) {
-            return $isMale ? 'Мальчики (до 9 лет)' : 'Девочки (до 9 лет)';
-        }
-        if ($age >= 9 && $age <= 11) {
-            return $isMale ? 'Мальчики (9-11 лет)' : 'Девочки (9-11 лет)';
-        }
-        if ($age >= 12 && $age <= 14) {
-            return $isMale ? 'Юноши (12-14 лет)' : 'Девушки (12-14 лет)';
-        }
-        if ($age >= 15 && $age <= 17) {
-            return $isMale ? 'Юниоры (15-17 лет)' : 'Юниорки (15-17 лет)';
-        }
-        if ($age >= 18 && $age <= 35) {
-            return $isMale ? 'Мужчины (18-35 лет)' : 'Женщины (18-35 лет)';
-        }
-        if ($age >= 36) {
-            return $isMale ? 'Ветераны (36+ лет)' : 'Ветераны-женщины (36+ лет)';
-        }
-
-        return "Категория ($age лет)";
     }
 }

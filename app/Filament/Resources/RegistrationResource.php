@@ -32,6 +32,12 @@ class RegistrationResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
+    /** Замечание заказчика (01.10): у судей свой набор пунктов меню. */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! auth()->user()->isJudge();
+    }
+
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();

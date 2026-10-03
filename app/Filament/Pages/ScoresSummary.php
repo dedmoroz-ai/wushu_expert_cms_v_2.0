@@ -38,18 +38,41 @@ class ScoresSummary extends Page
     /* ============== Доступ ============== */
 
     /**
-     * Доступ: админы (как на сервере) + прежний список e-mail.
+     * Доступ: админы (как на сервере) + прежний список e-mail + судьи,
+     * которым админ включил раздел в настройках судей (замечание 01.10).
      */
     public static function canAccess(): bool
     {
         $user = Auth::user();
 
-        return $user && ($user->isAdmin() || in_array($user->email, self::ALLOWED_EMAILS, true));
+        return $user && (
+            $user->isAdmin()
+            || in_array($user->email, self::ALLOWED_EMAILS, true)
+            || ($user->isJudge() && $user->show_scores_summary)
+        );
     }
 
     public static function shouldRegisterNavigation(): bool
     {
         return self::canAccess();
+    }
+
+    /** У судей разделы идут плоским списком (без групп), у админа — в «Турнире». */
+    public static function getNavigationGroup(): ?string
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user && $user->isJudge() ? null : parent::getNavigationGroup();
+    }
+
+    /** Позиция в наборе пунктов меню судьи: Инфопанель(1), Пульт(2), … Сводка(4). */
+    public static function getNavigationSort(): ?int
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user && $user->isJudge() ? 4 : parent::getNavigationSort();
     }
 
     public function mount(): void

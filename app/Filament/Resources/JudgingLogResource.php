@@ -32,17 +32,40 @@ class JudgingLogResource extends Resource
 
     protected static ?int $navigationSort = 90;
 
+    /**
+     * Замечание заказчика (01.10): у судей свой набор пунктов меню,
+     * «Журнал судейства» включается/выключается админом в настройках судей.
+     * Админ видит раздел всегда.
+     */
     public static function shouldRegisterNavigation(): bool
     {
-        /** @var \App\Models\User $user */
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        return $user && ($user->isAdmin() || $user->isHeadJudge());
+        return $user && ($user->isAdmin() || ($user->isJudge() && $user->show_judging_log));
     }
 
     public static function canViewAny(): bool
     {
         return static::shouldRegisterNavigation();
+    }
+
+    /** У судей разделы идут плоским списком (без групп), у админа — в «Турнире». */
+    public static function getNavigationGroup(): ?string
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user && $user->isJudge() ? null : parent::getNavigationGroup();
+    }
+
+    /** Позиция в наборе пунктов меню судьи: Инфопанель(1), Пульт(2), … Журнал(5). */
+    public static function getNavigationSort(): ?int
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user && $user->isJudge() ? 5 : parent::getNavigationSort();
     }
 
     public static function canCreate(): bool

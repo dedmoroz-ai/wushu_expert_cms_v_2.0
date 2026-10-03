@@ -151,11 +151,11 @@
         </div>
     </main>
     
-    <!-- Footer (50px, на всю ширину): версия слева, копирайт + год + лого разработчика справа -->
+    <!-- Footer (50px, на всю ширину): версия, копирайт + год + лого разработчика — по центру -->
     <div class="relative z-10 w-full h-[50px] border-t border-white/5 bg-gray-950 shrink-0">
-        <div class="h-full w-full px-4 md:px-6 flex items-center justify-between text-[11px] text-white">
+        <div class="h-full w-full px-4 md:px-6 flex items-center justify-center gap-2 text-[11px] text-white">
             <span>Wushu Expert CMS {{ config('app.version') }}</span>
-            <span class="inline-flex items-center gap-2">
+            <span class="inline-flex items-center gap-1">
                 <span>&copy; 2026</span>
                 <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz" class="h-6 w-auto">
                 <span>Макс Мороз</span>
