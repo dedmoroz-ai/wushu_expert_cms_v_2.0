@@ -18,6 +18,6 @@ RUN php artisan config:clear && \
     php artisan route:clear && \
     php artisan view:clear
 
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public
 
 USER www-data

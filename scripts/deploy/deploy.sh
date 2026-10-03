@@ -46,6 +46,9 @@ docker compose up -d --no-deps app
 sleep 5
 
 docker exec "$APP" php artisan migrate --force
+# public/ в образе принадлежит root (COPY), а artisan работает от www-data —
+# без chown filament:assets падает с Permission denied (деплой 2026-10-03).
+docker exec -u root "$APP" chown -R www-data:www-data /var/www/html/public
 docker exec "$APP" php artisan filament:assets
 docker exec "$APP" php artisan storage:link || true
 docker exec "$APP" php artisan optimize
