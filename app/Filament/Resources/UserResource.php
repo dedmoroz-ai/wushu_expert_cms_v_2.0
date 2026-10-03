@@ -62,11 +62,23 @@ class UserResource extends Resource
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $context): bool => $context === 'create'),
 
+                        // --- РОЛЬ ---
+                        // Права в админ-панели зависят от роли: полный набор
+                        // пунктов меню («Пользователи», «Клубы», «Пульт Старшего
+                        // судьи» и др.) видит только «Администратор».
+                        Forms\Components\Select::make('role')
+                            ->label('Роль')
+                            ->options(User::roleOptions())
+                            ->required()
+                            ->default('coach')
+                            ->helperText('Определяет набор пунктов меню и права пользователя')
+                            ->searchable(),
+
                         // --- ВЫБОР КЛУБА ---
                         Forms\Components\Select::make('club_id')
                             ->relationship('club', 'name')
                             ->label('Клуб')
-                            ->helperText('Если оставить пустым — пользователь будет полным АДМИНИСТРАТОРОМ')
+                            ->helperText('Клуб, за которым закреплён пользователь (тренер). На права доступа не влияет')
                             ->searchable()
                             ->preload(),
 
@@ -99,13 +111,26 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('email')
                     ->searchable(),
 
-                // Показываем клуб. Если пусто — пишем "Администратор"
+                // --- РОЛЬ ---
+                Tables\Columns\TextColumn::make('role')
+                    ->label('Роль')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => User::roleOptions()[$state] ?? $state)
+                    ->color(fn (string $state): string => match ($state) {
+                        'admin' => 'danger',
+                        'head_judge' => 'warning',
+                        'judge' => 'info',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+
+                // Клуб пользователя (тренера); если не закреплён — прочерк.
                 Tables\Columns\TextColumn::make('club.name')
-                    ->label('Клуб / Роль')
-                    ->placeholder('Администратор')
+                    ->label('Клуб')
+                    ->placeholder('—')
                     ->sortable()
                     ->badge()
-                    ->color(fn ($state) => $state ? 'info' : 'danger'),
+                    ->color(fn ($state) => $state ? 'info' : 'gray'),
 
                 // --- КАТЕГОРИЯ СУДЬИ ---
                 Tables\Columns\TextColumn::make('judge_category')
@@ -123,20 +148,17 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('role')
+                    ->label('Роль')
+                    ->options(User::roleOptions()),
+
                 Tables\Filters\SelectFilter::make('club')
                     ->relationship('club', 'name')
                     ->label('Клуб'),
 
                 Tables\Filters\SelectFilter::make('judge_category')
                     ->label('Категория судьи')
-                    ->options([
-                        'ССВК' => 'ССВК',
-                        'СС1К' => 'СС1К',
-                        'СС2К' => 'СС2К',
-                        'СС3К' => 'СС3К',
-                        'ЮС' => 'ЮС',
-                        'ССМК' => 'ССМК',
-                    ]),
+                    ->options(User::judgeCategoryOptions()),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

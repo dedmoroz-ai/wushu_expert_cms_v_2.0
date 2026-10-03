@@ -112,6 +112,25 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
             && ($this->role === 'coach' || $this->club_id !== null);
     }
 
+    // --- Роли ---
+
+    /**
+     * Роли пользователя: код => название (карточка пользователя,
+     * раздел «Пользователи»). Права в админ-панели зависят именно от роли:
+     * полный админ-набор пунктов меню видит только администратор.
+     *
+     * @return array<string, string>
+     */
+    public static function roleOptions(): array
+    {
+        return [
+            'admin' => 'Администратор',
+            'head_judge' => 'Старший судья',
+            'judge' => 'Линейный судья',
+            'coach' => 'Тренер',
+        ];
+    }
+
     // --- Судейская категория (настройки судейской коллегии) ---
 
     /**
