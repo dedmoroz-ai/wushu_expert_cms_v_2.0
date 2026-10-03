@@ -57,8 +57,8 @@
             margin-bottom: 20px;
         }
 
-        /* КНОПКА ВЫХОДА */
-        .logout-btn-fixed {
+        /* КНОПКА ВЫХОДА ИЗ ПУЛЬТА (сессия сохраняется) */
+        .exit-btn-fixed {
             position: fixed !important;
             top: 15px !important;
             right: 15px !important;
@@ -70,7 +70,7 @@
             color: #9ca3af;
             transition: all 0.2s;
         }
-        .logout-btn-fixed:hover {
+        .exit-btn-fixed:hover {
             color: #ef4444; 
             background: rgba(255, 255, 255, 0.2);
         }
@@ -88,11 +88,11 @@
     {{-- Убрал relative у контейнера, чтобы не мешал fixed --}}
     <div wire:poll.3s="loadState" class="min-h-screen w-full flex flex-col items-center pt-4 px-4 pb-48 font-sans bg-[#0e1422] overflow-y-auto">
 
-        {{-- === КНОПКА ВЫХОДА === --}}
-        <button wire:click="logout" 
-                title="Выйти"
+        {{-- === КНОПКА ВЫХОДА ИЗ ПУЛЬТА (не из аккаунта) === --}}
+        <button wire:click="exitPad" 
+                title="Выйти из пульта"
                 onclick="return confirm('Выйти из пульта?')"
-                class="logout-btn-fixed">
+                class="exit-btn-fixed">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12" />
             </svg>

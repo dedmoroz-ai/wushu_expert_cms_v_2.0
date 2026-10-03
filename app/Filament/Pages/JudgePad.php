@@ -553,12 +553,13 @@ class JudgePad extends Page
         $this->deductionCodes = [];
     }
 
-    public function logout()
+    /**
+     * Замечание заказчика (03.10): кнопка «Выход» в пульте должна выводить
+     * только из пульта (возврат на «Инфопанель»), но не из аккаунта.
+     * Полный выход остаётся в меню аккаунта.
+     */
+    public function exitPad()
     {
-        filament()->auth()->logout();
-        session()->invalidate();
-        session()->regenerateToken();
-
-        return redirect()->to(filament()->getLoginUrl());
+        return redirect()->to(filament()->getHomeUrl());
     }
 }

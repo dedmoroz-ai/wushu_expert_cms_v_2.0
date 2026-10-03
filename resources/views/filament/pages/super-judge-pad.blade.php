@@ -183,8 +183,8 @@
                     @endif
                 </div>
 
-                <button wire:click="logout" 
-                        title="Выйти из системы"
+                <button wire:click="exitPad" 
+                        title="Выйти из пульта"
                         onclick="return confirm('Выйти из пульта Старшего судьи?')"
                         class="text-gray-500 hover:text-red-500 hover:bg-white/5 rounded-full p-2 transition-all">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-10 h-10">
