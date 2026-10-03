@@ -146,6 +146,33 @@ class ScoresSummaryTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
     }
 
+    /**
+     * Кнопка «Скачать PDF» ведёт на PDF-роут и открывает PDF в браузере (inline),
+     * а не вызывает печать; вёрстка таблицы адаптирована для мобильных (03.10).
+     */
+    public function test_pdf_button_links_to_inline_pdf_and_layout_is_mobile_friendly(): void
+    {
+        [$competition, $reg, $judges] = $this->makeTournament(Competition::SCHEME_SIMPLE);
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j1']->id, 'score' => 8.0]);
+
+        $admin = $this->makeUser('admin-pdf@test.local', 'admin');
+
+        $this->actingAs($admin)
+            ->get('/admin/scores-summary?competitionId='.$competition->id)
+            ->assertOk()
+            ->assertSee('href="'.route('competition.scores-summary', $competition).'"', false)
+            ->assertSee('target="_blank"', false)
+            ->assertSee('Скачать PDF')
+            ->assertSee('Печать')
+            ->assertSee('@media (max-width: 767px)', false)
+            ->assertSee('min-width: 720px', false);
+
+        // PDF открывается в браузере (Content-Disposition: inline), а не скачивается файлом.
+        $response = $this->actingAs($admin)->get(route('competition.scores-summary', $competition));
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringContainsString('inline', (string) $response->headers->get('Content-Disposition'));
+    }
+
     /** Рендер A/B: двухуровневая шапка панелей на странице и в PDF. */
     public function test_ab_page_and_pdf_render_with_panel_headers(): void
     {

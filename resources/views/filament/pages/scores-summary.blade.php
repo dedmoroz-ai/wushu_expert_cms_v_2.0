@@ -25,7 +25,7 @@
                 @endforeach
             </select>
         </div>
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap gap-3 summary-actions">
             <button type="submit"
                     style="background:#2563eb;color:#fff;padding:8px 18px;border-radius:8px;font-weight:500;border:0;cursor:pointer;"
                     onmouseover="this.style.background='#1d4ed8'"
@@ -33,6 +33,18 @@
                 Показать
             </button>
             @if($competition && $matrix && count($matrix['rows']) > 0)
+                <a href="{{ route('competition.scores-summary', $competition) }}"
+                        target="_blank" rel="noopener"
+                        style="background:#374151;color:#fff;padding:8px 18px;border-radius:8px;font-weight:500;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;"
+                        onmouseover="this.style.background='#1f2937'"
+                        onmouseout="this.style.background='#374151'">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                         stroke-width="2" stroke="currentColor" style="width:16px;height:16px;">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    <span>Скачать PDF</span>
+                </a>
                 <button type="button"
                         onclick="window.print()"
                         style="background:#374151;color:#fff;padding:8px 18px;border-radius:8px;font-weight:500;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"
@@ -43,7 +55,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
                     </svg>
-                    <span>Скачать PDF</span>
+                    <span>Печать</span>
                 </button>
             @endif
         </div>
@@ -72,12 +84,13 @@
         <style>
             .scores-scroll {
                 max-height: calc(100vh - 240px);
-                overflow-y: auto;
-                overflow-x: hidden;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
                 border-radius: 12px;
             }
             .scores-table {
                 width: 100%;
+                min-width: 720px;
                 table-layout: fixed;
                 border-collapse: separate;
                 border-spacing: 0;
@@ -116,6 +129,28 @@
             .col-avg    { width: 64px; text-align: center; font-weight: 600; }
             .col-final  { width: 64px; text-align: center; font-weight: 700; }
 
+            /* «Липкие» колонки № и спортсмена — видно при горизонтальном скролле */
+            .scores-table .col-num,
+            .scores-table .col-name {
+                position: sticky;
+                background: #fff;
+            }
+            .scores-table .col-num  { left: 0; z-index: 12; }
+            .scores-table .col-name { left: 36px; z-index: 11; }
+            .scores-table thead .col-num,
+            .scores-table thead .col-name {
+                z-index: 25;
+                background: #f3f4f6;
+            }
+            .scores-table tbody tr:hover .col-num,
+            .scores-table tbody tr:hover .col-name { background: #f9fafb; }
+            .dark .scores-table .col-num,
+            .dark .scores-table .col-name { background: #111827; }
+            .dark .scores-table thead .col-num,
+            .dark .scores-table thead .col-name { background: #1f2937; }
+            .dark .scores-table tbody tr:hover .col-num,
+            .dark .scores-table tbody tr:hover .col-name { background: #111827; }
+
             .judge-name {
                 display: block;
                 white-space: normal;
@@ -144,6 +179,21 @@
 
             .scores-table tbody tr:hover { background: #f9fafb; }
             .dark .scores-table tbody tr:hover { background: #111827; }
+
+            /* Мобильные устройства: таблица скроллится по горизонтали,
+               кнопки — во всю ширину, лишний внутренний скролл отключён */
+            @media (max-width: 767px) {
+                .scores-scroll {
+                    max-height: none;
+                }
+                .scores-table {
+                    font-size: 11px;
+                }
+                .summary-actions > * {
+                    width: 100%;
+                    justify-content: center;
+                }
+            }
 
             .print-header { display: none; }
 
@@ -217,6 +267,7 @@
 
                 .scores-table {
                     font-size: 8pt !important;
+                    min-width: 0 !important;
                     page-break-inside: auto;
                 }
                 .scores-table th,
@@ -239,6 +290,12 @@
                 }
                 .judge-name {
                     font-size: 7pt !important;
+                }
+
+                .scores-table .col-num,
+                .scores-table .col-name {
+                    position: static !important;
+                    background: none !important;
                 }
 
                 .col-num   { width: 4%; }
