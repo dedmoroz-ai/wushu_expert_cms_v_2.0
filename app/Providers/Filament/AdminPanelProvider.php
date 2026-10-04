@@ -111,6 +111,7 @@ class AdminPanelProvider extends PanelProvider
                         align-items: center;
                         justify-content: center;
                         gap: 0.5rem;
+                        flex-wrap: wrap;
                         padding: 0 1.5rem;
                         background: #f9fafb;
                         color: #030712;
@@ -170,17 +171,19 @@ class AdminPanelProvider extends PanelProvider
                 </style>'
             )
 
-            // 4. ФУТЕР ПРИЛОЖЕНИЯ (50px): версия, копирайт + год + лого разработчика — по центру
+            // 4. ФУТЕР ПРИЛОЖЕНИЯ (50px): название + версия, копирайт + год + имя + лого разработчика —
+            // по центру. Заказчик (04.10): единая строка
+            // «WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM 3.0 © 2026 МАКС МОРОЗ (logo)».
             ->renderHook(
                 'panels::body.end',
                 fn (): string => Blade::render(<<<'HTML'
                     <footer class="wushu-app-footer">
-                        <span>Wushu Expert CMS {{ config('app.version') }}</span>
+                        <span>WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM {{ config('app.version') }}</span>
                         <span class="wushu-app-footer__copy">
                             <span>&copy; 2026</span>
+                            <span>МАКС МОРОЗ</span>
                             <img class="wushu-app-footer__logo-light-theme" src="{{ asset('images/d989.svg') }}" alt="Max Moroz">
                             <img class="wushu-app-footer__logo-dark-theme" src="{{ asset('images/c989.svg') }}" alt="Max Moroz">
-                            <span>Макс Мороз</span>
                         </span>
                     </footer>
                 HTML),

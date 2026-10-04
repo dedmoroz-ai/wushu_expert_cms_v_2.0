@@ -151,14 +151,15 @@
         </div>
     </main>
     
-    <!-- Footer (50px, на всю ширину): версия, копирайт + год + лого разработчика — по центру -->
+    <!-- Footer (50px, на всю ширину): название + версия, копирайт + год + имя + лого разработчика — по центру.
+         Заказчик (04.10): единая строка «WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM 3.0 © 2026 МАКС МОРОЗ (logo)». -->
     <div class="relative z-10 w-full h-[50px] border-t border-white/5 bg-gray-950 shrink-0">
-        <div class="h-full w-full px-4 md:px-6 flex items-center justify-center gap-2 text-[11px] text-white">
-            <span>Wushu Expert CMS {{ config('app.version') }}</span>
+        <div class="h-full w-full px-4 md:px-6 flex flex-wrap items-center justify-center gap-2 text-[11px] text-white">
+            <span>WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM {{ config('app.version') }}</span>
             <span class="inline-flex items-center gap-1">
                 <span>&copy; 2026</span>
+                <span>МАКС МОРОЗ</span>
                 <img src="{{ asset('images/c989.svg') }}" alt="Max Moroz" class="h-6 w-auto">
-                <span>Макс Мороз</span>
             </span>
         </div>
     </div>

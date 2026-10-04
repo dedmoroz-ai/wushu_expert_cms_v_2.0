@@ -13,6 +13,10 @@ use Tests\TestCase;
  * справа; белый текст на тёмной теме, чёрный на светлой. В админ-панели
  * и на welcome. Порядок «© 2026» (сначала знак копирайта, потом год) —
  * по замечанию заказчика (01.10).
+ *
+ * Правка заказчика (04.10): единая строка заглавными
+ * «WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM 3.0 © 2026 МАКС МОРОЗ (logo)» —
+ * имя перед логотипом разработчика, версия после названия.
  */
 class AppFooterTest extends TestCase
 {
@@ -53,11 +57,11 @@ class AppFooterTest extends TestCase
     {
         $response = $this->get('/')->assertOk();
 
-        $response->assertSee('Wushu Expert CMS '.config('app.version'));
+        $response->assertSee('WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM '.config('app.version'));
         // Порядок (01.10): сначала знак копирайта, потом год.
         $response->assertSee('&copy; 2026', false);
-        $response->assertSee('Макс Мороз');
-        $response->assertSee('images/c989.svg', false);
+        // Порядок (04.10): имя, затем логотип разработчика.
+        $response->assertSeeInOrder(['МАКС МОРОЗ', 'images/c989.svg']);
         // Welcome — тёмный дизайн: только c989.svg, светлого варианта d989.svg нет.
         $response->assertDontSee('images/d989.svg', false);
         // Высота полосы — 50px (по уточнению заказчика).
@@ -70,13 +74,14 @@ class AppFooterTest extends TestCase
         $response = $this->get('/admin/login')->assertOk();
 
         $response->assertSee('wushu-app-footer', false);
-        $response->assertSee('Wushu Expert CMS '.config('app.version'));
+        $response->assertSee('WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM '.config('app.version'));
         // Порядок (01.10): сначала знак копирайта, потом год.
         $response->assertSee('&copy; 2026', false);
-        $response->assertSee('Макс Мороз');
         // Лого разработчика зависит от темы: d989.svg (светлая) + c989.svg (тёмная).
         $response->assertSee('images/d989.svg', false);
         $response->assertSee('images/c989.svg', false);
+        // Порядок (04.10): имя, затем логотип разработчика.
+        $response->assertSeeInOrder(['МАКС МОРОЗ', 'images/d989.svg']);
         $response->assertSee('wushu-app-footer__logo-light-theme', false);
         $response->assertSee('wushu-app-footer__logo-dark-theme', false);
     }
@@ -89,13 +94,14 @@ class AppFooterTest extends TestCase
         $response = $this->get('/admin')->assertOk();
 
         $response->assertSee('wushu-app-footer', false);
-        $response->assertSee('Wushu Expert CMS '.config('app.version'));
+        $response->assertSee('WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM '.config('app.version'));
         // Порядок (01.10): сначала знак копирайта, потом год.
         $response->assertSee('&copy; 2026', false);
-        $response->assertSee('Макс Мороз');
         // Лого разработчика зависит от темы: d989.svg (светлая) + c989.svg (тёмная).
         $response->assertSee('images/d989.svg', false);
         $response->assertSee('images/c989.svg', false);
+        // Порядок (04.10): имя, затем логотип разработчика.
+        $response->assertSeeInOrder(['МАКС МОРОЗ', 'images/d989.svg']);
         // Компенсация фиксированной полосы футера — контент не прячется под ней.
         $response->assertSee('padding-bottom: 50px', false);
     }
