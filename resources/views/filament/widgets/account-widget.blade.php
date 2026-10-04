@@ -1,38 +1,20 @@
 @php
     $user = filament()->auth()->user();
-    /** @var \App\Models\Club|null $club Аватар клуба — только на плашке тренера. */
-    $club = $user->isCoach() ? ($user->club ?? null) : null;
 @endphp
 
-{{-- Замечание заказчика (02.10): копия вендорной вью плашки «Добро
-     пожаловать» с увеличенным до 100px аватаром. У тренера аватаром
-     служит аватар (логотип) клуба, а под приветствием — имя и фамилия
-     авторизованного тренера (к клубу может быть привязано несколько
-     тренеров). Верхний аватар в шапке (user-menu) остаётся прежним. --}}
+{{-- Замечание заказчика (04.10): у всех ролей — личный аватар авторизованного
+     пользователя из настроек пользователя (у тренера раньше был логотип клуба —
+     теперь логотип и данные клуба в соседнем виджете «Мой клуб»). У тренера
+     плашка занимает половину строки, у администратора и судей — всю.
+     Верхний аватар в шапке (user-menu) остаётся прежним. --}}
 <x-filament-widgets::widget class="fi-account-widget">
     <x-filament::section>
         <div class="flex items-center gap-x-3">
-            @if ($club)
-                @if ($club->logo_path)
-                    <img
-                        src="{{ asset('storage/' . $club->logo_path) }}"
-                        alt="Аватар клуба"
-                        style="width: 100px; height: 100px; object-fit: cover; border-radius: 9999px"
-                    />
-                @else
-                    <div
-                        style="width: 100px; height: 100px; border-radius: 9999px; background: linear-gradient(135deg, #2563eb, #1e3a8a); display: flex; align-items: center; justify-content: center;"
-                    >
-                        <span style="font-size: 40px; font-weight: 900; color: #fff;">{{ mb_strtoupper(mb_substr($club->name ?? '', 0, 1)) }}</span>
-                    </div>
-                @endif
-            @else
-                <x-filament-panels::avatar.user
-                    size="lg"
-                    :user="$user"
-                    style="width: 100px; height: 100px"
-                />
-            @endif
+            <x-filament-panels::avatar.user
+                size="lg"
+                :user="$user"
+                style="width: 100px; height: 100px"
+            />
 
             <div class="flex-1">
                 <h2

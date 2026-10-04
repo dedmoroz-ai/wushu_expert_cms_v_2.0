@@ -17,12 +17,17 @@ use Tests\TestCase;
  * всю ширину — как строка карточек статистики под ней. Плашка общая для
  * дашбордов всех ролей (админ, тренер, судья, старший судья).
  *
- * У тренера на плашке — аватар (логотип) клуба и имя-фамилия авторизованного
- * тренера (к клубу может быть привязано несколько тренеров).
+ * У тренера на плашке — имя-фамилия авторизованного тренера (к клубу может
+ * быть привязано несколько тренеров).
  *
  * Замечание заказчика (02.10): у судьи и старшего судьи — как у всех, но
  * с личным аватаром из настроек пользователя, именем-фамилией судьи и
  * судейской категорией из настроек судейской коллегии.
+ *
+ * Замечание заказчика (04.10): у тренера плашка занимает половину строки
+ * (рядом — виджет клуба ClubInfoWidget), аватаром плашки у всех ролей служит
+ * личный аватар авторизованного из настроек пользователя (логотип клуба
+ * переехал в виджет клуба). Дашборды администратора и судей не тронуты.
  */
 class DashboardWelcomeBannerTest extends TestCase
 {
@@ -53,11 +58,24 @@ class DashboardWelcomeBannerTest extends TestCase
     }
 
     /**
-     * На дашборде каждой роли плашка рендерится во всю ширину
+     * Замечание заказчика (04.10): у тренера плашка — в половину строки
+     * (вторую половину занимает виджет клуба), у остальных ролей — во всю.
+     */
+    public function test_account_widget_spans_half_width_for_coach(): void
+    {
+        $user = $this->makeUser('span-coach@test.local', 'coach');
+
+        $this->actingAs($user);
+
+        $this->assertSame(1, (new AccountWidget)->getColumnSpan());
+    }
+
+    /**
+     * На дашборде администратора и судей плашка рендерится во всю ширину
      * (col-span full), совпадая по ширине с виджетом статистики.
      */
-    #[DataProvider('roleProvider')]
-    public function test_welcome_banner_is_full_width_for_all_roles(string $role): void
+    #[DataProvider('fullWidthRoleProvider')]
+    public function test_welcome_banner_is_full_width_for_admin_and_judges(string $role): void
     {
         $user = $this->makeUser("banner-{$role}@test.local", $role);
 
@@ -69,6 +87,27 @@ class DashboardWelcomeBannerTest extends TestCase
             ->assertSee('--col-span-default: 1 / -1', false);
 
         // Плашка присутствует и на самом дашборде.
+        $this->actingAs($user)
+            ->get('/admin')
+            ->assertOk()
+            ->assertSee('fi-account-widget', false);
+    }
+
+    /**
+     * Замечание заказчика (04.10): у тренера плашка занимает половину строки —
+     * рядом в той же строке виджет клуба.
+     */
+    public function test_welcome_banner_is_half_width_for_coach(): void
+    {
+        $user = $this->makeUser('banner-half-coach@test.local', 'coach');
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        Livewire::actingAs($user)
+            ->test(AccountWidget::class)
+            ->assertSee('fi-account-widget', false)
+            ->assertSee('--col-span-default: span 1 / span 1', false);
+
         $this->actingAs($user)
             ->get('/admin')
             ->assertOk()
@@ -115,10 +154,12 @@ class DashboardWelcomeBannerTest extends TestCase
     }
 
     /**
-     * Замечание заказчика (02.10): у тренера аватар плашки — аватар (логотип)
-     * клуба, а под приветствием — имя и фамилия авторизованного тренера.
+     * Замечание заказчика (04.10): у тренера аватар плашки — личный аватар
+     * авторизованного из настроек пользователя (не логотип клуба — он теперь
+     * в виджете клуба), а под приветствием — имя и фамилия авторизованного
+     * тренера.
      */
-    public function test_coach_banner_shows_club_avatar_and_trainer_name(): void
+    public function test_coach_banner_shows_personal_avatar_and_trainer_name(): void
     {
         $club = Club::create([
             'name' => 'СК «Спарта»',
@@ -127,6 +168,7 @@ class DashboardWelcomeBannerTest extends TestCase
 
         $user = $this->makeUser('coach-banner@test.local', 'coach', [
             'club_id' => $club->id,
+            'avatar_path' => 'avatars/face.jpg',
             'name' => 'Иванов Иван',
         ]);
 
@@ -134,16 +176,23 @@ class DashboardWelcomeBannerTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(AccountWidget::class)
-            ->assertSee('club-logos/sparta.png', false)
+            ->assertSee('storage/avatars/face.jpg', false)
+            ->assertDontSee('club-logos/sparta.png', false)
             ->assertSee('Иванов Иван')
             ->assertSee('width: 100px', false)
             ->assertSee('height: 100px', false);
     }
 
-    /** Без логотипа клуба — плитка с первой буквой названия клуба. */
-    public function test_coach_banner_falls_back_to_club_initial_tile(): void
+    /**
+     * Без загруженного фото остаётся стандартный компонент аватара —
+     * логотип клуба в плашку не подставляется.
+     */
+    public function test_coach_banner_without_photo_keeps_user_avatar_fallback(): void
     {
-        $club = Club::create(['name' => 'Спарта']);
+        $club = Club::create([
+            'name' => 'Спарта',
+            'logo_path' => 'club-logos/sparta.png',
+        ]);
 
         $user = $this->makeUser('coach-tile@test.local', 'coach', [
             'club_id' => $club->id,
@@ -154,7 +203,7 @@ class DashboardWelcomeBannerTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(AccountWidget::class)
-            ->assertSee('>С</span>', false)
+            ->assertSee('fi-avatar', false)
             ->assertDontSee('club-logos', false);
     }
 
@@ -288,6 +337,16 @@ class DashboardWelcomeBannerTest extends TestCase
         return [
             'админ' => ['admin'],
             'тренер' => ['coach'],
+            'линейный судья' => ['judge'],
+            'старший судья' => ['head_judge'],
+        ];
+    }
+
+    /** Роли, чья плашка остаётся во всю ширину (все, кроме тренера). */
+    public static function fullWidthRoleProvider(): array
+    {
+        return [
+            'админ' => ['admin'],
             'линейный судья' => ['judge'],
             'старший судья' => ['head_judge'],
         ];
