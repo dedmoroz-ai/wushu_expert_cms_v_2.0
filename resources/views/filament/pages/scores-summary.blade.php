@@ -437,13 +437,15 @@
         </div>
 
         <div class="mt-3 text-xs text-gray-500 flex flex-wrap gap-4 legend-print">
-            <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#dbeafe"></span> минимум (отброшен)</span>
-            <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#d1fae5"></span> максимум (отброшен)</span>
+            @if(! $isAb)
+                <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#dbeafe"></span> минимум (отброшен)</span>
+                <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#d1fae5"></span> максимум (отброшен)</span>
+            @endif
             <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#fef3c7"></span> отклонение ≥ 0.10</span>
             <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#fee2e2"></span> отклонение ≥ 0.20</span>
             @if($isAb)
                 <span><span class="inline-block w-3 h-3 align-middle mr-1 legend-swatch" style="background:#e5e7eb"></span> не учтена (выставлена не в своей функции)</span>
-                <span>Итог A/B = «Ср. A» + «Ср. B»; мин./макс. отбрасываются в каждой панели отдельно.</span>
+                <span>Итог A/B = «Ср. A» + «Ср. B»; каждая панель — среднее по всем оценкам панели (без отбрасывания).</span>
             @endif
         </div>
     @endif

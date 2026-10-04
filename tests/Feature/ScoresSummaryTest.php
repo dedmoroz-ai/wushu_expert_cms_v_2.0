@@ -71,11 +71,11 @@ class ScoresSummaryTest extends TestCase
     {
         [$competition, $reg, $judges] = $this->makeTournament(Competition::SCHEME_AB);
 
-        // Панель A: 4.500, 4.700, 4.900 → 4.700 (без мин./макс.).
+        // Панель A: 4.500, 4.700, 5.000 → 4.733 (по всем оценкам, без отбрасывания — R-4.19).
         Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j1']->id, 'score' => 4.5, 'panel' => 'A']);
         Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j2']->id, 'score' => 4.7, 'panel' => 'A']);
-        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j3']->id, 'score' => 4.9, 'panel' => 'A']);
-        // Панель B: 4.000, 4.200 → 4.100 (2 оценки без отбрасывания).
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j3']->id, 'score' => 5.0, 'panel' => 'A']);
+        // Панель B: 4.000, 4.200 → 4.100.
         Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j4']->id, 'score' => 4.0, 'panel' => 'B']);
         Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j5']->id, 'score' => 4.2, 'panel' => 'B']);
 
@@ -94,13 +94,14 @@ class ScoresSummaryTest extends TestCase
 
         $row = $matrix['rows'][0];
 
-        $this->assertSame(4.7, $row['groups'][Competition::PANEL_A]['avg']);
+        $this->assertSame(4.733, $row['groups'][Competition::PANEL_A]['avg']);
         $this->assertSame(4.1, $row['groups'][Competition::PANEL_B]['avg']);
-        $this->assertSame($judges['j1']->id, $row['groups'][Competition::PANEL_A]['minJudgeId']);
-        $this->assertSame($judges['j3']->id, $row['groups'][Competition::PANEL_A]['maxJudgeId']);
+        // В A/B крайние не отбрасываются и не отмечаются (R-4.19).
+        $this->assertNull($row['groups'][Competition::PANEL_A]['minJudgeId']);
+        $this->assertNull($row['groups'][Competition::PANEL_A]['maxJudgeId']);
 
-        // Расчёт A/B = 4.700 + 4.100 = 8.800.
-        $this->assertSame(8.8, $row['avg']);
+        // Расчёт A/B = 4.733 + 4.100 = 8.833.
+        $this->assertSame(8.833, $row['avg']);
     }
 
     /** Оценка, выставленная не в своей функции, показывается, но не участвует в расчёте (R-4.18). */

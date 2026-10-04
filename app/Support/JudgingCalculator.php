@@ -17,7 +17,7 @@ class JudgingCalculator
     public const MAX_CODE_REPEATS = 2;
 
     /**
-     * Правила R-4.6, R-4.19: среднее с отбрасыванием крайних.
+     * Правило R-4.6: среднее с отбрасыванием крайних (только простая система).
      *
      *  - 3 и более оценок — отбрасываются одна минимальная и одна максимальная;
      *  - 1–2 оценки — среднее по всем;
@@ -45,6 +45,30 @@ class JudgingCalculator
         $avg = round(array_sum($values) / count($values), ScoreRange::PRECISION);
 
         return ['avg' => $avg, 'used' => $values, 'dropped' => $dropped];
+    }
+
+    /**
+     * Правило R-4.19: среднее панели A/B — арифметическое по всем оценкам
+     * панели, без отбрасывания крайних.
+     *
+     *  - пусто — null;
+     *  - иначе — среднее по всем, округление до 3 знаков;
+     *  - `dropped` всегда пуст.
+     *
+     * @param  array<int, float|int>  $scores
+     * @return array{avg: float|null, used: array<int, float>, dropped: array<int, float>}
+     */
+    public static function panelMean(array $scores): array
+    {
+        $values = array_map('floatval', array_values($scores));
+
+        if ($values === []) {
+            return ['avg' => null, 'used' => [], 'dropped' => []];
+        }
+
+        $avg = round(array_sum($values) / count($values), ScoreRange::PRECISION);
+
+        return ['avg' => $avg, 'used' => $values, 'dropped' => []];
     }
 
     /**

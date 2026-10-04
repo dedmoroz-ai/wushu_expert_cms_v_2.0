@@ -14,8 +14,8 @@ use Illuminate\Support\Collection;
  *  - простой (simple): все судьи в одной группе, «Среднее» = trimmedMean
  *    по всем оценкам (R-4.6: при 3+ оценках отбрасываются одна мин. и одна макс.);
  *  - A/B (R-4.18–R-4.20): судьи сгруппированы по панелям A/B, в каждой панели
- *    своё среднее с отбрасыванием крайних, итог расчёта = среднее A + среднее B
- *    (JudgingCalculator::abTotal).
+ *    своё среднее по всем оценкам панели (без отбрасывания крайних, R-4.19),
+ *    итог расчёта = среднее A + среднее B (JudgingCalculator::abTotal).
  *
  * Панель судьи берётся из назначения в бригаде (competition_user.panel) —
  * как на пультах; для старых данных без назначения — из самой оценки
@@ -113,7 +113,7 @@ class ScoresSummaryMatrix
                         $values[$jid] = $cells[$jid];
                     }
                 }
-                $groups[$group] = self::groupStats($values);
+                $groups[$group] = self::groupStats($values, ! $isAb);
             }
 
             $avg = null;
@@ -190,19 +190,23 @@ class ScoresSummaryMatrix
     }
 
     /**
-     * Среднее группы (trimmedMean) и судьи с отброшенными мин./макс.
+     * Среднее группы. В простом сценарии — trimmedMean и судьи с отброшенными
+     * мин./макс.; в A/B — среднее по всем оценкам без отбрасывания (R-4.19).
      *
      * @param  array<int, float>  $values  judge_id => оценка
+     * @param  bool  $trim  отбрасывать одну мин. и одну макс. при 3+ оценках
      * @return array{avg: float|null, minJudgeId: int|null, maxJudgeId: int|null}
      */
-    private static function groupStats(array $values): array
+    private static function groupStats(array $values, bool $trim): array
     {
-        $avg = JudgingCalculator::trimmedMean(array_values($values))['avg'];
+        $avg = $trim
+            ? JudgingCalculator::trimmedMean(array_values($values))['avg']
+            : JudgingCalculator::panelMean(array_values($values))['avg'];
 
         $minJudgeId = null;
         $maxJudgeId = null;
 
-        if (count($values) >= 3) {
+        if ($trim && count($values) >= 3) {
             $minVal = min($values);
             foreach ($values as $jid => $v) {
                 if ($v === $minVal) {

@@ -26,7 +26,7 @@ class JudgingCalculatorTest extends TestCase
 
     public function test_trimmed_mean_with_one_or_two_scores_averages_all(): void
     {
-        // Правило R-4.19: при 1–2 оценках в панели ничего не отбрасываем.
+        // Правило R-4.6: при 1–2 оценках ничего не отбрасываем.
         $this->assertSame(4.2, JudgingCalculator::trimmedMean([4.2])['avg']);
         $this->assertSame(4.35, JudgingCalculator::trimmedMean([4.2, 4.5])['avg']);
         $this->assertSame([], JudgingCalculator::trimmedMean([4.2, 4.5])['dropped']);
@@ -41,6 +41,34 @@ class JudgingCalculatorTest extends TestCase
     {
         // Отбрасываем 7.0 и 9.0; (8.1 + 8.2 + 8.2) / 3 = 8.1666… → 8.167
         $this->assertSame(8.167, JudgingCalculator::trimmedMean([7.0, 8.1, 8.2, 8.2, 9.0])['avg']);
+    }
+
+    public function test_panel_mean_keeps_all_scores(): void
+    {
+        // Правило R-4.19: в панелях A/B крайние не отбрасываются.
+        $res = JudgingCalculator::panelMean([4.5, 4.7, 5.0]);
+
+        $this->assertSame(4.733, $res['avg']);
+        $this->assertSame([4.5, 4.7, 5.0], $res['used']);
+        $this->assertSame([], $res['dropped']);
+    }
+
+    public function test_panel_mean_is_never_trimmed_even_with_many_scores(): void
+    {
+        // Старое правило дало бы (4.5 + 4.7 + 4.9) / 3 = 4.700; новое — по всем пяти.
+        $this->assertSame(4.62, JudgingCalculator::panelMean([4.5, 4.9, 4.7, 4.1, 4.9])['avg']);
+    }
+
+    public function test_panel_mean_with_one_or_two_scores_averages_all(): void
+    {
+        $this->assertSame(4.2, JudgingCalculator::panelMean([4.2])['avg']);
+        $this->assertSame(4.35, JudgingCalculator::panelMean([4.2, 4.5])['avg']);
+    }
+
+    public function test_panel_mean_of_empty_is_null(): void
+    {
+        $this->assertNull(JudgingCalculator::panelMean([])['avg']);
+        $this->assertSame([], JudgingCalculator::panelMean([])['used']);
     }
 
     public function test_a_score_starts_at_five_and_subtracts_deductions(): void

@@ -98,8 +98,8 @@ class AbJudgingFlowTest extends TestCase
         $this->assertSame(4.7, (float) Score::where('judge_id', $judges['a2']->id)->value('score'));
         $this->assertSame('B', Score::where('judge_id', $judges['b1']->id)->value('panel'));
 
-        // Старший судья (функция B) ставит 4.000.
-        // A: [4.5, 4.7] → 4.600; B: [4.2, 3.8, 4.0] → без мин/макс → 4.000; итог 8.600.
+        // Старший судья (функция B) ставит 4.100.
+        // A: [4.5, 4.7] → 4.600; B: [4.2, 3.8, 4.1] → по всем оценкам → 4.033 (R-4.19); итог 8.633.
         $this->actingAs($head);
         Livewire::test(SuperJudgePad::class)
             ->assertSet('myPanel', 'B')
@@ -108,18 +108,20 @@ class AbJudgingFlowTest extends TestCase
             ->assertSet('receivedB', 2)
             ->assertSet('canFinalize', false)
             ->call('addNumber', '4')
+            ->call('addNumber', '.')
+            ->call('addNumber', '1')
             ->call('submitMyScore')
             ->assertSet('avgA', '4.600')
-            ->assertSet('avgB', '4.000')
-            ->assertSet('calculatedAvg', '8.600')
+            ->assertSet('avgB', '4.033')
+            ->assertSet('calculatedAvg', '8.633')
             ->assertSet('canFinalize', true)
             ->call('finalizeProtocol');
 
         $reg->refresh();
         $this->assertTrue((bool) $reg->is_completed);
-        $this->assertSame(8.6, (float) $reg->final_score);
+        $this->assertSame(8.633, (float) $reg->final_score);
         $this->assertSame(4.6, (float) $reg->score_a);
-        $this->assertSame(4.0, (float) $reg->score_b);
+        $this->assertSame(4.033, (float) $reg->score_b);
 
         $log = JudgingLog::where('action', JudgingLog::ACTION_PROTOCOL_FINALIZED)->first();
         $this->assertNotNull($log);

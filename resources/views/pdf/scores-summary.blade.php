@@ -165,11 +165,13 @@
     <div class="legend">
         <span class="box warn"></span> отклонение от средней{{ $isAb ? ' панели' : '' }} ≥ {{ $warn }} &nbsp;&nbsp;
         <span class="box danger"></span> отклонение ≥ {{ $danger }} &nbsp;&nbsp;
-        <span class="box" style="background:#dbeafe"></span> минимум (отброшен) &nbsp;&nbsp;
-        <span class="box" style="background:#d1fae5"></span> максимум (отброшен)
+        @if (! $isAb)
+            <span class="box" style="background:#dbeafe"></span> минимум (отброшен) &nbsp;&nbsp;
+            <span class="box" style="background:#d1fae5"></span> максимум (отброшен)
+        @endif
         @if ($isAb)
             &nbsp;&nbsp;<span class="box" style="background:#e5e5e5"></span> не учтена (выставлена не в своей функции)
-            <br>Итог A/B = «Ср. A» + «Ср. B»; в каждой панели при 3+ оценках отбрасываются одна минимальная и одна максимальная.
+            <br>Итог A/B = «Ср. A» + «Ср. B»; каждая панель — среднее по всем оценкам панели (без отбрасывания крайних).
         @endif
     </div>
 @endif

@@ -404,8 +404,9 @@ class SuperJudgePad extends Page
 
     /**
      * Правила R-4.18–R-4.20: расчёт итога в сценарии A/B.
-     * Итог = среднее панели A + среднее панели B (каждое — с отбрасыванием
-     * крайних при 3+ оценках). Расчёт стартует, только когда обе панели собраны.
+     * Итог = среднее панели A + среднее панели B (каждое — среднее по всем
+     * оценкам панели, без отбрасывания крайних). Расчёт стартует, только когда
+     * обе панели собраны.
      */
     protected function calculateAb(array $panelScores, array $panelExpected, ScoreRange $range): void
     {
@@ -423,14 +424,14 @@ class SuperJudgePad extends Page
         $completeA = $this->expectedA > 0 && $this->receivedA >= $this->expectedA;
         $completeB = $this->expectedB > 0 && $this->receivedB >= $this->expectedB;
 
-        $resA = JudgingCalculator::trimmedMean($panelScores[$a]);
-        $resB = JudgingCalculator::trimmedMean($panelScores[$b]);
+        $resA = JudgingCalculator::panelMean($panelScores[$a]);
+        $resB = JudgingCalculator::panelMean($panelScores[$b]);
 
         $this->avgA = $completeA && $resA['avg'] !== null ? $range->format($resA['avg']) : null;
         $this->avgB = $completeB && $resB['avg'] !== null ? $range->format($resB['avg']) : null;
 
         $this->formulaText = 'A: '.($this->avgA ?? '…').' + B: '.($this->avgB ?? '…')
-            .' (в каждой панели при 3+ оценках без мин. и макс.)';
+            .' (среднее каждой панели — по всем оценкам)';
 
         if ($this->avgA === null || $this->avgB === null) {
             $this->calculatedAvg = null;
