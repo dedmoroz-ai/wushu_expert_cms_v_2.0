@@ -37,6 +37,7 @@ class AdminPanelProvider extends PanelProvider
                 'Управление',
                 'Справочники',
                 'Турнир',
+                'Документация',
             ])
             // Логотип в меню
             ->brandLogo(asset('images/logo.png'))
