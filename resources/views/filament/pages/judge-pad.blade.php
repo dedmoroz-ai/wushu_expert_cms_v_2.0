@@ -187,22 +187,36 @@
                         </div>
                     @endif
 
-                    <div class="deduction-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                        @foreach($deductionCodes as $dc)
-                            @php $cnt = $this->pressCounts[$dc['id']] ?? 0; $locked = $cnt >= \App\Support\JudgingCalculator::MAX_CODE_REPEATS; @endphp
-                            <button wire:click="pressCode({{ $dc['id'] }})"
-                                    @disabled($locked)
-                                    title="{{ $dc['label'] }}{{ $locked ? ' — нажат максимальное число раз' : '' }}"
-                                    class="pad-btn"
-                                    style="height:auto; min-height:70px; flex-direction:column; font-size:1.3rem; padding:6px; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : '' }} {{ $cnt > 0 ? 'border-color:#fbbf24;' : '' }}">
-                                <span>{{ $dc['code'] }}</span>
-                                <span style="font-size:0.85rem; font-weight:500;">−{{ number_format($dc['value'], 3, '.', '') }}{{ $cnt > 0 ? ' ×' . $cnt : '' }}</span>
-                                @if($locked)
-                                    <span style="font-size:0.6rem; font-weight:400;">макс. {{ \App\Support\JudgingCalculator::MAX_CODE_REPEATS }}</span>
-                                @endif
-                            </button>
-                        @endforeach
-                    </div>
+                    {{-- Пункт 4 (05.10): кнопки сгруппированы по полю group (пустая
+                         группа — «Прочее»); порядок групп — по первому появлению
+                         кода (sort_order справочника), внутри группы — как в
+                         справочнике. Логика по id кода не менялась. --}}
+                    @php
+                        $deductionGroups = collect($deductionCodes)
+                            ->groupBy(fn ($dc) => trim((string) ($dc['group'] ?? '')))
+                            ->map(fn ($codes, $key) => ['title' => $key === '' ? 'Прочее' : $key, 'codes' => $codes]);
+                    @endphp
+                    @foreach($deductionGroups as $group)
+                        <div style="width:100%; margin: 12px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #1e293b; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #38bdf8;">
+                            {{ $group['title'] }}
+                        </div>
+                        <div class="deduction-grid" style="width:100%; display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            @foreach($group['codes'] as $dc)
+                                @php $cnt = $this->pressCounts[$dc['id']] ?? 0; $locked = $cnt >= \App\Support\JudgingCalculator::MAX_CODE_REPEATS; @endphp
+                                <button wire:click="pressCode({{ $dc['id'] }})"
+                                        @disabled($locked)
+                                        title="{{ $dc['label'] }}{{ $locked ? ' — нажат максимальное число раз' : '' }}"
+                                        class="pad-btn"
+                                        style="height:auto; min-height:70px; flex-direction:column; font-size:1.3rem; padding:6px; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : '' }} {{ $cnt > 0 ? 'border-color:#fbbf24;' : '' }}">
+                                    <span>{{ $dc['code'] }}</span>
+                                    <span style="font-size:0.85rem; font-weight:500;">−{{ number_format($dc['value'], 3, '.', '') }}{{ $cnt > 0 ? ' ×' . $cnt : '' }}</span>
+                                    @if($locked)
+                                        <span style="font-size:0.6rem; font-weight:400;">макс. {{ \App\Support\JudgingCalculator::MAX_CODE_REPEATS }}</span>
+                                    @endif
+                                </button>
+                            @endforeach
+                        </div>
+                    @endforeach
 
                     <button wire:click="undoLastCode" @disabled(count($pressedCodes) === 0)
                             class="pad-btn btn-red w-full mt-3" style="font-size:1.1rem; height:55px; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : '' }}">

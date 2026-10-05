@@ -308,16 +308,31 @@
                         @if(count($deductionCodes) === 0)
                             <div style="color:#fca5a5; text-align:center;">Справочник кодов сбавок пуст.</div>
                         @endif
-                        <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
-                            @foreach($deductionCodes as $dc)
-                                @php $cnt = $this->pressCounts[$dc['id']] ?? 0; $locked = $cnt >= \App\Support\JudgingCalculator::MAX_CODE_REPEATS; @endphp
-                                <button wire:click="pressCode({{ $dc['id'] }})" @disabled($locked)
-                                        title="{{ $dc['label'] }}{{ $locked ? ' — нажат максимальное число раз' : '' }}"
-                                        style="min-width:90px; padding:8px 10px; border-radius:8px; background:#1e3a5f; color:white; border:2px solid {{ $cnt > 0 ? '#fbbf24' : '#0992B8' }}; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : 'cursor:pointer;' }}">
-                                    <div style="font-weight:900; font-size:1.1rem;">{{ $dc['code'] }}</div>
-                                    <div style="font-size:0.8rem;">−{{ number_format($dc['value'], 3, '.', '') }}{{ $cnt > 0 ? ' ×' . $cnt : '' }}</div>
-                                </button>
-                            @endforeach
+                        {{-- Пункт 4 (05.10): кнопки сгруппированы по полю group (пустая
+                             группа — «Прочее»); порядок групп — по первому появлению
+                             кода (sort_order справочника). Логика по id кода не менялась. --}}
+                        @php
+                            $deductionGroups = collect($deductionCodes)
+                                ->groupBy(fn ($dc) => trim((string) ($dc['group'] ?? '')))
+                                ->map(fn ($codes, $key) => ['title' => $key === '' ? 'Прочее' : $key, 'codes' => $codes]);
+                        @endphp
+                        @foreach($deductionGroups as $group)
+                            <div style="margin: 10px 0 6px; padding-bottom: 4px; border-bottom: 1px solid rgba(148,163,184,0.25); font-size: 0.95rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #38bdf8; text-align:center;">
+                                {{ $group['title'] }}
+                            </div>
+                            <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+                                @foreach($group['codes'] as $dc)
+                                    @php $cnt = $this->pressCounts[$dc['id']] ?? 0; $locked = $cnt >= \App\Support\JudgingCalculator::MAX_CODE_REPEATS; @endphp
+                                    <button wire:click="pressCode({{ $dc['id'] }})" @disabled($locked)
+                                            title="{{ $dc['label'] }}{{ $locked ? ' — нажат максимальное число раз' : '' }}"
+                                            style="min-width:90px; padding:8px 10px; border-radius:8px; background:#1e3a5f; color:white; border:2px solid {{ $cnt > 0 ? '#fbbf24' : '#0992B8' }}; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : 'cursor:pointer;' }}">
+                                        <div style="font-weight:900; font-size:1.1rem;">{{ $dc['code'] }}</div>
+                                        <div style="font-size:0.8rem;">−{{ number_format($dc['value'], 3, '.', '') }}{{ $cnt > 0 ? ' ×' . $cnt : '' }}</div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endforeach
+                        <div style="display:flex; justify-content:center; margin-top:10px;">
                             <button wire:click="undoLastCode" @disabled(count($pressedCodes) === 0)
                                     style="padding:8px 14px; border-radius:8px; background:#7f1d1d; color:white; border:none; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : 'cursor:pointer;' }}">
                                 ОТМЕНИТЬ ПОСЛЕДНЮЮ
