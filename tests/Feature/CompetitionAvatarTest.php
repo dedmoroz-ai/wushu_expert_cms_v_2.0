@@ -18,8 +18,8 @@ use Tests\TestCase;
 /**
  * Замечание заказчика (05.10): аватар турнира (competitions.avatar_path) —
  * картинка самого турнира, которую админ загружает в настройках соревнования.
- * Показывается строго справа от логотипа (в том же размере/стиле) на виджете
- * «Актуальное соревнование», публичной странице результатов и табло. Без
+ * Показывается строго справа от логотипа (в том же размере; форма — круглая)
+ * на виджете «Актуальное соревнование», публичной странице результатов и табло. Без
  * загруженного аватара элемент не рисуется вовсе. В документы (протоколы,
  * дипломы) аватар сознательно не входит.
  */
@@ -107,8 +107,8 @@ class CompetitionAvatarTest extends TestCase
             ->html();
 
         $this->assertImageToTheRightOf($html, 'competitions/logos/fed.png', 'competitions/avatars/cup.png');
-        // Тот же размер/стиль, что и у логотипа на виджете (80×80).
-        $this->assertAvatarTagMatches($html, 'competitions/avatars/cup.png', 'width: 80px; height: 80px');
+        // Тот же размер, что и у логотипа на виджете (80×80); форма — круглая.
+        $this->assertAvatarTagMatches($html, 'competitions/avatars/cup.png', 'width: 80px; height: 80px; object-fit: contain; border-radius: 50%');
     }
 
     /** Без загруженного аватара на виджете элемент не рисуется вовсе. */
@@ -140,8 +140,8 @@ class CompetitionAvatarTest extends TestCase
             ->getContent();
 
         $this->assertImageToTheRightOf($html, 'federations/logo.png', 'competitions/avatars/cup.png');
-        // Тот же размер/стиль, что и у логотипа (h-16 w-16 sm:h-24 sm:w-24).
-        $this->assertAvatarTagMatches($html, 'competitions/avatars/cup.png', 'h-16 w-16 sm:h-24 sm:w-24');
+        // Тот же размер, что и у логотипа (h-16 w-16 sm:h-24 sm:w-24); форма — круглая.
+        $this->assertAvatarTagMatches($html, 'competitions/avatars/cup.png', 'h-16 w-16 sm:h-24 sm:w-24 object-contain rounded-full');
     }
 
     /** Без загруженного аватара на публичной странице результатов элемент не рисуется. */
@@ -230,7 +230,7 @@ class CompetitionAvatarTest extends TestCase
         $this->assertLessThan($rightPos, $leftPos, 'Аватар должен быть строго правее логотипа.');
     }
 
-    /** Тег аватара использует тот же размер/стиль, что и логотип. */
+    /** Тег аватара: тот же размер, что и у логотипа, и круглая форма (маркер в $sizeMarker). */
     private function assertAvatarTagMatches(string $html, string $avatarSrc, string $sizeMarker): void
     {
         $this->assertMatchesRegularExpression(
