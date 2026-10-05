@@ -61,3 +61,29 @@ Route::get('/competition/{competition}/age-groups-memo', \App\Http\Controllers\A
 Route::get('/competition/{competition}/diplomas/{style}/{age_group}/{gender}/{is_special?}', [ExportController::class, 'downloadDiplomas'])
     ->where('is_special', '[01]')
     ->name('export.diplomas');
+
+// --- ОТЧЁТЫ АНАЛИТИКИ (AI) ---
+// Файлы физически лежат в storage/app/public/reports/, но статический путь
+// /storage/reports/… закрыт на уровне nginx и Caddy (см. docs/ANALYTICS.md) —
+// отчёт открывается только авторизованными пользователями через этот маршрут.
+Route::get('/reports/{filename}', function (string $filename) {
+    // Только «плоские» имена *.html — без каталогов и traversal.
+    abort_unless(
+        $filename === basename($filename)
+        && ! str_contains($filename, '\\')
+        && ! str_contains($filename, "\0")
+        && str_ends_with(strtolower($filename), '.html'),
+        404,
+    );
+
+    // Тот же круг видимости, что и у страницы «Аналитика».
+    abort_unless(\App\Filament\Pages\Analytics::canAccess(), 403);
+
+    $path = storage_path('app/public/reports/'.$filename);
+    abort_unless(is_file($path), 404);
+
+    return response(\Illuminate\Support\Facades\File::get($path), 200, [
+        'Content-Type' => 'text/html; charset=UTF-8',
+        'X-Content-Type-Options' => 'nosniff',
+    ]);
+})->middleware('auth')->name('reports.show');

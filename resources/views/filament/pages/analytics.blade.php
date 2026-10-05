@@ -73,17 +73,6 @@
             color: #fff;
         }
         .report-btn-primary:hover { background: #1d4ed8; }
-        .report-btn-secondary {
-            background: #e5e7eb;
-            color: #374151;
-        }
-        .report-btn-secondary:hover { background: #d1d5db; }
-        .dark .report-btn-secondary {
-            background: #374151;
-            color: #e5e7eb;
-        }
-        .dark .report-btn-secondary:hover { background: #4b5563; }
-
         .empty-state {
             background: #fff;
             border: 2px dashed #d1d5db;
@@ -154,21 +143,18 @@
                             </svg>
                             Открыть
                         </a>
-                        <button type="button"
-                                class="report-btn report-btn-secondary"
-                                onclick="navigator.clipboard.writeText(window.location.origin + '{{ $r['url'] }}').then(() => { const orig = this.innerHTML; this.innerHTML = '✓ Скопировано'; setTimeout(() => { this.innerHTML = orig; }, 1500); })">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                            </svg>
-                            Ссылка
-                        </button>
                     </div>
                 </div>
             @endforeach
         </div>
 
-        <div style="margin-top:24px;font-size:12px;color:#9ca3af;">
-            💡 Файлы в папке <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;color:#111827;">storage/app/public/reports/</code> доступны по прямой ссылке всем, кто её знает (без авторизации).
-        </div>
+        {{-- Замечание заказчика (05.10): напоминание о папке отчётов — только
+             для админа; отчёты открываются лишь авторизованными пользователями
+             (маршрут /reports/), поэтому публичных подсказок для остальных нет. --}}
+        @if(auth()->user()?->isAdmin())
+            <div style="margin-top:24px;font-size:12px;color:#9ca3af;">
+                💡 Файлы в папке <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;color:#111827;">storage/app/public/reports</code>
+            </div>
+        @endif
     @endif
 </x-filament-panels::page>

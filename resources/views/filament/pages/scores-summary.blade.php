@@ -4,6 +4,9 @@
         $matrix = $this->getMatrix();
         $competition = $this->getCompetition();
         $isAb = $matrix['isAb'] ?? false;
+        // Статус фоновой генерации AI-отчёта (AiReportRunner): обновляется по wire:poll.
+        $aiState = $this->getAiReportState();
+        $aiRunning = ($aiState['status'] ?? null) === \App\Support\AiReportRunner::STATUS_RUNNING;
         $groupLabels = [
             \App\Models\Competition::PANEL_A => 'Панель A — качество исполнения (сбавки)',
             \App\Models\Competition::PANEL_B => 'Панель B — общее впечатление',
@@ -57,9 +60,51 @@
                     </svg>
                     <span>Печать</span>
                 </button>
+                @if(auth()->user()?->isAdmin())
+                    <button type="button"
+                            wire:click="generateAiAnalytics"
+                            wire:loading.attr="disabled"
+                            wire:target="generateAiAnalytics"
+                            @disabled($aiRunning)
+                            style="background:#059669;color:#fff;padding:8px 18px;border-radius:8px;font-weight:500;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"
+                            onmouseover="this.style.background='#047857'"
+                            onmouseout="this.style.background='#059669'">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                             stroke-width="2" stroke="currentColor" style="width:16px;height:16px;">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                        <span wire:loading.remove wire:target="generateAiAnalytics">AI-аналитика</span>
+                        <span wire:loading wire:target="generateAiAnalytics">Генерация…</span>
+                    </button>
+                @endif
             @endif
         </div>
     </form>
+
+    {{-- Статус фоновой генерации AI-отчёта (docs/ANALYTICS.md): пока идёт
+         генерация — poll каждые 5 сек (обновляет статус и разблокирует кнопку). --}}
+    @if($competition && $aiState)
+        <div class="mb-6 no-print" @if($aiRunning) wire:poll.5s @endif>
+            @if($aiRunning)
+                <div class="flex items-center gap-3 p-4 rounded-xl shadow bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
+                    <span>⏳</span>
+                    <span>AI-отчёт генерируется… Обычно это занимает 1–3 минуты, статус обновится автоматически.</span>
+                </div>
+            @elseif(($aiState['status'] ?? null) === \App\Support\AiReportRunner::STATUS_DONE && ($aiState['url'] ?? null))
+                <div class="flex items-center gap-3 p-4 rounded-xl shadow bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                    <span>✅</span>
+                    <span>AI-отчёт готов:</span>
+                    <a href="{{ $aiState['url'] }}" target="_blank" rel="noopener" class="font-semibold underline">открыть</a>
+                    <span class="opacity-70">(также в разделе «Аналитика»)</span>
+                </div>
+            @elseif(($aiState['status'] ?? null) === \App\Support\AiReportRunner::STATUS_ERROR)
+                <div class="p-4 rounded-xl shadow bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200">
+                    ⚠️ Не удалось сгенерировать AI-отчёт: {{ $aiState['message'] }}
+                </div>
+            @endif
+        </div>
+    @endif
 
     @if(! $competition)
         <div class="p-6 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900 rounded-xl shadow no-print">

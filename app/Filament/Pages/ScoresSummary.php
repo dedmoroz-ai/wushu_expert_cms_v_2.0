@@ -3,8 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Models\Competition;
+use App\Support\AiReportRunner;
 use App\Support\ScoresSummaryMatrix;
 use Filament\Pages\Page;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
@@ -121,5 +123,75 @@ class ScoresSummary extends Page
         }
 
         return 'ok';
+    }
+
+    /**
+     * AI-аналитика по запросу (docs/ANALYTICS.md): генерация HTML-отчёта уходит
+     * в фоновый CLI-процесс (AiReportRunner). LLM думает до минут — HTTP-запрос
+     * не должен ждать (nginx обрывает долгий ответ по fastcgi_read_timeout,
+     * пользователь получал 504). Статус генерации показывается под кнопками
+     * и обновляется по wire:poll.
+     */
+    public function generateAiAnalytics(): void
+    {
+        if (! Auth::user()?->isAdmin()) {
+            Notification::make()
+                ->title('Недостаточно прав')
+                ->body('AI-аналитику генерирует администратор.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $competition = $this->getCompetition();
+        if (! $competition) {
+            Notification::make()
+                ->title('Соревнование не выбрано')
+                ->body('Выберите соревнование в списке выше.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            $launch = app(AiReportRunner::class)->start($competition);
+        } catch (\Throwable $e) {
+            Notification::make()
+                ->title('AI-аналитика не запущена')
+                ->body($e->getMessage())
+                ->danger()
+                ->persistent()
+                ->send();
+
+            return;
+        }
+
+        if ($launch['already_running']) {
+            Notification::make()
+                ->title('Генерация уже идёт')
+                ->body('Дождитесь завершения текущей генерации — статус показан под кнопками.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title('Генерация AI-отчёта запущена')
+            ->body('Отчёт появится в разделе «Аналитика» через 1–3 минуты.')
+            ->success()
+            ->send();
+    }
+
+    /** Статус фоновой генерации AI-отчёта для UI (null — генераций не было). */
+    public function getAiReportState(): ?array
+    {
+        $competition = $this->getCompetition();
+
+        return $competition
+            ? app(AiReportRunner::class)->state($competition)
+            : null;
     }
 }

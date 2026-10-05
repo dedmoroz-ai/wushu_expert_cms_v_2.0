@@ -25,6 +25,11 @@ services:
       PHP_POST_MAX_SIZE: 64M
       PHP_UPLOAD_MAX_FILESIZE: 64M
       NGINX_CLIENT_MAX_BODY_SIZE: 64M
+      # Таймаут FastCGI в nginx берётся из этого значения (шаблон site-opts.d:
+      # fastcgi_read_timeout $PHP_MAX_EXECUTION_TIME). 300с — запас для долгих
+      # запросов (PDF, AI-генерация); кнопка «AI-аналитика» всё равно работает
+      # в фоне (AiReportRunner), значение — страховка от 504.
+      PHP_MAX_EXECUTION_TIME: 300
     depends_on:
       - db
       - redis

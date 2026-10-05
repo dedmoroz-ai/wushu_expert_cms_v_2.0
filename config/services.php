@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    // AI-аналитика по запросу (docs/ANALYTICS.md): polza.ai, OpenAI-совместимый API.
+    'ai' => [
+        'base_url' => env('AI_BASE_URL', 'https://polza.ai/api/v1'),
+        'key' => env('AI_API_KEY'),
+        'model' => env('AI_MODEL', 'xiaomi/mimo-v2.6-pro'),
+        'timeout' => (int) env('AI_TIMEOUT', 180),
+    ],
+
 ];

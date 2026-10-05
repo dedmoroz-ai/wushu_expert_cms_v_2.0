@@ -98,7 +98,10 @@ class Analytics extends Page
                 'filename' => $filename,
                 'title' => $title ?: $slug,
                 'description' => $description,
-                'url' => '/reports/'.$filename,
+                // Отчёт открывается только авторизованными пользователями:
+                // маршрут /reports/{файл} (routes/web.php, middleware auth).
+                // Статический /storage/reports/ закрыт веб-сервером — см. docs/ANALYTICS.md.
+                'url' => '/reports/'.rawurlencode($filename),
                 'mtime' => Carbon::createFromTimestamp(filemtime($path)),
                 'report_date' => $reportDate,
                 'size' => filesize($path),

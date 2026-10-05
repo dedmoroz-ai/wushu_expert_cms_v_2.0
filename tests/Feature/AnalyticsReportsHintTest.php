@@ -15,6 +15,10 @@ use Tests\TestCase;
  * Замечание заказчика (02.10): памятка «Поместите HTML-файлы в папку
  * storage/app/public/reports/» в пустом состоянии «Аналитика — отчёты»
  * остаётся только у админа; остальным аккаунтам она не показывается.
+ *
+ * Замечание заказчика (05.10): нижняя подсказка о папке отчётов — тоже только
+ * у админа и без фразы о публичном доступе (отчёты открываются лишь
+ * авторизованными пользователями через /reports/).
  */
 class AnalyticsReportsHintTest extends TestCase
 {
@@ -64,6 +68,28 @@ class AnalyticsReportsHintTest extends TestCase
         $this->assertStringNotContainsString('storage/app/public/reports/', $html);
     }
 
+    /** Нижняя подсказка (05.10): админу — короткая, без упоминания публичного доступа. */
+    public function test_admin_sees_short_footer_hint_without_public_warning(): void
+    {
+        $html = $this->renderOneReportAnalytics('admin');
+
+        $this->assertStringContainsString('💡 Файлы в папке', $html);
+        $this->assertStringContainsString('storage/app/public/reports', $html);
+        $this->assertStringNotContainsString('без авторизации', $html);
+        $this->assertStringNotContainsString('доступны по прямой ссылке', $html);
+    }
+
+    /** Нижняя подсказка (05.10): остальным аккаунтам не показывается вовсе. */
+    #[DataProvider('nonAdminRoleProvider')]
+    public function test_non_admin_roles_do_not_see_footer_hint(string $role): void
+    {
+        $html = $this->renderOneReportAnalytics($role);
+
+        $this->assertStringNotContainsString('💡 Файлы в папке', $html);
+        $this->assertStringNotContainsString('storage/app/public/reports', $html);
+        $this->assertStringNotContainsString('без авторизации', $html);
+    }
+
     public static function nonAdminRoleProvider(): array
     {
         return [
@@ -83,6 +109,19 @@ class AnalyticsReportsHintTest extends TestCase
         return Livewire::actingAs($user)
             ->test(EmptyReportsAnalyticsPage::class)
             ->assertSee('Отчётов пока нет')
+            ->html();
+    }
+
+    /** Рендер «Аналитики» с одним фиктивным отчётом (нижняя подсказка видна). */
+    private function renderOneReportAnalytics(string $role): string
+    {
+        $user = $this->makeUser("reports-footer-{$role}@test.local", $role);
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        return Livewire::actingAs($user)
+            ->test(OneReportAnalyticsPage::class)
+            ->assertSee('Тестовый отчёт по ссылкам')
             ->html();
     }
 
@@ -107,5 +146,26 @@ class EmptyReportsAnalyticsPage extends Analytics
     public function getReports(): array
     {
         return [];
+    }
+}
+
+/**
+ * Страница «Аналитика» с одним фиктивным отчётом: файлы в storage/ не трогаем,
+ * нижняя подсказка о папке показывается, только когда отчёты есть.
+ */
+class OneReportAnalyticsPage extends Analytics
+{
+    public function getReports(): array
+    {
+        return [[
+            'slug' => 'analytics_test',
+            'filename' => 'analytics_test.html',
+            'title' => 'Тестовый отчёт по ссылкам',
+            'description' => null,
+            'url' => '/reports/analytics_test.html',
+            'mtime' => \Illuminate\Support\Carbon::now(),
+            'report_date' => null,
+            'size' => 1024,
+        ]];
     }
 }

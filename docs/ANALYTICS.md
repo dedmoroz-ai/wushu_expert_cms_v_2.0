@@ -1,0 +1,163 @@
+# AI-аналитика по судейству
+
+Механизм аналитического отчёта по турниру: **числа — детерминированно (PHP), текст — LLM**.
+Отчёт сохраняется в `storage/app/public/reports/` и появляется на странице «Аналитика».
+Открывается только авторизованными пользователями через `/reports/<имя>.html`.
+
+## 1. Как запустить
+
+### Кнопка (администратор)
+
+«Сводка оценок» → выбрать соревнование → кнопка **AI-аналитика** (зелёная, только у админа).
+
+Генерация **фоновая** (с 05.10.2026): кнопка мгновенно запускает CLI-процесс
+(`php artisan analytics:generate {id}` через `AiReportRunner`) и не ждёт LLM
+(раньше nginx обрывал долгий ответ по fastcgi_read_timeout — пользователь
+получал 504, хотя отчёт потом дописывался). Под кнопками показывается статус
+(обновляется каждые 5 секунд): «генерируется…» → «готов» со ссылкой на отчёт
+или текст ошибки. Пока идёт генерация, кнопка заблокирована; повторный запуск
+отклоняется уведомлением. Вывод фонового процесса — `storage/logs/ai-report.log`.
+Если процесс погиб (например, рестарт контейнера), через ~10 минут статус
+сменится на ошибку с предложением запустить генерацию заново.
+
+### Artisan
+
+```bash
+php artisan analytics:generate 4                # по ID
+php artisan analytics:generate "Кубок"          # по уникальной части названия
+php artisan analytics:generate 4 --model=... --timeout=240
+```
+
+## 2. Настройка (.env)
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `AI_BASE_URL` | `https://polza.ai/api/v1` | OpenAI-совместимый API polza.ai |
+| `AI_API_KEY` | — | Bearer-ключ; без него генерация падает с понятной ошибкой |
+| `AI_MODEL` | `xiaomi/mimo-v2.6-pro` | reasoning-модель polza.ai |
+| `AI_TIMEOUT` | `180` | таймаут запроса, сек |
+
+На сервере ключ добавляется в `.env` **вручную** (не через git). После правки — `php artisan config:clear`.
+
+## 3. Архитектура
+
+| Компонент | Роль |
+|---|---|
+| `App\Support\CompetitionAnalyticsBuilder` | Детерминированные метрики: судьи (Δ, СКО, отсечения), разбросы, пулы (дисциплина × возрастная группа), «флипы» R-4.6, расхождения итогов. Плюс `llmDigest()` — кодированный дайджест для LLM |
+| `App\Support\AiClient` | HTTP к polza.ai (`/chat/completions`), `response_format: json_object`, терпимый парсинг JSON (```json-блок, сбалансированный объект) |
+| `App\Support\AiReportGenerator` | Цикл: метрики → промпт → LLM → `resources/views/reports/analytics-report.blade.php` → HTML в `storage/app/public/reports/` |
+| `App\Support\AiReportRunner` | Фоновый запуск `analytics:generate {id}` (шелл `nohup … &`, вывод в `storage/logs/ai-report.log`) и статус генерации в cache (`ai-report:state:{id}`: running/done/error, url, TTL 1 ч; running старше 10 мин = «прервано») |
+| `App\Console\Commands\GenerateAnalyticsReport` | `analytics:generate`; пишет итог в cache (`AiReportRunner::markDone/markError`) — по нему UI показывает статус |
+| `App\Filament\Pages\ScoresSummary::generateAiAnalytics()` | Кнопка в UI (только admin): быстрый запуск `AiReportRunner` + уведомление; статус — `getAiReportState()` и `wire:poll` в scores-summary.blade.php |
+
+Методика чисел совпадает со «Сводной таблицей оценок»: итог строки = trimmedMean R-4.6
+(отбрасывается одна мин. и одна макс. оценка при 3+ оценках), Δ судьи = среднее
+(оценка − итог строки), разброс = максимум − минимум.
+
+## 4. Персональные данные
+
+Провайдеры модели не помечены «Данные в РФ», поэтому в LLM уходит **минимум ПД**
+(`CompetitionAnalyticsBuilder::llmDigest()`):
+
+- спортсмены — кодами `A1…`; ФИО — только призёры (места 1–3) фокусных пулов
+  (до 3 самых «спорных» пулов с N ≥ 3);
+- судьи — кодами `S1…`, ФИО не уходят вообще;
+- полные таблицы с ФИО рендерит **blade** — эти данные в LLM не попадают и в
+  отчёте есть всегда, даже если LLM недоступен.
+
+## 5. Что в отчёте
+
+1. Характеристика коллегии (таблица судей + LLM-комментарии по кодам).
+2. Спорные выступления (топ по разбросу оценок).
+3. Сводка пулов; фокусные пулы выделены.
+4. Разбор фокусных пулов (LLM).
+5. Замечания к протоколам: пулы, где R-4.6 менял топ-3; расхождения официального
+   итога с авто-расчётом (итог утверждает старший судья — в 145/146 случаев совпадает).
+6. Выводы и рекомендации (LLM).
+
+Оформление страницы отчёта — как на всех страницах продукта: светлая шапка
+с логотипом `images/logo.png` слева (как в админке и в отчёте 02.05) и футер
+с единой строкой заказчика (04.10)
+«WUSHU EXPERT COMPETITION MANAGEMENT SYSTEM 3.0 © 2026 МАКС МОРОЗ (logo)» —
+светлая полоса 50px, лого разработчика `images/d989.svg` (light-тема, как в
+AppFooterTest). Контент отчёта обёрнут в `.report-shell` (max-width 900px),
+шапка/футер — на всю ширину; при печати (Ctrl+P) шапка сжимается, футер
+остаётся. Проверяет `test_report_shows_brand_header_and_footer`
+(AiReportGeneratorTest).
+
+Метаданные для страницы «Аналитика»: `<title>`, `<meta name="description">`,
+`<meta name="report-date">`. Файлы открываются по `/reports/<имя>.html` — только
+авторизованными пользователями (маршрут в `routes/web.php`, middleware `auth`);
+статический путь `/storage/reports/` закрыт веб-сервером (nginx + Caddy).
+
+## 6. Стоимость и отказоустойчивость
+
+- ~1–2 ₽ за отчёт (вход ~50 ₽/1М, ответ ~102 ₽/1М токенов polza.ai).
+- Очередей нет: `analytics:generate` — обычная CLI-команда (синхронная), кнопка
+  гоняет ту же команду фоновым процессом (`AiReportRunner`) — HTTP-запрос
+  не ждёт LLM и не может получить 504 от nginx.
+- LLM ошибка не ломает страницу: кнопка показывает уведомление, артефакты чисел
+  (таблицы) в отчёте не зависят от модели. Повторный запуск перезаписывает файл
+  отчёта (имя стабильно: `analytics_<дата>_<id>_<slug>.html`).
+
+## 7. Тесты
+
+`tests/Feature/CompetitionAnalyticsBuilderTest.php` (метрики, места/ничьи, flips,
+кодирование ПД), `tests/Feature/AiReportGeneratorTest.php` (Http::fake: генерация
+файла, коды в промпте, разбор ```json, ошибки ключа/HTTP/пустого турнира),
+`tests/Feature/AiReportRunnerTest.php` (фоновый запуск `nohup … &`, блокировка
+повторного запуска, протухший running = «прервано», статусы done/error от команды,
+запуск кнопкой в UI), `tests/Feature/AnalyticsReportsUrlTest.php` (карточка отчёта ведёт на `/reports/<файл>`,
+а не на статический `/storage/reports/`), `tests/Feature/ReportsAccessTest.php`
+(доступ к отчёту: гость → вход, админ → HTML, судья без «Аналитики» → 403,
+traversal и отсутствующий файл → 404) и `tests/Feature/AnalyticsReportsHintTest.php`
+(подсказки о папке отчётов — только админу).
+
+```bash
+docker exec wushu-expert-laravel.test-1 php artisan test --filter=CompetitionAnalyticsBuilderTest
+docker exec wushu-expert-laravel.test-1 php artisan test --filter=AiReportGeneratorTest
+docker exec wushu-expert-laravel.test-1 php artisan test --filter=ReportsAccessTest
+docker exec wushu-expert-laravel.test-1 php artisan test --filter=AnalyticsReports
+echo $?   # 0 — все тесты прошли
+```
+
+## 8. Известные особенности
+
+- Итоговый балл утверждает старший судья: авто-расчёт R-4.6 лишь предлагается.
+  Единичные ручные отклонения видны в разделе 5 отчёта (mismatches).
+- Разовая аналитика по турниру 26.09.2026 (id=4) — `storage/app/public/reports/analytics_26092026.html`
+  (ручной отчёт в той же стилистике; методика совпадает с AI-генератором).
+  Шапка/футер (единая строка заказчика) добавлены в оба существующих файла
+  отчётов ретро-патчем 05.10.2026 — их содержимое не перегенерировалось.
+  Верифицирована 04.10.2026 сверкой с `CompetitionAnalyticsBuilder` по копии боевой
+  БД: все числа (судьи Δ/СКО/отсечения, разбросы, flips, mismatches) совпадают
+  до третьего знака.
+- Опечатка `835` в оценках (вместо `8,35`) из `docs/POST_TOURNAMENT_PLAN.md`:
+  в дампе `wushu_server_db_2026-10-03.sql.gz` она ещё есть (scores.id=1875,
+  рег. 448, судья Левина), в боевой БД уже исправлена. На неисправленных данных
+  метрики этого судьи и топ разбросов искажаются (mean 13,6 вместо 7,98) —
+  при генерации отчёта по копии старого дампа сначала проверьте
+  `select * from scores where score > 10 or score < 0`.
+- Хотфикс на боевом сервере 04.10.2026 (`~/hotfix_2026-10-04/backup/`): заменён
+  `Analytics.php` на версию с `'/storage/reports/'` (был старый `'/reports/'` —
+  страница «Аналитика» отдавала 404 на все отчёты) и добавлен symlink
+  `public/reports -> ../storage/app/public/reports` для старых ссылок/закладок.
+  Работали оба пути: `/storage/reports/<файл>.html` и `/reports/<файл>.html`
+  (с 05.10.2026 оба закрыты — см. следующий пункт).
+  Откат: вернуть `backup/Analytics.php` в контейнер и хост + `optimize:clear`.
+- Хотфикс на боевом сервере 05.10.2026 (`~/hotfix_2026-10-05/backup/`): отчёты
+  доступны только авторизованным пользователям. Убрана кнопка «Ссылка»
+  (копировала публичный URL); карточки ведут на маршрут `/reports/<файл>`
+  (`routes/web.php`, middleware `auth`; судьям без «Аналитики» — 403; имена
+  файлов — только `*.html` без подкаталогов). Статический `/storage/reports/`
+  закрыт в nginx (`/etc/nginx/server-opts.d/reports-deny.conf` в контейнере;
+  правило продублировано в Dockerfile для пересборок) и в Caddy
+  (`/var/www/wushu/Caddyfile`); удалён legacy-symlink `public/reports` — теперь
+  `/reports/<файл>` обрабатывает Laravel. Подсказка о папке отчётов осталась
+  только у админа и без фразы о публичном доступе. Откат: вернуть `backup/*`
+  (Analytics.php, analytics.blade.php, routes/web.php, Caddyfile) в контейнер
+  и хост, удалить `reports-deny.conf`, восстановить symlink, `optimize:clear`,
+  `docker restart wushu_app wushu_caddy`.
+- Отчёты по-прежнему лежат в `storage/app/public/reports/` (доступно через WinSCP
+  по `/var/www/wushu/storage/app/public/reports/`), но прямая ссылка без входа
+  больше не работает: без авторизации `/reports/<файл>` перенаправляет на вход.
