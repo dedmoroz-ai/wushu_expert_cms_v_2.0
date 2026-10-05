@@ -215,7 +215,9 @@ class SuperJudgePad extends Page
         $this->totalMaxLabel = $this->buildTotalMaxLabel($currentReg, $isAb);
 
         if ($this->myPanel === Competition::PANEL_A) {
-            $this->deductionCodes = DeductionCode::active()->ordered()->get()
+            // Решение заказчика (05.10, вариант A): набор кодов — per-competition,
+            // иначе глобальный активный набор справочника.
+            $this->deductionCodes = $competition->padDeductionCodes()
                 ->map(fn (DeductionCode $c) => [
                     'id' => $c->id,
                     'code' => (string) $c->code,

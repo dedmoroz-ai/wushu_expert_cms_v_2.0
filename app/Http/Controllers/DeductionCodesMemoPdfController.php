@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Competition;
-use App\Models\DeductionCode;
 use App\Support\JudgingCalculator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -50,7 +49,9 @@ class DeductionCodesMemoPdfController extends Controller
     public static function memoData(Competition $competition): array
     {
         $groups = [];
-        foreach (DeductionCode::active()->ordered()->get() as $code) {
+        // Решение заказчика (05.10): памятка печатается по эффективному набору
+        // кодов этого соревнования (свой набор или глобальный активный).
+        foreach ($competition->padDeductionCodes() as $code) {
             $groups[$code->group_label ?: ''][] = $code;
         }
 

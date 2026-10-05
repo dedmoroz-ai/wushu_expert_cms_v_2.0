@@ -151,7 +151,9 @@ class JudgePad extends Page
         }
 
         if ($this->inputMode === 'codes') {
-            $this->deductionCodes = DeductionCode::active()->ordered()->get()
+            // Решение заказчика (05.10, вариант A): набор кодов — per-competition,
+            // иначе глобальный активный набор справочника.
+            $this->deductionCodes = $competition->padDeductionCodes()
                 ->map(fn (DeductionCode $c) => [
                     'id' => $c->id,
                     'code' => (string) $c->code,

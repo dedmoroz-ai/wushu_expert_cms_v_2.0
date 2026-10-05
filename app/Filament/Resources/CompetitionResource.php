@@ -185,6 +185,22 @@ class CompetitionResource extends Resource
                     ->collapsible()
                     ->collapsed(),
 
+                // --- РЕШЕНИЕ ЗАКАЗЧИКА (05.10, ВАРИАНТ A): КОДЫ СБАВОК ТУРНИРА ---
+                // Свой набор кодов для пульта судьи A; без выбора действует глобальный
+                // активный набор справочника «Коды сбавок» (значение по умолчанию).
+                Forms\Components\Section::make('Коды сбавок (судья A)')
+                    ->description('Какие коды сбавок будут на пульте судьи A в этом турнире. Порядок — как в справочнике «Коды сбавок». Если не выбрано ни одного — используется глобальный активный набор.')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('deductionCodes')
+                            ->label('Показывать на пульте')
+                            ->relationship('deductionCodes', 'label', modifyQueryUsing: fn ($query) => $query->ordered())
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->code.' — '.$record->label)
+                            ->bulkToggleable()
+                            ->columns(3),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+
                 // СЕКЦИЯ 4: Замечание заказчика (02.10): сессия регистрации заявок
                 Forms\Components\Section::make('Сессия регистрации заявок')
                     ->description('Окно подачи заявок тренерами. По нему дашборд считает статус сессии: «Ожидает открытия», «Идёт регистрация» или «Регистрация завершена».')
