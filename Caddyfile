@@ -1,4 +1,10 @@
 competitions.crimea-wushu.ru {
+    # Отчёты аналитики публично не раздаются (05.10.2026): файлы в
+    # storage/app/public/reports/ открывает только авторизованный маршрут
+    # /reports/{файл} (routes/web.php). Продублировано в nginx server-opts.d.
+    @reports_static path /storage/reports /storage/reports/*
+    respond @reports_static 404
+
     reverse_proxy app:8080 {
         header_up X-Forwarded-Proto https
         header_up X-Forwarded-Port 443
