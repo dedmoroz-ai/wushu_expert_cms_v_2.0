@@ -45,7 +45,6 @@
     <header class="flex-none h-28 bg-[#111827] border-b border-white/10 flex items-center px-8 shadow-xl z-50">
         @php
             $logoUrl = null;
-            $avatarUrl = null;
             $compName = 'ЗАГРУЗКА ДАННЫХ...';
             $fedName = '';
 
@@ -57,14 +56,13 @@
                 if ($path) {
                     $logoUrl = asset('storage/' . $path);
                 }
-                $avatarUrl = $competition->avatarUrl();
                 $compName = $competition->name;
                 $fedName = $competition->federation ? $competition->federation->name : '';
             }
         @endphp
 
-        <!-- Логотип и аватар турнира (замечание заказчика 05.10: аватар — строго
-             справа от логотипа, тот же размер/стиль; без файла не рисуется) -->
+        <!-- Логотип федерации (замечание заказчика 05.10: аватар турнира с табло
+             убран — остаётся только логотип) -->
         <div class="flex-shrink-0 mr-6 flex items-center gap-3">
             <div>
                 @if($logoUrl)
@@ -75,10 +73,6 @@
                     </div>
                 @endif
             </div>
-
-            @if($avatarUrl)
-                <img src="{{ $avatarUrl }}" alt="Аватар турнира" class="h-20 w-20 rounded-full object-contain">
-            @endif
         </div>
 
         <!-- Информация -->

@@ -18,12 +18,11 @@ use Tests\TestCase;
 /**
  * Замечание заказчика (05.10): аватар турнира (competitions.avatar_path) —
  * картинка самого турнира, которую админ загружает в настройках соревнования.
- * На публичной странице результатов и табло — строго справа от логотипа
- * федерации (в том же размере; форма — круглая). На виджете «Актуальное
- * соревнование» логотип федерации убран — аватар единственная картинка слева
- * (тот же размер 80×80; форма — круглая). Без загруженного аватара элемент
- * не рисуется вовсе. В документы (протоколы, дипломы) аватар сознательно
- * не входит.
+ * Показывается только на виджете «Актуальное соревнование» (там логотип
+ * федерации убран — аватар единственная картинка слева, 80×80, круглая).
+ * С публичной страницы результатов и с табло аватар убран — там остаётся
+ * только логотип федерации. Без загруженного аватара элемент не рисуется
+ * вовсе. В документы (протоколы, дипломы) аватар сознательно не входит.
  */
 class CompetitionAvatarTest extends TestCase
 {
@@ -137,8 +136,12 @@ class CompetitionAvatarTest extends TestCase
             ->assertDontSee('federations/logo.png');
     }
 
-    /** На публичной странице результатов аватар — строго правее логотипа, тот же размер/стиль. */
-    public function test_public_results_show_avatar_right_of_logo(): void
+    /**
+     * Замечание заказчика (05.10): с публичной страницы результатов аватар
+     * турнира убран — остаётся только логотип федерации (даже если аватар
+     * загружен).
+     */
+    public function test_public_results_show_federation_logo_only(): void
     {
         $this->makeCompetition([
             'avatar_path' => 'competitions/avatars/cup.png',
@@ -148,24 +151,16 @@ class CompetitionAvatarTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertImageToTheRightOf($html, 'federations/logo.png', 'competitions/avatars/cup.png');
-        // Тот же размер, что и у логотипа (h-16 w-16 sm:h-24 sm:w-24); форма — круглая.
-        $this->assertAvatarTagMatches($html, 'competitions/avatars/cup.png', 'h-16 w-16 sm:h-24 sm:w-24 object-contain rounded-full');
+        $this->assertStringContainsString('federations/logo.png', $html, 'Логотип федерации должен остаться на странице результатов.');
+        $this->assertStringNotContainsString('competitions/avatars', $html, 'Аватар турнира с публичной страницы результатов убран (замечание заказчика 05.10).');
+        $this->assertStringNotContainsString('Аватар турнира', $html);
     }
 
-    /** Без загруженного аватара на публичной странице результатов элемент не рисуется. */
-    public function test_public_results_omit_avatar_without_file(): void
-    {
-        $this->makeCompetition();
-
-        $this->get('/results')
-            ->assertOk()
-            ->assertDontSee('Аватар турнира')
-            ->assertDontSee('competitions/avatars');
-    }
-
-    /** На табло аватар — строго правее логотипа, тот же размер/стиль. */
-    public function test_scoreboard_shows_avatar_right_of_logo(): void
+    /**
+     * Замечание заказчика (05.10): с табло аватар турнира убран — остаётся
+     * только логотип федерации (даже если аватар загружен).
+     */
+    public function test_scoreboard_show_federation_logo_only(): void
     {
         $this->makeCompetition([
             'avatar_path' => 'competitions/avatars/cup.png',
@@ -175,20 +170,9 @@ class CompetitionAvatarTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertImageToTheRightOf($html, 'federations/logo.png', 'competitions/avatars/cup.png');
-        // Тот же размер/стиль, что и у логотипа (h-20 w-20 rounded-full).
-        $this->assertAvatarTagMatches($html, 'competitions/avatars/cup.png', 'h-20 w-20 rounded-full');
-    }
-
-    /** Без загруженного аватара на табло элемент не рисуется. */
-    public function test_scoreboard_omits_avatar_without_file(): void
-    {
-        $this->makeCompetition();
-
-        $this->get('/scoreboard')
-            ->assertOk()
-            ->assertDontSee('Аватар турнира')
-            ->assertDontSee('competitions/avatars');
+        $this->assertStringContainsString('federations/logo.png', $html, 'Логотип федерации должен остаться на табло.');
+        $this->assertStringNotContainsString('competitions/avatars', $html, 'Аватар турнира с табло убран (замечание заказчика 05.10).');
+        $this->assertStringNotContainsString('Аватар турнира', $html);
     }
 
     /**
@@ -226,17 +210,6 @@ class CompetitionAvatarTest extends TestCase
         $this->get(route('competition.title-page', $competition))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf');
-    }
-
-    /** Логотип отрисован, затем строго правее — аватар (порядок в DOM). */
-    private function assertImageToTheRightOf(string $html, string $leftSrc, string $rightSrc): void
-    {
-        $leftPos = strpos($html, $leftSrc);
-        $rightPos = strpos($html, $rightSrc);
-
-        $this->assertNotFalse($leftPos, "В разметке нет «{$leftSrc}» (логотип).");
-        $this->assertNotFalse($rightPos, "В разметке нет «{$rightSrc}» (аватар).");
-        $this->assertLessThan($rightPos, $leftPos, 'Аватар должен быть строго правее логотипа.');
     }
 
     /** Тег аватара: ожидаемый размер/стиль и круглая форма (маркер в $sizeMarker). */
