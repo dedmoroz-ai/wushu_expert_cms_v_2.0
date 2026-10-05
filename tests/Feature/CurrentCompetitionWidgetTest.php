@@ -20,9 +20,9 @@ use Tests\TestCase;
 
 /**
  * Замечание заказчика (02.10): под плашкой «Добро пожаловать» — полноширокая
- * плашка «Актуальное соревнование» (логотип федерации из настроек
- * соревнования, название, даты, адрес, статус сессии регистрации заявок
- * от тренеров). Третья плашка статистики администратора — «Всего заявок»
+ * плашка «Актуальное соревнование» (название, даты, адрес, статус сессии
+ * регистрации заявок от тренеров). Замечание заказчика (05.10): логотип
+ * федерации с плашки убран. Третья плашка статистики администратора — «Всего заявок»
  * по актуальной сессии регистрации, а не по всем соревнованиям.
  *
  * Дашборд тренера повторяет дашборд администратора: та же плашка
@@ -213,8 +213,9 @@ class CurrentCompetitionWidgetTest extends TestCase
     }
 
     /**
-     * На плашке: название, календарные даты, адрес проведения, логотип
-     * федерации из настроек соревнования и статус сессии регистрации.
+     * На плашке: название, календарные даты, адрес проведения и статус сессии
+     * регистрации. Логотип федерации не показывается, даже если задан в
+     * настройках (замечание заказчика 05.10).
      */
     public function test_widget_shows_competition_details(): void
     {
@@ -238,12 +239,15 @@ class CurrentCompetitionWidgetTest extends TestCase
             ->assertSee('15.11.2026')
             ->assertSee('Санкт-Петербург')
             ->assertSee('Ледовый дворец')
-            ->assertSee('competitions/logos/fed.png')
+            ->assertDontSee('competitions/logos/fed.png')
             ->assertSee('Идёт регистрация');
     }
 
-    /** Если логотип в настройках соревнования не загружен — берём логотип федерации. */
-    public function test_widget_falls_back_to_federation_logo(): void
+    /**
+     * Замечание заказчика (05.10): логотип федерации на плашке не показывается
+     * ни при каких настройках — ни свой (organization_logo), ни из федерации.
+     */
+    public function test_widget_never_shows_federation_logo(): void
     {
         $federation = Federation::create([
             'name' => 'Федерация ушу',
@@ -259,7 +263,8 @@ class CurrentCompetitionWidgetTest extends TestCase
 
         Livewire::actingAs($this->makeUser('logo-fallback@test.local', 'admin'))
             ->test(CurrentCompetitionWidget::class)
-            ->assertSee('federations/logo.png');
+            ->assertDontSee('federations/logo.png')
+            ->assertDontSee('competitions/logos');
     }
 
     /** Без соревнований плашка показывает пустое состояние. */

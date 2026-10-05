@@ -18,10 +18,12 @@ use Tests\TestCase;
 /**
  * Замечание заказчика (05.10): аватар турнира (competitions.avatar_path) —
  * картинка самого турнира, которую админ загружает в настройках соревнования.
- * Показывается строго справа от логотипа (в том же размере; форма — круглая)
- * на виджете «Актуальное соревнование», публичной странице результатов и табло. Без
- * загруженного аватара элемент не рисуется вовсе. В документы (протоколы,
- * дипломы) аватар сознательно не входит.
+ * На публичной странице результатов и табло — строго справа от логотипа
+ * федерации (в том же размере; форма — круглая). На виджете «Актуальное
+ * соревнование» логотип федерации убран — аватар единственная картинка слева
+ * (тот же размер 80×80; форма — круглая). Без загруженного аватара элемент
+ * не рисуется вовсе. В документы (протоколы, дипломы) аватар сознательно
+ * не входит.
  */
 class CompetitionAvatarTest extends TestCase
 {
@@ -92,8 +94,12 @@ class CompetitionAvatarTest extends TestCase
         Storage::disk('public')->assertExists($competition->avatar_path);
     }
 
-    /** На виджете «Актуальное соревнование» аватар — строго правее логотипа, тот же размер/стиль. */
-    public function test_widget_shows_avatar_right_of_logo(): void
+    /**
+     * На виджете «Актуальное соревнование» логотип федерации не показывается
+     * (замечание заказчика 05.10) — аватар единственная картинка слева
+     * (80×80, круглая).
+     */
+    public function test_widget_shows_avatar_without_federation_logo(): void
     {
         $this->makeCompetition([
             'organization_logo' => 'competitions/logos/fed.png',
@@ -106,8 +112,9 @@ class CompetitionAvatarTest extends TestCase
             ->test(CurrentCompetitionWidget::class)
             ->html();
 
-        $this->assertImageToTheRightOf($html, 'competitions/logos/fed.png', 'competitions/avatars/cup.png');
-        // Тот же размер, что и у логотипа на виджете (80×80); форма — круглая.
+        $this->assertStringNotContainsString('competitions/logos/fed.png', $html, 'Логотип федерации с плашки убран (замечание заказчика 05.10).');
+        $this->assertStringNotContainsString('federations/logo.png', $html, 'Логотип федерации с плашки убран (замечание заказчика 05.10).');
+        // Размер 80×80 (как раньше у логотипа); форма — круглая.
         $this->assertAvatarTagMatches($html, 'competitions/avatars/cup.png', 'width: 80px; height: 80px; object-fit: contain; border-radius: 50%');
     }
 
@@ -123,9 +130,11 @@ class CompetitionAvatarTest extends TestCase
 
         Livewire::actingAs($this->makeUser('comp-avatar-widget-none@test.local', 'admin'))
             ->test(CurrentCompetitionWidget::class)
-            ->assertSee('competitions/logos/fed.png')
             ->assertDontSee('Аватар турнира')
-            ->assertDontSee('competitions/avatars');
+            ->assertDontSee('competitions/avatars')
+            // Логотип федерации на плашке не показывается ни при каких настройках.
+            ->assertDontSee('competitions/logos/fed.png')
+            ->assertDontSee('federations/logo.png');
     }
 
     /** На публичной странице результатов аватар — строго правее логотипа, тот же размер/стиль. */
@@ -230,13 +239,13 @@ class CompetitionAvatarTest extends TestCase
         $this->assertLessThan($rightPos, $leftPos, 'Аватар должен быть строго правее логотипа.');
     }
 
-    /** Тег аватара: тот же размер, что и у логотипа, и круглая форма (маркер в $sizeMarker). */
+    /** Тег аватара: ожидаемый размер/стиль и круглая форма (маркер в $sizeMarker). */
     private function assertAvatarTagMatches(string $html, string $avatarSrc, string $sizeMarker): void
     {
         $this->assertMatchesRegularExpression(
             '/<img\b[^>]*'.preg_quote($avatarSrc, '/').'[^>]*'.preg_quote($sizeMarker, '/').'[^>]*>/u',
             $html,
-            "Тег аватара «{$avatarSrc}» должен использовать тот же размер/стиль, что и логотип («{$sizeMarker}»).",
+            "Тег аватара «{$avatarSrc}» должен использовать ожидаемый размер/стиль («{$sizeMarker}»).",
         );
     }
 
