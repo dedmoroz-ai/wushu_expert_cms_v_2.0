@@ -78,6 +78,22 @@ class CompetitionResource extends Resource
                                 Forms\Components\TextInput::make('address')
                                     ->label('Адрес (Спорткомплекс)'),
                             ]),
+
+                        // Замечание заказчика (05.10): аватар самого турнира.
+                        // Показывается справа от логотипа на инфопанели, публичной
+                        // странице результатов и табло. В документы (протоколы,
+                        // дипломы) НЕ входит — поэтому живёт здесь, а не в секции
+                        // «Оформление (PDF)».
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\FileUpload::make('avatar_path')
+                                    ->label('Аватар турнира')
+                                    ->image()
+                                    ->directory('competitions/avatars')
+                                    ->imagePreviewHeight('100')
+                                    ->helperText('Картинка турнира для инфопанели, публичной страницы результатов и табло (справа от логотипа). В протоколы и другие документы не попадает.')
+                                    ->columnSpan(1),
+                            ]),
                     ])
                     ->collapsible()
                     ->collapsed(),  // Свернуто по умолчанию

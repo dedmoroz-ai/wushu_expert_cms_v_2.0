@@ -21,6 +21,17 @@
                     </div>
                 @endif
 
+                {{-- Замечание заказчика (05.10): аватар самого турнира — справа от
+                     логотипа, тот же размер/стиль. Без загруженного аватара элемент
+                     не рисуется вовсе. В документы (протоколы, дипломы) не входит. --}}
+                @if ($competition->avatarUrl())
+                    <img
+                        src="{{ $competition->avatarUrl() }}"
+                        alt="Аватар турнира"
+                        style="width: 80px; height: 80px; object-fit: contain"
+                    />
+                @endif
+
                 <div class="flex-1">
                     <h2
                         class="grid flex-1 text-base font-semibold leading-6 text-gray-950 dark:text-white"

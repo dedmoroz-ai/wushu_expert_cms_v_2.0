@@ -13,11 +13,25 @@
                         if ($path) {
                             $logoUrl = asset('storage/' . $path);
                         }
+
+                        // Замечание заказчика (05.10): аватар самого турнира —
+                        // справа от логотипа, тот же размер/стиль. В документы
+                        // (протоколы, дипломы) не входит.
+                        $avatarUrl = $competition->avatarUrl();
                     @endphp
                     
-                    @if($logoUrl)
-                        <div class="flex-shrink-0 mx-auto sm:mx-0">
-                            <img src="{{ $logoUrl }}" alt="Logo" class="h-16 w-16 sm:h-24 sm:w-24 object-contain">
+                    @if($logoUrl || $avatarUrl)
+                        <div class="flex-shrink-0 mx-auto sm:mx-0 flex items-center gap-2">
+                            @if($logoUrl)
+                                <img src="{{ $logoUrl }}" alt="Logo" class="h-16 w-16 sm:h-24 sm:w-24 object-contain">
+                            @endif
+
+                            {{-- Замечание заказчика (05.10): аватар турнира — строго справа
+                                 от логотипа, тот же размер/стиль. Без загруженного аватара
+                                 элемент не рисуется вовсе. В документы (PDF) не входит. --}}
+                            @if($avatarUrl)
+                                <img src="{{ $avatarUrl }}" alt="Аватар турнира" class="h-16 w-16 sm:h-24 sm:w-24 object-contain">
+                            @endif
                         </div>
                     @endif
                     
