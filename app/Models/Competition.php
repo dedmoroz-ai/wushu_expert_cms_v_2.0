@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class Competition extends Model
 {
@@ -71,6 +73,29 @@ class Competition extends Model
         return in_array($panel, [self::PANEL_A, self::PANEL_B], true) ? $panel : null;
     }
 
+    /**
+     * Решение заказчика (05.10): ссылка на публичную страницу результатов
+     * (для QR-кода и виджета дашборда). Токен public_token генерируется при
+     * первом обращении; если колонки нет — временный токен «comp_<id>».
+     */
+    public function publicResultsUrl(): string
+    {
+        try {
+            if (Schema::hasColumn('competitions', 'public_token')) {
+                if (! $this->public_token) {
+                    $this->public_token = Str::random(32);
+                    $this->save();
+                }
+
+                return route('public.results', ['token' => $this->public_token]);
+            }
+
+            return route('public.results', ['token' => 'comp_'.$this->id]);
+        } catch (\Exception $e) {
+            return route('public.results', ['token' => 'comp_'.$this->id]);
+        }
+    }
+
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
@@ -92,6 +117,34 @@ class Competition extends Model
     public function registrations()
     {
         return $this->hasMany(Registration::class);
+    }
+
+    /**
+     * Решение заказчика (05.10, вариант A): набор кодов сбавок соревнования
+     * (override для пульта судьи A; порядок — как в глобальном справочнике).
+     */
+    public function deductionCodes()
+    {
+        return $this->belongsToMany(DeductionCode::class, 'competition_deduction_codes')
+            ->withTimestamps()
+            ->orderBy('deduction_codes.sort_order')
+            ->orderBy('deduction_codes.code');
+    }
+
+    /**
+     * Решение заказчика (05.10, вариант A): эффективный набор кодов сбавок для
+     * пульта судьи A этого турнира — свой набор соревнования, иначе глобальный
+     * активный набор справочника (значение по умолчанию).
+     *
+     * @return \Illuminate\Support\Collection<int, DeductionCode>
+     */
+    public function padDeductionCodes()
+    {
+        $codes = $this->deductionCodes()->get();
+
+        return $codes->isNotEmpty()
+            ? $codes
+            : DeductionCode::active()->ordered()->get();
     }
 
     /**

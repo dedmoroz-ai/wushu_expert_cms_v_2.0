@@ -16,7 +16,9 @@ class StatsOverview extends BaseWidget
     protected static ?string $pollingInterval = '30s';
 
     /** Замечание заказчика (02.10): после плашки «Актуальное соревнование». */
-    protected static ?int $sort = 2;
+    /** Решение заказчика (05.10): после двух новых виджетов дашборда тренера
+     *  («Предварительный стартовый протокол» (2) и «QR-код страницы результатов» (3)). */
+    protected static ?int $sort = 4;
 
     protected function getStats(): array
     {

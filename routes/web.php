@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Livewire\Scoreboard;
 use App\Http\Controllers\CompetitionPdfController;
 use App\Http\Controllers\ExportController;
+use App\Livewire\Scoreboard;
 use App\Models\Competition;
+use Illuminate\Support\Facades\Route;
 
 // Главная страница
 Route::get('/', function () {
@@ -23,6 +23,13 @@ Route::get('/results/{token?}', \App\Livewire\PublicResults::class)->name('publi
 // Генерация QR-кода
 Route::get('/competition/{competition}/qr-code', [\App\Http\Controllers\QrCodeController::class, 'generate'])
     ->name('competition.qr-code');
+
+// --- ПРЕДВАРИТЕЛЬНЫЙ СТАРТОВЫЙ ПРОТОКОЛ (HTML, только авторизованным) ---
+// Решение заказчика (05.10): HTML-страница в стиле публичной страницы результатов
+// по заявкам на соревнование; открывается с дашборда тренера и администратора.
+Route::get('/start-list-preview/{competition}', \App\Livewire\PreliminaryStartList::class)
+    ->middleware('auth')
+    ->name('start-list.preview');
 
 // --- ГЕНЕРАЦИЯ PDF ПРОТОКОЛОВ ---
 Route::get('/competition/{competition}/start-list', [CompetitionPdfController::class, 'startList'])
