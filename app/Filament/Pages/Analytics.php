@@ -19,15 +19,16 @@ class Analytics extends Page
     protected static string $view = 'filament.pages.analytics';
 
     /**
-     * Замечание заказчика (01.10): раздел «Аналитика» входит в набор меню судей
-     * и включён по умолчанию; админ может выключить его в настройках судей.
+     * Решение заказчика (05.10): администратор видит раздел всегда, остальные
+     * роли (судья, старший судья, тренер) — по переключателю «Аналитика»
+     * в карточке пользователя (раздел «Пользователи»); включён по умолчанию.
      */
     public static function canAccess(): bool
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        return $user && (! $user->isJudge() || $user->show_analytics);
+        return $user && ($user->isAdmin() || $user->show_analytics);
     }
 
     public static function shouldRegisterNavigation(): bool

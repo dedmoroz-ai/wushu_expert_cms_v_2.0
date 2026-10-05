@@ -93,6 +93,35 @@ class UserResource extends Resource
                             ->searchable()
                             ->nullable(),
                     ])->columns(2),
+
+                // --- РЕШЕНИЕ ЗАКАЗЧИКА (05.10): НАСТРОЙКИ РАЗДЕЛОВ МЕНЮ ---
+                // Переключатели действуют на все роли, кроме администратора:
+                // админ видит разделы всегда (тумблеры показываются заблокированными,
+                // чтобы настройки не «терялись» при смене роли).
+                Forms\Components\Section::make('Разделы меню')
+                    ->description('Управляют видимостью разделов «Аналитика», «Сводка оценок» и «Журнал судейства». Администратору они доступны всегда.')
+                    ->schema([
+                        Forms\Components\Toggle::make('show_analytics')
+                            ->label('Аналитика')
+                            ->default(true)
+                            ->helperText('Включена по умолчанию.')
+                            ->disabled(fn ($record): bool => (bool) $record?->isAdmin())
+                            ->dehydrated(fn ($record): bool => ! $record?->isAdmin()),
+
+                        Forms\Components\Toggle::make('show_scores_summary')
+                            ->label('Сводка оценок')
+                            ->default(false)
+                            ->disabled(fn ($record): bool => (bool) $record?->isAdmin())
+                            ->dehydrated(fn ($record): bool => ! $record?->isAdmin()),
+
+                        Forms\Components\Toggle::make('show_judging_log')
+                            ->label('Журнал судейства')
+                            ->default(false)
+                            ->disabled(fn ($record): bool => (bool) $record?->isAdmin())
+                            ->dehydrated(fn ($record): bool => ! $record?->isAdmin()),
+                    ])
+                    ->columns(3)
+                    ->columnSpanFull(),
             ]);
     }
 

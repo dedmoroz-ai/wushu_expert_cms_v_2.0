@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\Analytics;
 use App\Filament\Pages\ScoresSummary;
-use App\Filament\Resources\JudgeResource;
 use App\Filament\Resources\JudgingLogResource;
+use App\Filament\Resources\UserResource;
 use App\Http\Responses\LoginResponse;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -19,7 +19,8 @@ use Tests\TestCase;
  * Замечание заказчика (01.10): старший судья и линейные судьи после авторизации
  * попадают на дашборд (а не в пульты) и видят свой набор пунктов меню:
  * «Инфопанель», «Судейский пульт», «Аналитика» (по умолчанию), плюс опциональные
- * «Сводка оценок» и «Журнал судейства» (включаются админом в настройках судей).
+ * «Сводка оценок» и «Журнал судейства» (включаются админом в разделе «Пользователи» —
+ * решение заказчика 05.10: переключатели действуют на все роли, кроме админа).
  */
 class JudgeDashboardTest extends TestCase
 {
@@ -204,14 +205,14 @@ class JudgeDashboardTest extends TestCase
         $this->actingAs($off)->get('/admin/analytics')->assertForbidden();
     }
 
-    /** Админ включает/выключает разделы в настройках судей («Судейская коллегия»). */
-    public function test_admin_toggles_sections_in_judge_settings(): void
+    /** Админ включает/выключает разделы в карточке пользователя (раздел «Пользователи»). */
+    public function test_admin_toggles_sections_in_user_settings(): void
     {
         $admin = $this->makeUser('settings-admin@test.local', 'admin');
         $judge = $this->makeUser('settings-judge@test.local', 'judge');
 
         Livewire::actingAs($admin)
-            ->test(JudgeResource\Pages\EditJudge::class, ['record' => $judge->id])
+            ->test(UserResource\Pages\EditUser::class, ['record' => $judge->id])
             ->fillForm([
                 'show_scores_summary' => true,
                 'show_judging_log' => true,
@@ -225,6 +226,26 @@ class JudgeDashboardTest extends TestCase
         $this->assertTrue($judge->show_scores_summary);
         $this->assertTrue($judge->show_judging_log);
         $this->assertFalse($judge->show_analytics);
+    }
+
+    /**
+     * Решение заказчика (05.10): переключатели действуют и на тренера —
+     * разделы видны только при включённых тумблерах (кроме администратора).
+     */
+    public function test_coach_sections_follow_flags(): void
+    {
+        $coach = $this->makeUser('coach-flags@test.local', 'coach');
+
+        $this->actingAs($coach);
+        $this->assertFalse(ScoresSummary::canAccess());
+        $this->assertFalse(JudgingLogResource::canViewAny());
+        $this->assertTrue(Analytics::canAccess()); // включена по умолчанию
+
+        $coach->update(['show_scores_summary' => true, 'show_judging_log' => true, 'show_analytics' => false]);
+
+        $this->assertTrue(ScoresSummary::canAccess());
+        $this->assertTrue(JudgingLogResource::canViewAny());
+        $this->assertFalse(Analytics::canAccess());
     }
 
     /** Меню админа не меняется: все разделы на месте. */

@@ -5,8 +5,8 @@ namespace App\Filament\Pages;
 use App\Models\Competition;
 use App\Support\AiReportRunner;
 use App\Support\ScoresSummaryMatrix;
-use Filament\Pages\Page;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
@@ -40,8 +40,10 @@ class ScoresSummary extends Page
     /* ============== Доступ ============== */
 
     /**
-     * Доступ: админы (как на сервере) + прежний список e-mail + судьи,
-     * которым админ включил раздел в настройках судей (замечание 01.10).
+     * Доступ: администратор — всегда; остальные роли (судья, старший судья,
+     * тренер) — по переключателю «Сводка оценок» в карточке пользователя
+     * (раздел «Пользователи»), плюс прежний список e-mail (решение заказчика
+     * 05.10 — оставлен как дополнительный байпас).
      */
     public static function canAccess(): bool
     {
@@ -50,7 +52,7 @@ class ScoresSummary extends Page
         return $user && (
             $user->isAdmin()
             || in_array($user->email, self::ALLOWED_EMAILS, true)
-            || ($user->isJudge() && $user->show_scores_summary)
+            || $user->show_scores_summary
         );
     }
 
