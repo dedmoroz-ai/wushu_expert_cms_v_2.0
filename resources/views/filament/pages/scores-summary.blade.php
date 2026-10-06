@@ -38,9 +38,8 @@
             @if($competition && $matrix && count($matrix['rows']) > 0)
                 <a href="{{ route('competition.scores-summary', $competition) }}"
                         target="_blank" rel="noopener"
-                        style="background:#E6E9E8;color:#272727;padding:8px 18px;border-radius:8px;font-weight:500;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;"
-                        onmouseover="this.style.background='#d8dddc'"
-                        onmouseout="this.style.background='#E6E9E8'">
+                        class="btn-soft-gray"
+                        style="padding:8px 18px;border-radius:8px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                          stroke-width="2" stroke="currentColor" style="width:16px;height:16px;">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -50,9 +49,8 @@
                 </a>
                 <button type="button"
                         onclick="window.print()"
-                        style="background:#E6E9E8;color:#272727;padding:8px 18px;border-radius:8px;font-weight:500;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"
-                        onmouseover="this.style.background='#d8dddc'"
-                        onmouseout="this.style.background='#E6E9E8'">
+                        class="btn-soft-gray"
+                        style="padding:8px 18px;border-radius:8px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                          stroke-width="2" stroke="currentColor" style="width:16px;height:16px;">
                         <path stroke-linecap="round" stroke-linejoin="round"

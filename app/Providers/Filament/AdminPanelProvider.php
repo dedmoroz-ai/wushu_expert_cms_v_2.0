@@ -205,6 +205,52 @@ class AdminPanelProvider extends PanelProvider
                         color: #272727 !important;
                     }
 
+                    /* Тёмная тема (замечание заказчика 05.10): серые КНОПКИ
+                           становятся тёмными — фон #18181B, текст и иконки белые.
+                           Только кнопки: меню сайдбара, фоны и таблицы не тронуты
+                           (палитра `gray` остаётся дефолтной Filament). */
+                    :root.dark .fi-btn.fi-color-gray {
+                        background-color: #18181B !important;
+                        color: #FFFFFF !important;
+                    }
+
+                    :root.dark .fi-btn.fi-color-gray:hover {
+                        background-color: #27272A !important;
+                    }
+
+                    :root.dark .fi-btn.fi-color-gray .fi-btn-icon {
+                        color: #FFFFFF !important;
+                    }
+
+                    /* Серые кнопки кастомных страниц (пульты судей, «Сводка
+                           оценок»): общий класс вместо инлайн-заливок #E6E9E8,
+                           чтобы тёмная тема перекрашивала кнопки через :root.dark,
+                           а не ломалась JS-ховерами, сбрасывающими фон в светлый. */
+                    .btn-soft-gray {
+                        background-color: #E6E9E8 !important;
+                        color: #272727 !important;
+                        border-color: rgba(0, 0, 0, 0.08) !important;
+                    }
+
+                    .btn-soft-gray:hover:not(:disabled) {
+                        background-color: #d8dddc !important;
+                    }
+
+                    .btn-soft-gray:disabled {
+                        opacity: 0.5;
+                        cursor: not-allowed;
+                    }
+
+                    :root.dark .btn-soft-gray {
+                        background-color: #18181B !important;
+                        color: #FFFFFF !important;
+                        border-color: rgba(255, 255, 255, 0.12) !important;
+                    }
+
+                    :root.dark .btn-soft-gray:hover:not(:disabled) {
+                        background-color: #27272A !important;
+                    }
+
                     /* Тонкие ползунки скролла (замечание заказчика 05.10):
                            бегунок — синий #0A92BA в обеих темах,
                            дорожка — серая #E6E9E8 (светлая тема) и #18181B (тёмная) */

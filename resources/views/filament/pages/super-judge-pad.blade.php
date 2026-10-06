@@ -133,6 +133,8 @@
         }
         .btn-green-huge:active { transform: translateY(4px); border-bottom-width: 4px; box-shadow: none; }
         .btn-green-huge:disabled { background: #E6E9E8; border-bottom-color: rgba(0, 0, 0, 0.15); color: #272727; cursor: not-allowed; }
+        /* Тёмная тема (замечание заказчика 05.10): серые кнопки — фон #18181B, белый текст */
+        :root.dark .btn-green-huge:disabled { background: #18181B; border-bottom-color: rgba(255, 255, 255, 0.15); color: #FFFFFF; }
 
         /* Курсор */
         .blink { animation: blinking 1s infinite; border-right: 4px solid white; margin-left: 5px; }

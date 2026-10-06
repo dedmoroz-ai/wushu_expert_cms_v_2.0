@@ -53,6 +53,8 @@
         .btn-green { background-color: #229954; }
         .btn-blue { background-color: #0A92BA; }
         .btn-gray { background-color: #E6E9E8; color: #272727; border: 1px solid rgba(0, 0, 0, 0.08); }
+        /* Тёмная тема (замечание заказчика 05.10): серые кнопки — фон #18181B, белый текст */
+        :root.dark .btn-gray { background-color: #18181B; color: #FFFFFF; border-color: rgba(255, 255, 255, 0.12); }
 
         .main-card { background-color: #0f172a; border-radius: 15px; min-height: 480px; position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
         .card-content { padding-top: 45px; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }

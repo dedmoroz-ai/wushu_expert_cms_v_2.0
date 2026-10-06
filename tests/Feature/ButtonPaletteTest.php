@@ -22,6 +22,11 @@ use Tests\TestCase;
  *
  * Палитру `gray` перебивать НЕЛЬЗЯ (регресс 05.10): она красит текст пунктов
  * меню сайдбара (светлая тема) и фоны тёмной темы — остаётся дефолт Filament.
+ *
+ * Тёмная тема (замечание заказчика 05.10): серые КНОПКИ с заливкой #E6E9E8
+ * становятся тёмными — фон #18181B, текст/иконки белые; только кнопки, меню и
+ * фоны не тронуты. Кастомные страницы используют общий класс .btn-soft-gray
+ * (инлайн-заливки и JS-ховеры, сбрасывающие фон в светлый, удалены).
  */
 class ButtonPaletteTest extends TestCase
 {
@@ -157,6 +162,54 @@ class ButtonPaletteTest extends TestCase
         $response->assertSee('color: #272727', false);
         // Заливка цветных кнопок — shade 600 стандартного синего.
         $response->assertSee('--primary-600:10, 146, 186', false);
+    }
+
+    /**
+     * Тёмная тема (замечание заказчика 05.10): серые кнопки (заливка #E6E9E8)
+     * становятся тёмными — фон #18181B, текст/иконки белые. Только кнопки:
+     * меню сайдбара, фоны и таблицы не перекрашиваются.
+     */
+    public function test_dark_theme_recolors_gray_buttons(): void
+    {
+        $response = $this->get('/admin/login')->assertOk();
+
+        // Серые кнопки Filament и общий класс кастомных страниц.
+        $response->assertSee(':root.dark .fi-btn.fi-color-gray', false);
+        $response->assertSee(':root.dark .btn-soft-gray', false);
+        $response->assertSee('background-color: #18181B !important', false);
+        $response->assertSee('color: #FFFFFF !important', false);
+
+        // Светлый стандарт серых кнопок сохранён.
+        $response->assertSee('background-color: #E6E9E8 !important', false);
+    }
+
+    /**
+     * Кастомные страницы: серые кнопки — общий класс .btn-soft-gray; инлайн-заливки
+     * #E6E9E8 и JS-ховеры, сбрасывающие фон в светлый (ломают тёмную тему), удалены.
+     */
+    public function test_custom_pages_gray_buttons_use_soft_gray_class(): void
+    {
+        $summary = file_get_contents(base_path('resources/views/filament/pages/scores-summary.blade.php'));
+
+        $this->assertStringContainsString('btn-soft-gray', $summary);
+        $this->assertStringNotContainsString("this.style.background='#E6E9E8'", $summary, 'JS-ховер сбрасывает фон в светлый #E6E9E8 — ломает тёмную тему.');
+        $this->assertStringNotContainsString("this.style.background='#d8dddc'", $summary, 'JS-ховер сбрасывает фон в светлый #d8dddc — ломает тёмную тему.');
+        $this->assertStringNotContainsString('background:#E6E9E8', $summary, 'Инлайн-заливка #E6E9E8 не перекрашивается тёмной темой.');
+
+        $judge = file_get_contents(base_path('resources/views/filament/pages/judge-pad.blade.php'));
+
+        $this->assertStringContainsString('btn-soft-gray', $judge);
+        $this->assertStringNotContainsString('background-color: #E6E9E8', $judge, 'Инлайн-заливка #E6E9E8 (даже с !important) не перекрашивается тёмной темой.');
+
+        // Пульт старшего судьи: disabled-кнопка серая и в тёмной теме.
+        $super = file_get_contents(base_path('resources/views/filament/pages/super-judge-pad.blade.php'));
+
+        $this->assertStringContainsString(':root.dark .btn-green-huge:disabled { background: #18181B', $super);
+
+        // Пульт управления: .btn-gray серый и в тёмной теме.
+        $manage = file_get_contents(base_path('resources/views/filament/resources/competition-resource/pages/manage-competition.blade.php'));
+
+        $this->assertStringContainsString(':root.dark .btn-gray { background-color: #18181B', $manage);
     }
 
     /** Кастомные страницы: только стандартные цвета, старых оттенков нет. */

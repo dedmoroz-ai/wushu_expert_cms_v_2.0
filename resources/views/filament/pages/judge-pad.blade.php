@@ -233,7 +233,7 @@
                             {{ $n }}
                         </button>
                     @endforeach
-                    <button wire:click="addNumber('.')" class="pad-btn" style="background-color: #E6E9E8; border-color: #E6E9E8; color: #272727;">.</button>
+                    <button wire:click="addNumber('.')" class="pad-btn btn-soft-gray">.</button>
                     <button wire:click="addNumber(0)" class="pad-btn">0</button>
                     <button wire:click="backspace" class="pad-btn btn-red">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
@@ -294,8 +294,7 @@
                     </button>
                 @else
                     <button disabled 
-                            class="w-full text-gray-400 font-bold text-xl py-4 rounded-xl uppercase tracking-widest cursor-not-allowed"
-                            style="background-color: #E6E9E8 !important; border: 1px solid rgba(0, 0, 0, 0.08) !important; color: #272727 !important; opacity: 0.5;">
+                            class="w-full btn-soft-gray font-bold text-xl py-4 rounded-xl uppercase tracking-widest">
                         ВВЕДИТЕ ОЦЕНКУ
                     </button>
                 @endif
@@ -303,8 +302,7 @@
                 {{-- Правило 8.7: выход из режима исправления без сохранения --}}
                 @if($isEditing)
                     <button wire:click="cancelEditing"
-                            class="w-full mt-3 text-slate-300 font-bold text-base py-3 rounded-xl uppercase tracking-widest"
-                            style="background-color: #E6E9E8; border: 1px solid rgba(0, 0, 0, 0.08); color: #272727;">
+                            class="w-full mt-3 btn-soft-gray font-bold text-base py-3 rounded-xl uppercase tracking-widest">
                         Отмена
                     </button>
                 @endif
