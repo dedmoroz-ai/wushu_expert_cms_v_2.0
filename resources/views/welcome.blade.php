@@ -82,13 +82,13 @@
                 <!-- КНОПКА ВХОДА -->
                 <div class="max-w-md w-full mx-auto lg:mx-0">
                     @auth
-                        <a href="{{ url('/admin') }}" class="group relative w-full flex items-center justify-center gap-3 bg-green-600 hover:bg-green-500 text-white font-bold text-lg py-4 lg:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-green-900/20 hover:shadow-green-500/30 transform hover:-translate-y-1 active:scale-95">
+                        <a href="{{ url('/admin') }}" class="group relative w-full flex items-center justify-center gap-3 bg-[#229954] hover:bg-[#1d7f46] text-white font-bold text-lg py-4 lg:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-green-900/20 hover:shadow-green-500/30 transform hover:-translate-y-1 active:scale-95">
                             <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-white/0 via-white/10 to-white/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             ЛИЧНЫЙ КАБИНЕТ
                         </a>
                     @else
-                        <a href="{{ url('/admin/login') }}" class="group relative w-full flex items-center justify-center gap-3 bg-red-600 hover:bg-red-500 text-white font-bold text-lg py-4 lg:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-red-900/20 hover:shadow-red-600/40 transform hover:-translate-y-1 active:scale-95">
+                        <a href="{{ url('/admin/login') }}" class="group relative w-full flex items-center justify-center gap-3 bg-[#DC3532] hover:bg-[#b82b29] text-white font-bold text-lg py-4 lg:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-red-900/20 hover:shadow-red-600/40 transform hover:-translate-y-1 active:scale-95">
                             <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-white/0 via-white/10 to-white/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
                             ВОЙТИ В СИСТЕМУ

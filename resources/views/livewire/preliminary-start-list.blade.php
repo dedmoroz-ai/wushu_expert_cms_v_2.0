@@ -64,7 +64,7 @@
                 <button
                     type="button"
                     onclick="window.print()"
-                    class="print:hidden px-5 py-2.5 rounded-lg bg-gray-800 text-white text-sm font-semibold uppercase tracking-wider hover:bg-gray-700"
+                    class="print:hidden px-5 py-2.5 rounded-lg bg-[#E6E9E8] text-[#272727] text-sm font-semibold uppercase tracking-wider hover:bg-[#d8dddc]"
                 >
                     Печать
                 </button>

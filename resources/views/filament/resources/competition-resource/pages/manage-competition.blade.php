@@ -12,9 +12,9 @@
 
         /* 2. Оранжевая пульсация */
         @keyframes orange-pulse-anim {
-            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); border-color: #f59e0b; }
-            70% { box-shadow: 0 0 0 15px rgba(245, 158, 11, 0); border-color: #fbbf24; }
-            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); border-color: #f59e0b; }
+            0% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.4); border-color: #E67E22; }
+            70% { box-shadow: 0 0 0 15px rgba(230, 126, 34, 0); border-color: #eda35f; }
+            100% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0); border-color: #E67E22; }
         }
 
         /* --- КЛАССЫ ДЛЯ БЛОКОВ --- */
@@ -32,7 +32,7 @@
 
         .pulse-orange {
             animation: orange-pulse-anim 2s infinite;
-            border-color: #f59e0b;
+            border-color: #E67E22;
         }
 
         .pulse-gray {
@@ -48,11 +48,11 @@
         .btn-custom:hover { opacity: 0.9; transform: scale(0.99); }
         .btn-custom:active { transform: scale(0.97); }
 
-        .btn-yellow { background-color: #f59e0b; color: black; }
-        .btn-red { background-color: #dc2626; }
-        .btn-green { background-color: #16a34a; }
-        .btn-blue { background-color: #2563eb; }
-        .btn-gray { background-color: #374151; border: 1px solid #4b5563; }
+        .btn-yellow { background-color: #E67E22; color: #FFFFFF; }
+        .btn-red { background-color: #DC3532; }
+        .btn-green { background-color: #229954; }
+        .btn-blue { background-color: #0A92BA; }
+        .btn-gray { background-color: #E6E9E8; color: #272727; border: 1px solid rgba(0, 0, 0, 0.08); }
 
         .main-card { background-color: #0f172a; border-radius: 15px; min-height: 480px; position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
         .card-content { padding-top: 45px; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
@@ -201,7 +201,7 @@
                     Назад
                 </button>
 
-                <button wire:click="nextAthlete" class="btn-custom btn-blue" style="height: 55px; font-size: 1.2rem; box-shadow: 0 0 15px rgba(37,99,235,0.3);">
+                <button wire:click="nextAthlete" class="btn-custom btn-blue" style="height: 55px; font-size: 1.2rem; box-shadow: 0 0 15px rgba(10,146,186,0.3);">
                     СЛЕДУЮЩИЙ УЧАСТНИК
                     <svg style="width: 24px; height: 24px; margin-left: 10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                 </button>

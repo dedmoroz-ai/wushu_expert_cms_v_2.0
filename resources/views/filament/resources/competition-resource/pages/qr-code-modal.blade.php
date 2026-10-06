@@ -53,23 +53,23 @@
     }
     
     .qr-modal-isolated .qr-button-blue {
-        background-color: #2563eb;
+        background-color: #0A92BA;
         color: white !important;
     }
     
     .qr-modal-isolated .qr-button-blue:hover {
-        background-color: #1d4ed8;
+        background-color: #0b7ea4;
     }
     
     .qr-modal-isolated .qr-button-green {
-        background-color: #16a34a;
+        background-color: #229954;
         color: white !important;
         width: 100%;
         text-align: center;
     }
     
     .qr-modal-isolated .qr-button-green:hover {
-        background-color: #15803d;
+        background-color: #1d7f46;
     }
     
     .qr-modal-isolated .qr-description {

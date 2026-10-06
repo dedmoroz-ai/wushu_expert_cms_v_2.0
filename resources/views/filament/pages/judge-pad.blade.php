@@ -17,9 +17,9 @@
         }
 
         .pad-btn {
-            background-color: #37578a; 
+            background-color: #0A92BA; 
             color: white;
-            border: 1px solid #37578a;
+            border: 1px solid #0A92BA;
             border-radius: 12px;
             font-size: 2rem;
             font-weight: 700;
@@ -37,9 +37,9 @@
         }
 
         .btn-red {
-            background-color: #f31111 !important;
-            border-color: #9e0505 !important;
-            box-shadow: 0 4px 0 #7f1d1d !important;
+            background-color: #DC3532 !important;
+            border-color: #b32b29 !important;
+            box-shadow: 0 4px 0 #9c2724 !important;
         }
 
         /* 4. ПОЛЕ ВВОДА */
@@ -53,7 +53,7 @@
             justify-content: center;
             font-size: 4rem;
             font-weight: 900;
-            border: 4px solid #37578a;
+            border: 4px solid #0A92BA;
             margin-bottom: 20px;
         }
 
@@ -233,7 +233,7 @@
                             {{ $n }}
                         </button>
                     @endforeach
-                    <button wire:click="addNumber('.')" class="pad-btn" style="background-color: #2a436b;">.</button>
+                    <button wire:click="addNumber('.')" class="pad-btn" style="background-color: #E6E9E8; border-color: #E6E9E8; color: #272727;">.</button>
                     <button wire:click="addNumber(0)" class="pad-btn">0</button>
                     <button wire:click="backspace" class="pad-btn btn-red">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
@@ -272,7 +272,7 @@
                         <button wire:click="startEditing"
                                 onclick="return confirm('Исправить свою оценку?')"
                                 class="mt-6 px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-white active:scale-95 transition-transform"
-                                style="background-color: #d97706; border-bottom: 4px solid #92400e;">
+                                style="background-color: #E67E22; border-bottom: 4px solid #b3611b;">
                             Исправить оценку
                         </button>
                     @endif
@@ -289,13 +289,13 @@
                 @if(is_numeric($score) || $inputMode === 'codes')
                     <button wire:click="submitScore" 
                             class="w-full text-white font-black text-xl py-4 rounded-xl shadow-lg uppercase tracking-widest active:scale-95 transition-transform"
-                            style="background-color: #16a34a !important; border-bottom: 4px solid #14532d !important;">
+                            style="background-color: #229954 !important; border-bottom: 4px solid #18693c !important;">
                         {{ $isEditing ? 'СОХРАНИТЬ ИСПРАВЛЕНИЕ' : 'ПОДТВЕРДИТЬ' }}
                     </button>
                 @else
                     <button disabled 
                             class="w-full text-gray-400 font-bold text-xl py-4 rounded-xl uppercase tracking-widest cursor-not-allowed"
-                            style="background-color: #374151 !important; border: 1px solid #4b5563 !important; opacity: 0.5;">
+                            style="background-color: #E6E9E8 !important; border: 1px solid rgba(0, 0, 0, 0.08) !important; color: #272727 !important; opacity: 0.5;">
                         ВВЕДИТЕ ОЦЕНКУ
                     </button>
                 @endif
@@ -304,7 +304,7 @@
                 @if($isEditing)
                     <button wire:click="cancelEditing"
                             class="w-full mt-3 text-slate-300 font-bold text-base py-3 rounded-xl uppercase tracking-widest"
-                            style="background-color: #1e293b; border: 1px solid #334155;">
+                            style="background-color: #E6E9E8; border: 1px solid rgba(0, 0, 0, 0.08); color: #272727;">
                         Отмена
                     </button>
                 @endif

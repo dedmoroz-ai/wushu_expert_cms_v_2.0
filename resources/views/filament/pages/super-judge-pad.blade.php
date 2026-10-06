@@ -118,7 +118,7 @@
 
         /* --- 7. КНОПКА --- */
         .btn-green-huge {
-            background-color: #009419;
+            background-color: #229954;
             color: white;
             font-size: 1.3rem;
             font-weight: 500;
@@ -126,13 +126,13 @@
             padding: 10px 20px;
             border-radius: 10px;
             border: none;
-            border-bottom: 2px solid #14532d;
+            border-bottom: 2px solid #18693c;
             cursor: pointer;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             transition: transform 0.1s;
         }
         .btn-green-huge:active { transform: translateY(4px); border-bottom-width: 4px; box-shadow: none; }
-        .btn-green-huge:disabled { background: #334155; border-bottom-color: #1e293b; color: #94a3b8; cursor: not-allowed; }
+        .btn-green-huge:disabled { background: #E6E9E8; border-bottom-color: rgba(0, 0, 0, 0.15); color: #272727; cursor: not-allowed; }
 
         /* Курсор */
         .blink { animation: blinking 1s infinite; border-right: 4px solid white; margin-left: 5px; }
@@ -230,7 +230,7 @@
                             @if(!$isViewOnly && !is_null($j['score']))
                                 <button wire:click="resetJudgeScore({{ $j['id'] }})"
                                         onclick="return confirm('Снять оценку судьи {{ $j['name'] }}? Он выставит её заново.')"
-                                        style="margin-top: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #fca5a5; background: transparent; border: 1px solid #7f1d1d; border-radius: 6px; padding: 2px 8px; cursor: pointer;">
+                                        style="margin-top: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #FFFFFF; background: #DC3532; border: 1px solid #DC3532; border-radius: 6px; padding: 2px 8px; cursor: pointer;">
                                     Снять
                                 </button>
                             @endif
@@ -255,7 +255,7 @@
                         @if($myScoreSaved && $canScoreSelf)
                             <button wire:click="editMyScore"
                                     onclick="return confirm('Исправить свою оценку?')"
-                                    style="margin-top: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #fcd34d; background: transparent; border: 1px solid #92400e; border-radius: 6px; padding: 2px 8px; cursor: pointer;">
+                                    style="margin-top: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #FFFFFF; background: #E67E22; border: 1px solid #E67E22; border-radius: 6px; padding: 2px 8px; cursor: pointer;">
                                 Исправить
                             </button>
                         @endif
@@ -325,7 +325,7 @@
                                     @php $cnt = $this->pressCounts[$dc['id']] ?? 0; $locked = $cnt >= \App\Support\JudgingCalculator::MAX_CODE_REPEATS; @endphp
                                     <button wire:click="pressCode({{ $dc['id'] }})" @disabled($locked)
                                             title="{{ $dc['label'] }}{{ $locked ? ' — нажат максимальное число раз' : '' }}"
-                                            style="min-width:90px; padding:8px 10px; border-radius:8px; background:#1e3a5f; color:white; border:2px solid {{ $cnt > 0 ? '#fbbf24' : '#0992B8' }}; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : 'cursor:pointer;' }}">
+                                            style="min-width:90px; padding:8px 10px; border-radius:8px; background:#0A92BA; color:white; border:2px solid {{ $cnt > 0 ? '#E67E22' : '#0A92BA' }}; {{ $locked ? 'opacity:0.35; cursor:not-allowed;' : 'cursor:pointer;' }}">
                                         <div style="font-weight:900; font-size:1.1rem;">{{ $dc['code'] }}</div>
                                         <div style="font-size:0.8rem;">−{{ number_format($dc['value'], 3, '.', '') }}{{ $cnt > 0 ? ' ×' . $cnt : '' }}</div>
                                     </button>
@@ -334,7 +334,7 @@
                         @endforeach
                         <div style="display:flex; justify-content:center; margin-top:10px;">
                             <button wire:click="undoLastCode" @disabled(count($pressedCodes) === 0)
-                                    style="padding:8px 14px; border-radius:8px; background:#7f1d1d; color:white; border:none; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : 'cursor:pointer;' }}">
+                                    style="padding:8px 14px; border-radius:8px; background:#DC3532; color:white; border:none; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : 'cursor:pointer;' }}">
                                 ОТМЕНИТЬ ПОСЛЕДНЮЮ
                             </button>
                         </div>
@@ -372,7 +372,7 @@
                     <div style="width: 1000px; max-width: 95%; margin-bottom: 20px;">
                         <input type="text" wire:model.live.debounce.500ms="finalScoreReason"
                                placeholder="Причина отклонения от авто-расчёта (будет записана в журнал)"
-                               style="width: 100%; padding: 12px 16px; border-radius: 10px; background: #0f172a; border: 1px solid #f59e0b; color: white; font-size: 1rem;">
+                               style="width: 100%; padding: 12px 16px; border-radius: 10px; background: #0f172a; border: 1px solid #E67E22; color: white; font-size: 1rem;">
                     </div>
                 @endif
 

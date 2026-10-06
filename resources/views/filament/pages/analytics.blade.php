@@ -69,10 +69,10 @@
             transition: background 0.15s;
         }
         .report-btn-primary {
-            background: #2563eb;
+            background: #0A92BA;
             color: #fff;
         }
-        .report-btn-primary:hover { background: #1d4ed8; }
+        .report-btn-primary:hover { background: #0b7ea4; }
         .empty-state {
             background: #fff;
             border: 2px dashed #d1d5db;

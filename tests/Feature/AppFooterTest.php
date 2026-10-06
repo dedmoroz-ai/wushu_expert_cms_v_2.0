@@ -102,8 +102,15 @@ class AppFooterTest extends TestCase
         $response->assertSee('images/c989.svg', false);
         // Порядок (04.10): имя, затем логотип разработчика.
         $response->assertSeeInOrder(['МАКС МОРОЗ', 'images/d989.svg']);
-        // Компенсация фиксированной полосы футера — контент не прячется под ней.
+        // Компенсация фиксированной полосы футера — padding-bottom на контенте
+        // (.fi-main) и навигации (.fi-sidebar-nav). Правка 05.10 («съезжающая»
+        // шапка/сайдбар): прежний приём (padding-bottom на body +
+        // min-height: calc(100vh - 50px)) убран — он давал «мёртвый ход»
+        // прокрутки, из-за которого в конце страницы sticky-топбар и
+        // sticky-сайдбар разъезжались с контентом.
+        $response->assertSee('padding-bottom: 60px', false);
         $response->assertSee('padding-bottom: 50px', false);
+        $response->assertDontSee('calc(100vh - 50px)', false);
     }
 
     private function makeUser(string $email): User

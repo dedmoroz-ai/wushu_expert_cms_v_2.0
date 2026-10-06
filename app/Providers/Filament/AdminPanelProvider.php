@@ -10,7 +10,6 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -29,9 +28,17 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('Wushu Expert CMS')
+            // Единые цвета кнопок (замечание заказчика 05.10): пять стандартов —
+            // серый #E6E9E8 (текст #272727), синий #0A92BA, зелёный #229954,
+            // оранжевый #E67E22, красный #DC3532 (текст #FFFFFF). Shade 600 —
+            // заливка кнопки (bg-custom-600), shade 500 — осветлённый hover.
             ->colors([
-                'primary' => Color::Sky,
-                'danger' => '#dd0000',
+                'primary' => self::buttonPalette('#0A92BA'),
+                'info' => self::buttonPalette('#0A92BA'),
+                'success' => self::buttonPalette('#229954'),
+                'warning' => self::buttonPalette('#E67E22'),
+                'danger' => self::buttonPalette('#DC3532'),
+                'gray' => self::buttonPalette('#E6E9E8'),
             ])
             ->navigationGroups([
                 'Управление',
@@ -156,17 +163,44 @@ class AdminPanelProvider extends PanelProvider
                         display: inline-block;
                     }
 
-                    /* Компенсация фиксированной полосы футера */
-                    body {
-                        padding-bottom: 50px;
+                    /* Компенсация фиксированной полосы футера (50px).
+                           Правка 05.10 («съезжающая» шапка/сайдбар): padding-bottom
+                           на body нельзя — он даёт «мёртвый ход» прокрутки, из-за
+                           которого в конце страницы sticky-топбар и sticky-сайдбар
+                           (h-screen) уезжают вверх на 50px и разъезжаются с контентом.
+                           Компенсация футера — padding-bottom контента и навигации. */
+                    .fi-layout {
+                        min-height: 100vh !important;
                     }
 
-                    .fi-layout {
-                        min-height: calc(100vh - 50px) !important;
+                    .fi-main {
+                        padding-bottom: 60px;
                     }
 
                     .fi-sidebar-nav {
                         padding-bottom: 50px;
+                    }
+
+                    /* Сайдбар всегда прилипает к верху окна и не «съезжает»
+                           вместе с контентом в конце прокрутки */
+                    .fi-sidebar.fi-main-sidebar {
+                        top: 0;
+                    }
+
+                    /* Серые кнопки — стандарт #E6E9E8 (текст #272727):
+                           встроенный стиль Filament (белая заливка) перебивается,
+                           т.к. панель грузит только @filamentStyles */
+                    .fi-btn.fi-color-gray {
+                        background-color: #E6E9E8 !important;
+                        color: #272727 !important;
+                    }
+
+                    .fi-btn.fi-color-gray:hover {
+                        background-color: #d8dddc !important;
+                    }
+
+                    .fi-btn.fi-color-gray .fi-btn-icon {
+                        color: #272727 !important;
                     }
                 </style>'
             )
@@ -212,5 +246,48 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    /**
+     * Палитра Filament (shade 50–950) из «плоского» hex стандартного цвета
+     * кнопки (замечание заказчика 05.10). Shade 600 — заливка кнопки
+     * (bg-custom-600) равен базовому цвету; shade 500 (hover) и светлые
+     * оттенки — осветление к белому, 700–950 — затемнение.
+     *
+     * @return array<int, string> RGB-строки «r, g, b»
+     */
+    private static function buttonPalette(string $hex): array
+    {
+        $red = (int) hexdec(substr($hex, 1, 2));
+        $green = (int) hexdec(substr($hex, 3, 2));
+        $blue = (int) hexdec(substr($hex, 5, 2));
+
+        $light = static fn (float $intensity): string => sprintf(
+            '%d, %d, %d',
+            (int) round((255 - $red) * $intensity + $red),
+            (int) round((255 - $green) * $intensity + $green),
+            (int) round((255 - $blue) * $intensity + $blue),
+        );
+
+        $dark = static fn (float $factor): string => sprintf(
+            '%d, %d, %d',
+            (int) round($red * $factor),
+            (int) round($green * $factor),
+            (int) round($blue * $factor),
+        );
+
+        return [
+            50 => $light(0.95),
+            100 => $light(0.9),
+            200 => $light(0.75),
+            300 => $light(0.6),
+            400 => $light(0.35),
+            500 => $light(0.12),
+            600 => "{$red}, {$green}, {$blue}",
+            700 => $dark(0.9),
+            800 => $dark(0.75),
+            900 => $dark(0.6),
+            950 => $dark(0.4),
+        ];
     }
 }
