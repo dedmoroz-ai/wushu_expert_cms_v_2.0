@@ -7,6 +7,27 @@
         {{-- Подключаем Tailwind через CDN --}}
         <script src="https://cdn.tailwindcss.com"></script>
         @livewireStyles
+        <style>
+            /* Тонкие ползунки скролла: бегунок — синий #0A92BA, дорожка — серая #E6E9E8 */
+            * {
+                scrollbar-width: thin;
+                scrollbar-color: #0A92BA #E6E9E8;
+            }
+
+            ::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+
+            ::-webkit-scrollbar-track {
+                background: #E6E9E8;
+            }
+
+            ::-webkit-scrollbar-thumb {
+                background-color: #0A92BA;
+                border-radius: 3px;
+            }
+        </style>
     </head>
     <body class="antialiased bg-gray-50">
         {{ $slot }}

@@ -32,13 +32,15 @@ class AdminPanelProvider extends PanelProvider
             // серый #E6E9E8 (текст #272727), синий #0A92BA, зелёный #229954,
             // оранжевый #E67E22, красный #DC3532 (текст #FFFFFF). Shade 600 —
             // заливка кнопки (bg-custom-600), shade 500 — осветлённый hover.
+            // Палитру `gray` НЕ перебиваем (правка 05.10): она красит не только
+            // кнопки, но и текст пунктов меню сайдбара (светлая тема) и фоны
+            // тёмной темы. Серые КНОПКИ — стандарт #E6E9E8/#272727 инлайн-CSS ниже.
             ->colors([
                 'primary' => self::buttonPalette('#0A92BA'),
                 'info' => self::buttonPalette('#0A92BA'),
                 'success' => self::buttonPalette('#229954'),
                 'warning' => self::buttonPalette('#E67E22'),
                 'danger' => self::buttonPalette('#DC3532'),
-                'gray' => self::buttonPalette('#E6E9E8'),
             ])
             ->navigationGroups([
                 'Управление',
@@ -201,6 +203,27 @@ class AdminPanelProvider extends PanelProvider
 
                     .fi-btn.fi-color-gray .fi-btn-icon {
                         color: #272727 !important;
+                    }
+
+                    /* Тонкие ползунки скролла (замечание заказчика 05.10):
+                           бегунок — синий #0A92BA, дорожка — серая #E6E9E8 */
+                    * {
+                        scrollbar-width: thin;
+                        scrollbar-color: #0A92BA #E6E9E8;
+                    }
+
+                    ::-webkit-scrollbar {
+                        width: 6px;
+                        height: 6px;
+                    }
+
+                    ::-webkit-scrollbar-track {
+                        background: #E6E9E8;
+                    }
+
+                    ::-webkit-scrollbar-thumb {
+                        background-color: #0A92BA;
+                        border-radius: 3px;
                     }
                 </style>'
             )

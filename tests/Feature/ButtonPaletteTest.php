@@ -15,24 +15,33 @@ use Tests\TestCase;
  * оранжевый #E67E22, красный #DC3532 (текст #FFFFFF).
  *
  * Палитры Filament (primary/info — синий, success — зелёный, warning —
- * оранжевый, danger — красный, gray — серый) заданы так, что shade 600
- * (заливка кнопки — bg-custom-600) равен стандартному hex. Серые кнопки
- * Filament переопределены инлайн-CSS (#E6E9E8 / #272727), кастомные кнопки
- * страниц (пульты, модалки, протоколы, welcome) — локальными стилями.
+ * оранжевый, danger — красный) заданы так, что shade 600 (заливка кнопки —
+ * bg-custom-600) равен стандартному hex. Серые кнопки Filament переопределены
+ * инлайн-CSS (#E6E9E8 / #272727), кастомные кнопки страниц (пульты, модалки,
+ * протоколы, welcome) — локальными стилями.
+ *
+ * Палитру `gray` перебивать НЕЛЬЗЯ (регресс 05.10): она красит текст пунктов
+ * меню сайдбара (светлая тема) и фоны тёмной темы — остаётся дефолт Filament.
  */
 class ButtonPaletteTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Стандартные цвета: alias палитры → RGB «r, g, b» shade 600. */
+    /** Стандартные цвета кнопок: alias палитры → RGB «r, g, b» shade 600. */
     private const STANDARD_SHADE_600 = [
         'primary' => '10, 146, 186', // #0A92BA
         'info' => '10, 146, 186', // #0A92BA
         'success' => '34, 153, 84', // #229954
         'warning' => '230, 126, 34', // #E67E22
         'danger' => '220, 53, 50', // #DC3532
-        'gray' => '230, 233, 232', // #E6E9E8
     ];
+
+    /**
+     * Палитра `gray` — дефолт Filament (Color::Zinc). Регресс 05.10: перебивка
+     * на светлый #E6E9E8 сделала невидимыми пункты меню сайдбара (светлая
+     * тема) и «посветлела» тёмная тема (фоны gray-950).
+     */
+    private const FILAMENT_DEFAULT_GRAY_SHADE_600 = '82, 82, 91'; // Color::Zinc
 
     /** Старые оттенки, которых больше не должно быть в кнопках. */
     private const LEGACY_BUTTON_COLORS = [
@@ -78,7 +87,8 @@ class ButtonPaletteTest extends TestCase
 
     /**
      * Палитры Filament: shade 600 (заливка кнопок — bg-custom-600) равен
-     * стандартному hex пяти цветов кнопок.
+     * стандартному hex пяти цветов кнопок; `gray` — дефолт Filament (Zinc,
+     * не перебит — иначе страдают меню сайдбара и тёмная тема).
      */
     public function test_filament_button_palettes_match_standard_colors(): void
     {
@@ -92,6 +102,24 @@ class ButtonPaletteTest extends TestCase
             $this->assertArrayHasKey($alias, $colors, "Палитра «{$alias}» не зарегистрирована.");
             $this->assertSame($rgb, $colors[$alias][600], "Shade 600 палитры «{$alias}» не равен стандартному цвету кнопки.");
         }
+
+        // `gray` не переопределён — остаётся дефолтным Color::Zinc.
+        $this->assertArrayHasKey('gray', $colors, 'Палитра «gray» не зарегистрирована.');
+        $this->assertSame(
+            self::FILAMENT_DEFAULT_GRAY_SHADE_600,
+            $colors['gray'][600],
+            'Палитра «gray» должна остаться дефолтной Filament (Zinc): она красит меню сайдбара и тёмную тему.',
+        );
+    }
+
+    /** Ползунки скролла: тонкие, бегунок #0A92BA, дорожка #E6E9E8. */
+    public function test_thin_scrollbar_styles_are_applied(): void
+    {
+        $response = $this->get('/admin/login')->assertOk();
+
+        $response->assertSee('scrollbar-width: thin', false);
+        $response->assertSee('scrollbar-color: #0A92BA #E6E9E8', false);
+        $response->assertSee('::-webkit-scrollbar', false);
     }
 
     /** Панель: в разметке есть стандартные серые кнопки и синий primary. */
