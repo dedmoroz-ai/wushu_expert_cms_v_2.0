@@ -2,19 +2,21 @@
      кнопка открывает HTML-страницу с заявками актуального соревнования в новой
      вкладке (только авторизованным: тренер и администратор). --}}
 <x-filament-widgets::widget class="fi-pre-start-list-widget">
-    <x-filament::section
-        heading="Предварительный стартовый протокол"
-        description="По поданным заявкам на актуальное соревнование (не финальные результаты)."
-    >
+    {{-- Замечание заказчика (05.10, правка): заголовок секции и описание убраны. --}}
+    <x-filament::section>
         @if ($competition)
             <div class="flex items-center gap-x-3">
                 <div class="flex-1">
+                    {{-- Замечание заказчика (05.10, правка 2): заголовок виджета —
+                         статический «Стартовый протокол» (название соревнования
+                         не показывается), подпись — «Предварительный (по поданным
+                         заявкам)». --}}
                     <h2 class="grid flex-1 text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                        {{ $competition->name }}
+                        Стартовый протокол
                     </h2>
 
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ $competition->datesLabel() }}{{ $competition->placeLabel() ? ' | '.$competition->placeLabel() : '' }}
+                        Предварительный (по поданным заявкам)
                     </p>
                 </div>
 

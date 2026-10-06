@@ -226,16 +226,19 @@ class CompetitionResource extends Resource
     {
         return $table
             ->columns([
+                // Замечание заказчика (05.10): колонка «Организатор» убрана;
+                // первой колонкой идёт аватар турнира из настроек соревнования
+                // (круглый, как у пользователей в разделе «Пользователи»).
+                // Без загруженного аватара ячейка остаётся пустой.
+                Tables\Columns\ImageColumn::make('avatar_path')
+                    ->label('Аватар')
+                    ->circular(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
                     ->label('Название')
-                    ->wrap(),
-
-                Tables\Columns\TextColumn::make('federation.name')
-                    ->label('Организатор')
-                    ->sortable()
                     ->wrap(),
 
                 Tables\Columns\TextColumn::make('city')

@@ -22,10 +22,20 @@
                 @endif
 
                 <div class="flex-1">
+                    {{-- Замечание заказчика (05.10): на дашборде администратора
+                         название кликабельно — переход в карточку соревнования,
+                         как через пункт меню «Соревнования» в сайдбаре.
+                         Остальным ролям — обычный текст. --}}
                     <h2
                         class="grid flex-1 text-base font-semibold leading-6 text-gray-950 dark:text-white"
                     >
-                        {{ $competition->name }}
+                        @if ($competitionEditUrl)
+                            <a href="{{ $competitionEditUrl }}" class="underline">
+                                {{ $competition->name }}
+                            </a>
+                        @else
+                            {{ $competition->name }}
+                        @endif
                     </h2>
 
                     <p class="text-sm text-gray-500 dark:text-gray-400">

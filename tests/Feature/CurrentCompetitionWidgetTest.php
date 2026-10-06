@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\CompetitionResource\Pages\EditCompetition;
 use App\Filament\Widgets\AccountWidget;
 use App\Filament\Widgets\CurrentCompetitionWidget;
 use App\Filament\Widgets\StatsOverview;
@@ -105,6 +106,55 @@ class CurrentCompetitionWidgetTest extends TestCase
             ->get('/admin')
             ->assertOk()
             ->assertSee('fi-current-competition-widget', false);
+    }
+
+    /**
+     * Замечание заказчика (05.10): на дашборде администратора название
+     * соревнования кликабельно — ссылка на карточку соревнования (как через
+     * пункт меню «Соревнования» в сайдбаре).
+     */
+    public function test_admin_competition_name_links_to_competition_page(): void
+    {
+        $competition = $this->makeCompetition();
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        $html = Livewire::actingAs($this->makeUser('name-link-admin@test.local', 'admin'))
+            ->test(CurrentCompetitionWidget::class)
+            ->html();
+
+        $url = EditCompetition::getUrl(['record' => $competition]);
+
+        $this->assertStringContainsString(
+            'href="'.$url.'"',
+            $html,
+            'Название соревнования на дашборде администратора должно быть ссылкой на карточку соревнования (замечание заказчика 05.10).',
+        );
+    }
+
+    /** Остальным ролям (тренер, судьи) название показывается обычным текстом. */
+    public function test_non_admin_competition_name_is_not_a_link(): void
+    {
+        $club = Club::create(['name' => 'Клуб '.str()->random(5)]);
+
+        $this->makeCompetition();
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        foreach ([
+            'name-link-coach@test.local' => ['coach', ['club_id' => $club->id]],
+            'name-link-judge@test.local' => ['judge', []],
+        ] as $email => [$role, $flags]) {
+            $html = Livewire::actingAs($this->makeUser($email, $role, $flags))
+                ->test(CurrentCompetitionWidget::class)
+                ->html();
+
+            $this->assertStringNotContainsString(
+                '<a href=',
+                $html,
+                "Роль «{$role}» видит название соревнования обычным текстом (замечание заказчика 05.10).",
+            );
+        }
     }
 
     /** На дашборде тренера плашка «Актуальное соревнование» рендерится, как у админа. */

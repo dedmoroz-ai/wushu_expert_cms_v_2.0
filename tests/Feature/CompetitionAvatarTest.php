@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\CompetitionResource\Pages\EditCompetition;
+use App\Filament\Resources\CompetitionResource\Pages\ListCompetitions;
 use App\Filament\Widgets\CurrentCompetitionWidget;
 use App\Models\Competition;
 use App\Models\Federation;
@@ -91,6 +92,32 @@ class CompetitionAvatarTest extends TestCase
         // competitions/avatars (не в avatars, как у пользователей).
         $this->assertStringStartsWith('competitions/avatars/', $competition->avatar_path);
         Storage::disk('public')->assertExists($competition->avatar_path);
+    }
+
+    /**
+     * Замечание заказчика (05.10): в списке соревнований колонка «Организатор»
+     * убрана; первой колонкой идёт аватар турнира из настроек соревнования.
+     */
+    public function test_competitions_table_shows_avatar_column_first_without_organizer(): void
+    {
+        $this->makeCompetition([
+            'avatar_path' => 'competitions/avatars/cup.png',
+        ]);
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        $table = Livewire::actingAs($this->makeUser('comp-avatar-table@test.local', 'admin'))
+            ->test(ListCompetitions::class)
+            ->assertTableColumnExists('avatar_path')
+            ->assertTableColumnDoesNotExist('federation.name');
+
+        $columns = $table->instance()->getTable()->getColumns();
+
+        $this->assertSame(
+            'avatar_path',
+            array_key_first($columns),
+            'Аватар турнира — первая колонка списка соревнований (замечание заказчика 05.10).',
+        );
     }
 
     /**

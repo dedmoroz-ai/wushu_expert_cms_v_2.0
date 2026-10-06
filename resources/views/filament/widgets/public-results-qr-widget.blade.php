@@ -2,38 +2,49 @@
      с QR-кодом, ссылкой и кнопкой «Копировать» (по образцу qr-code-modal.blade.php).
      Виден только тренеру и администратору. --}}
 <x-filament-widgets::widget class="fi-public-results-qr-widget">
-    <x-filament::section
-        heading="QR-код страницы результатов"
-        description="Ссылка и QR-код публичной страницы с результатами — поделитесь со зрителями."
-    >
+    {{-- Замечание заказчика (05.10, правка): заголовок секции и описание убраны. --}}
+    <x-filament::section>
         @if ($competition)
             <div x-data="{ open: false }">
                 <div class="flex items-center gap-x-3">
                     <div class="flex-1">
+                        {{-- Замечание заказчика (05.10, правка 2): заголовок виджета —
+                             статический «Результаты соревнования» (название соревнования
+                             не показывается), подпись — «(поделиться)». Ссылка
+                             остаётся внутри модалки. --}}
                         <h2 class="grid flex-1 text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                            {{ $competition->name }}
+                            Результаты соревнования
                         </h2>
 
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            {{ $publicUrl }}
+                            (поделиться)
                         </p>
                     </div>
 
+                    {{-- Замечание заказчика (05.10, правка): короткая подпись кнопки. --}}
                     <x-filament::button color="gray" icon="heroicon-o-qr-code" x-on:click="open = true">
-                        Показать QR-код
+                        QR-код
                     </x-filament::button>
                 </div>
 
-                {{-- Alpine-модалка с QR-кодом --}}
+                {{-- Alpine-модалка с QR-кодом. По решению заказчика (05.10, правка по
+                     скриншоту) затемнена вся область между шапкой (8rem — .fi-topbar и
+                     .fi-sidebar-header) и футером (50px — .wushu-app-footer) на всю
+                     ширину окна: шапка и футер остаются без затемнения. Геометрия,
+                     фон и z-index — инлайном, а не Tailwind-классами: панель грузит
+                     только @filamentStyles (без @vite), поэтому произвольные классы
+                     вроде z-[9999] не компилируются — оверлей уходил под топбар/футер/
+                     сайдбар и давал «частичное затемнение» заднего плана. --}}
                 <div
                     x-cloak
                     x-show="open"
+                    x-transition.opacity
                     x-on:keydown.escape.window="open = false"
-                    class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-                    style="background: rgba(0, 0, 0, 0.5);"
+                    style="position: fixed; top: 8rem; bottom: 50px; left: 0; right: 0; z-index: 9999; display: flex; overflow-y: auto; padding: 1rem; background: rgba(0, 0, 0, 0.5);"
                 >
                     <div
                         class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900"
+                        style="margin: auto;"
                         @click.outside="open = false"
                     >
                         <div class="mb-3 text-sm text-gray-600 dark:text-gray-300">

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\CompetitionResource\Pages\EditCompetition;
 use App\Models\Competition;
 use Filament\Widgets\Widget as BaseWidget;
 
@@ -55,12 +56,20 @@ class CurrentCompetitionWidget extends BaseWidget
     protected function getViewData(): array
     {
         $user = auth()->user();
+        $competition = Competition::actual();
 
         return [
-            'competition' => Competition::actual(),
+            'competition' => $competition,
             // Судьям показываем статус соревнования, остальным — статус
             // сессии регистрации заявок от тренеров (замечание заказчика 02.10).
             'showCompetitionStatus' => $user !== null && $user->isJudge(),
+            // Замечание заказчика (05.10): на дашборде администратора название
+            // соревнования кликабельно — переход в карточку соревнования, как
+            // через пункт меню «Соревнования» в сайдбаре. Остальным ролям
+            // название показывается обычным текстом.
+            'competitionEditUrl' => $user !== null && $user->isAdmin() && $competition !== null
+                ? EditCompetition::getUrl(['record' => $competition])
+                : null,
         ];
     }
 }
