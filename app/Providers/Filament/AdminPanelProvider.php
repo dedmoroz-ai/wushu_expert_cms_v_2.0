@@ -131,7 +131,7 @@ class AdminPanelProvider extends PanelProvider
 
                     /* Тёмная тема — белый текст, тёмный фон (bg-gray-950) */
                     :root.dark .wushu-app-footer {
-                        background: #030712;
+                        background: #000000;
                         color: #fff;
                         border-top-color: rgba(255, 255, 255, 0.12);
                     }
@@ -206,10 +206,15 @@ class AdminPanelProvider extends PanelProvider
                     }
 
                     /* Тонкие ползунки скролла (замечание заказчика 05.10):
-                           бегунок — синий #0A92BA, дорожка — серая #E6E9E8 */
+                           бегунок — синий #0A92BA в обеих темах,
+                           дорожка — серая #E6E9E8 (светлая тема) и #18181B (тёмная) */
                     * {
                         scrollbar-width: thin;
                         scrollbar-color: #0A92BA #E6E9E8;
+                    }
+
+                    :root.dark * {
+                        scrollbar-color: #0A92BA #18181B;
                     }
 
                     ::-webkit-scrollbar {
@@ -219,6 +224,10 @@ class AdminPanelProvider extends PanelProvider
 
                     ::-webkit-scrollbar-track {
                         background: #E6E9E8;
+                    }
+
+                    :root.dark ::-webkit-scrollbar-track {
+                        background: #18181B;
                     }
 
                     ::-webkit-scrollbar-thumb {

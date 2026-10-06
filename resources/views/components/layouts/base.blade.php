@@ -12,10 +12,11 @@
         {{-- Стили Livewire (автоматически) --}}
         @livewireStyles
         <style>
-            /* Тонкие ползунки скролла: бегунок — синий #0A92BA, дорожка — серая #E6E9E8 */
+            /* Тонкие ползунки скролла: бегунок — синий #0A92BA,
+               дорожка — тёмная #18181B (табло всегда тёмное) */
             * {
                 scrollbar-width: thin;
-                scrollbar-color: #0A92BA #E6E9E8;
+                scrollbar-color: #0A92BA #18181B;
             }
 
             ::-webkit-scrollbar {
@@ -24,7 +25,7 @@
             }
 
             ::-webkit-scrollbar-track {
-                background: #E6E9E8;
+                background: #18181B;
             }
 
             ::-webkit-scrollbar-thumb {

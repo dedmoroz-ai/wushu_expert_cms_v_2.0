@@ -112,14 +112,38 @@ class ButtonPaletteTest extends TestCase
         );
     }
 
-    /** Ползунки скролла: тонкие, бегунок #0A92BA, дорожка #E6E9E8. */
+    /**
+     * Ползунки скролла: тонкие, бегунок #0A92BA в обеих темах,
+     * дорожка — #E6E9E8 (светлая тема) и #18181B (тёмная).
+     */
     public function test_thin_scrollbar_styles_are_applied(): void
     {
         $response = $this->get('/admin/login')->assertOk();
 
         $response->assertSee('scrollbar-width: thin', false);
+        // Светлая тема (по умолчанию) и тёмная (`:root.dark`).
         $response->assertSee('scrollbar-color: #0A92BA #E6E9E8', false);
+        $response->assertSee('scrollbar-color: #0A92BA #18181B', false);
         $response->assertSee('::-webkit-scrollbar', false);
+        $response->assertSee(':root.dark ::-webkit-scrollbar-track', false);
+    }
+
+    /** Страницы, которые всегда тёмные (welcome, табло) — дорожка #18181B. */
+    public function test_always_dark_pages_use_dark_scrollbar_track(): void
+    {
+        foreach (['resources/views/welcome.blade.php', 'resources/views/components/layouts/base.blade.php'] as $file) {
+            $contents = file_get_contents(base_path($file));
+
+            $this->assertNotFalse($contents, "Файл «{$file}» не читается.");
+            $this->assertStringContainsString('scrollbar-color: #0A92BA #18181B', $contents, "«{$file}»: дорожка ползунка должна быть #18181B.");
+            $this->assertStringContainsString('background: #18181B', $contents, "«{$file}»: дорожка ::-webkit-scrollbar-track должна быть #18181B.");
+            $this->assertStringNotContainsString('scrollbar-color: #0A92BA #E6E9E8', $contents, "«{$file}»: светлой дорожки #E6E9E8 на тёмной странице быть не должно.");
+        }
+
+        // Светлая публичная страница результатов/протоколов — светлая дорожка.
+        $public = file_get_contents(base_path('resources/views/components/layouts/public.blade.php'));
+
+        $this->assertStringContainsString('scrollbar-color: #0A92BA #E6E9E8', $public);
     }
 
     /** Панель: в разметке есть стандартные серые кнопки и синий primary. */
