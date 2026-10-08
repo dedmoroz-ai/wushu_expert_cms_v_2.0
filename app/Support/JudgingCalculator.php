@@ -17,6 +17,14 @@ class JudgingCalculator
     public const MAX_CODE_REPEATS = 2;
 
     /**
+     * Правило R-3.14 (уточнение заказчика 08.10): сколько разных судей панели A
+     * должны заметить один и тот же код сбавки, чтобы он засчитался в вычет.
+     * Код, нажатый только одним судьёй (хоть один раз, хоть дважды),
+     * не считается — ошибку должны заметить несколько судей.
+     */
+    public const MIN_CODE_JUDGES = 2;
+
+    /**
      * Правило R-4.6: среднее с отбрасыванием крайних (только простая система).
      *
      *  - 3 и более оценок — отбрасываются одна минимальная и одна максимальная;
@@ -93,6 +101,75 @@ class JudgingCalculator
         $count = count(array_filter($pressedCodes, fn ($c) => (string) $c === $code));
 
         return $count < self::MAX_CODE_REPEATS;
+    }
+
+    /**
+     * Правила R-3.13–R-3.14 (уточнение заказчика 08.10): подтверждение кода сбавки
+     * на панели A — ошибка должна быть замечена несколькими судьями. Код,
+     * нажатый только одним судьёй панели (неважно, один раз или дважды),
+     * НЕ учитывается в вычете (нажатия остаются в снимке score_deductions
+     * для аудита); код, нажатый двумя и более разными судьями, учитывается
+     * полностью — каждое нажатие каждого судьи в его личную оценку.
+     *
+     * Оценка судьи пересчитывается как сохранённая + сумма неучтённых сбавок (эквивалент
+     * «5.000 − сумма учтённых сбавок» для целостного снимка R-3.12) и
+     * ограничивается диапазоном 0.000–5.000. Снимок сбавок не меняется — фильтр
+     * применяется только при расчёте: набор нажатий других судей может
+     * пополниться после сохранения судьи.
+     *
+     * @param  array<int, array{score: float|int, deductions: array<int, array{code: string, value: float|int}>}>  $judgeScores
+     *     judge_id => оценка судьи и его снимок сбавок (score_deductions)
+     * @return array{scores: array<int, float>, ignored: array<int, array<int, array{code: string, value: float}>>, totals: array<string, int>}
+     *     scores — пересчитанные оценки (judge_id => оценка);
+     *     ignored — неучтённые нажатия (judge_id => [{code, value}]);
+     *     totals — сколько раз каждый код нажат суммарно по панели;
+     *     judges — сколько разных судей нажали каждый код.
+     */
+    public static function confirmedPanelScores(array $judgeScores): array
+    {
+        $totals = [];   // code => сколько раз нажат суммарно по панели (аудит)
+        $pressedBy = []; // code => [judge_id => true] — кто нажал код
+
+        foreach ($judgeScores as $judgeId => $js) {
+            foreach ($js['deductions'] ?? [] as $d) {
+                $code = (string) $d['code'];
+                $totals[$code] = ($totals[$code] ?? 0) + 1;
+                $pressedBy[$code][$judgeId] = true;
+            }
+        }
+
+        $judgeCounts = [];
+        foreach ($pressedBy as $code => $judges) {
+            $judgeCounts[$code] = count($judges);
+        }
+
+        $scores = [];
+        $ignored = [];
+
+        foreach ($judgeScores as $judgeId => $js) {
+            $ignoredList = [];
+            $ignoredSum = 0.0;
+
+            foreach ($js['deductions'] ?? [] as $d) {
+                if (($judgeCounts[(string) $d['code']] ?? 0) < self::MIN_CODE_JUDGES) {
+                    $ignoredList[] = ['code' => (string) $d['code'], 'value' => (float) $d['value']];
+                    $ignoredSum += (float) $d['value'];
+                }
+            }
+
+            $effective = (float) $js['score'] + $ignoredSum;
+
+            $scores[$judgeId] = min(
+                self::A_START,
+                max(ScoreRange::GLOBAL_MIN, round($effective, ScoreRange::PRECISION)),
+            );
+
+            if ($ignoredList !== []) {
+                $ignored[$judgeId] = $ignoredList;
+            }
+        }
+
+        return ['scores' => $scores, 'ignored' => $ignored, 'totals' => $totals, 'judges' => $judgeCounts];
     }
 
     /**

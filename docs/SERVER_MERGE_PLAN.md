@@ -178,7 +178,7 @@
 
 ## 8. После слияния — текущая работа A/B
 
-1. **Фильтр порога кодов сбавок A** (правило: 1 нажатие кода за всех судей → не учитывается; ≥2 → все нажатия каждого судьи в его личную оценку): `SuperJudgePad::calculateAb()` / `JudgingCalculator` + тесты; обновить R-3.13/R-3.14 в `JUDGING_RULES.md`.
+1. **Фильтр подтверждения кодов сбавок A** (правило 08.10: код засчитывается, только если его заметили несколько судей — нажали ≥2 разных судья; код одного судьи, хоть один, хоть два раза, не учитывается; при подтверждении — все нажатия каждого судьи в его личную оценку): — **выполнено 08.10.2026:** `JudgingCalculator::confirmedPanelScores()` (`MIN_CODE_JUDGES`) / `SuperJudgePad::calculateAb()` + `ScoresSummaryMatrix` + авто-расчёт A/B в аналитике (`CompetitionAnalyticsBuilder::autoScore()`, без R-4.6) + тесты (`JudgingCalculatorTest`, `AbJudgingFlowTest`, `ScoresSummaryTest`, `CompetitionAnalyticsBuilderTest`); R-3.13/R-3.14 обновлены.
 2. **Пер-турнирные наборы кнопок** (связка `competition ↔ deduction_code` с порядком, кнопка = число сбавки; `ScoreWriter` и глобальный справочник **не меняем**): миграция + выборка кнопок в `JudgePad`/`SuperJudgePad` + настройка (в `DeductionCodeResource` или отдельный ресурс); обновить R-7.8.
 3. Мелочи: `.gitignore` (Zone.Identifier), опечатка «нандý» (`JUDGING_RULES.md` стр. 128, 342), решение по `_server/diplomas_test_print.pdf`, прогон всех тестов при живой БД.
 

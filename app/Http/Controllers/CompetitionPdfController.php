@@ -6,6 +6,7 @@ use App\Models\Competition;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\User;
+use App\Support\StampImage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -91,7 +92,7 @@ class CompetitionPdfController extends Controller
         $logoBase64 = $this->getImageBase64($competition->organization_logo);
         $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
         $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
-        $stampBase64 = $this->getImageBase64($competition->organization_stamp);
+        $stampBase64 = StampImage::toBase64($competition->organization_stamp);
 
         $judgeName = $competition->chief_judge_name;
         $secName = $competition->chief_secretary_name;
@@ -142,7 +143,7 @@ class CompetitionPdfController extends Controller
         $logoBase64 = $this->getImageBase64($competition->organization_logo);
         $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
         $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
-        $stampBase64 = $this->getImageBase64($competition->organization_stamp);
+        $stampBase64 = StampImage::toBase64($competition->organization_stamp);
 
         $judgeName = $competition->chief_judge_name;
         $secName = $competition->chief_secretary_name;
@@ -248,7 +249,7 @@ class CompetitionPdfController extends Controller
         $logoBase64 = $this->getImageBase64($competition->organization_logo);
         $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
         $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
-        $stampBase64 = $this->getImageBase64($competition->organization_stamp);
+        $stampBase64 = StampImage::toBase64($competition->organization_stamp);
 
         $judgeName = $competition->chief_judge_name;
         $secName = $competition->chief_secretary_name;
@@ -291,7 +292,7 @@ class CompetitionPdfController extends Controller
         $logoBase64 = $this->getImageBase64($competition->organization_logo);
         $judgeSignBase64 = $this->getImageBase64($competition->chief_judge_signature);
         $secSignBase64 = $this->getImageBase64($competition->chief_secretary_signature);
-        $stampBase64 = $this->getImageBase64($competition->organization_stamp);
+        $stampBase64 = StampImage::toBase64($competition->organization_stamp);
 
         $judgeName = $competition->chief_judge_name;
         $secName = $competition->chief_secretary_name;

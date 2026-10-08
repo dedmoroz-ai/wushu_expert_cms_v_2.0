@@ -257,7 +257,7 @@ class SuperJudgePad extends Page
         }
 
         // 2. ПОЛУЧЕНИЕ ОЦЕНОК
-        $allScoresDb = Score::where('registration_id', $currentReg->id)->with('judge')->get();
+        $allScoresDb = Score::where('registration_id', $currentReg->id)->with(['judge', 'deductions'])->get();
 
         // Правило 8.4: ожидаем оценки ТОЛЬКО от бригады, привязанной
         // к этому соревнованию (competition_user), а не от всех судей системы.
@@ -279,6 +279,8 @@ class SuperJudgePad extends Page
         // Оценка засчитывается, только если она выставлена в текущей функции
         // (scores.panel совпадает с назначением в бригаде).
         $panelScores = [Competition::PANEL_A => [], Competition::PANEL_B => []];
+        // Снимки сбавок судей панели — правило подтверждения кода (R-3.14, уточнение 28.09).
+        $panelDeductions = [Competition::PANEL_A => [], Competition::PANEL_B => []];
         $panelExpected = [Competition::PANEL_A => 0, Competition::PANEL_B => 0];
         $this->unassignedJudges = 0;
 
@@ -311,7 +313,8 @@ class SuperJudgePad extends Page
                 $panelExpected[$judgePanel]++;
 
                 if (! is_null($val)) {
-                    $panelScores[$judgePanel][] = $val;
+                    $panelScores[$judgePanel][$judgeUser->id] = $val;
+                    $panelDeductions[$judgePanel][$judgeUser->id] = $this->deductionRows($s);
                 }
 
                 continue;
@@ -345,7 +348,8 @@ class SuperJudgePad extends Page
             }
 
             if ($isAb) {
-                $panelScores[$this->myPanel][] = (float) $myDbScore->score;
+                $panelScores[$this->myPanel][$myDbScore->judge_id] = (float) $myDbScore->score;
+                $panelDeductions[$this->myPanel][$myDbScore->judge_id] = $this->deductionRows($myDbScore);
             } else {
                 $scoresForCalc[] = (float) $myDbScore->score;
             }
@@ -369,7 +373,7 @@ class SuperJudgePad extends Page
 
         // 4. МАТЕМАТИКА
         if ($isAb) {
-            $this->calculateAb($panelScores, $panelExpected, $range);
+            $this->calculateAb($panelScores, $panelExpected, $panelDeductions, $range);
 
             return;
         }
@@ -405,12 +409,20 @@ class SuperJudgePad extends Page
     }
 
     /**
+     * Неучтённые нажатия кодов панели A (правило R-3.14, уточнение 28.09):
+     * код, нажатый суммарно всеми судьями панели ровно один раз, в вычет не идёт.
+     *
+     * @var array<int, array<int, array{code: string, value: float}>>
+     */
+    public array $abIgnoredDeductions = [];
+
+    /**
      * Правила R-4.18–R-4.20: расчёт итога в сценарии A/B.
      * Итог = среднее панели A + среднее панели B (каждое — среднее по всем
      * оценкам панели, без отбрасывания крайних). Расчёт стартует, только когда
      * обе панели собраны.
      */
-    protected function calculateAb(array $panelScores, array $panelExpected, ScoreRange $range): void
+    protected function calculateAb(array $panelScores, array $panelExpected, array $panelDeductions, ScoreRange $range): void
     {
         $a = Competition::PANEL_A;
         $b = Competition::PANEL_B;
@@ -426,14 +438,28 @@ class SuperJudgePad extends Page
         $completeA = $this->expectedA > 0 && $this->receivedA >= $this->expectedA;
         $completeB = $this->expectedB > 0 && $this->receivedB >= $this->expectedB;
 
-        $resA = JudgingCalculator::panelMean($panelScores[$a]);
+        // Правило R-3.13–R-3.14 (уточнение 08.10): код, который нажал только один
+        // судья панели A (даже дважды), в вычет не идёт — засчитываются только коды,
+        // замеченные несколькими судьями; среднее A считается по пересчитанным
+        // оценкам (снимки score_deductions не меняются).
+        $judgeScoresA = [];
+        foreach ($panelScores[$a] as $jid => $val) {
+            $judgeScoresA[$jid] = ['score' => $val, 'deductions' => $panelDeductions[$a][$jid] ?? []];
+        }
+
+        $confirmedA = JudgingCalculator::confirmedPanelScores($judgeScoresA);
+        $this->abIgnoredDeductions = $confirmedA['ignored'];
+
+        $resA = JudgingCalculator::panelMean($confirmedA['scores']);
         $resB = JudgingCalculator::panelMean($panelScores[$b]);
 
         $this->avgA = $completeA && $resA['avg'] !== null ? $range->format($resA['avg']) : null;
         $this->avgB = $completeB && $resB['avg'] !== null ? $range->format($resB['avg']) : null;
 
+        $ignoreNote = $confirmedA['ignored'] !== [] ? ' · коды, замеченные только одним судьёй, не учтены' : '';
+
         $this->formulaText = 'A: '.($this->avgA ?? '…').' + B: '.($this->avgB ?? '…')
-            .' (среднее каждой панели — по всем оценкам)';
+            .' (среднее каждой панели — по всем оценкам)'.$ignoreNote;
 
         if ($this->avgA === null || $this->avgB === null) {
             $this->calculatedAvg = null;
@@ -444,7 +470,7 @@ class SuperJudgePad extends Page
 
         $total = JudgingCalculator::abTotal((float) $this->avgA, (float) $this->avgB);
 
-        $this->formulaText = 'A '.$this->avgA.' + B '.$this->avgB.' = '.$range->format($total);
+        $this->formulaText = 'A '.$this->avgA.' + B '.$this->avgB.' = '.$range->format($total).$ignoreNote;
         $this->calculatedAvg = $range->format($total);
 
         if ($this->finalScoreInput === '') {
@@ -452,6 +478,23 @@ class SuperJudgePad extends Page
         }
 
         $this->canFinalize = true;
+    }
+
+    /**
+     * Снимок сбавок судьи для расчёта (правило R-3.14: подтверждение кода).
+     *
+     * @return array<int, array{code: string, value: float}>
+     */
+    protected function deductionRows(?Score $score): array
+    {
+        if (! $score) {
+            return [];
+        }
+
+        return $score->deductions
+            ->map(fn ($d) => ['code' => (string) $d->code, 'value' => (float) $d->value])
+            ->values()
+            ->all();
     }
 
     // --- КЛАВИАТУРА ---
@@ -1044,9 +1087,29 @@ class SuperJudgePad extends Page
             ->values()
             ->all();
 
+        // Правило R-3.14 (уточнение 28.09): нажатия кодов, не подтверждённые
+        // вторым судьёй панели A, остаются в аудите, но не участвовали в вычете.
+        $names = [];
+        foreach ($scores as $row) {
+            $names[$row['judge_id']] = $row['judge'];
+        }
+
+        $ignoredFlat = [];
+        foreach ($this->abIgnoredDeductions as $judgeId => $list) {
+            foreach ($list as $d) {
+                $ignoredFlat[] = [
+                    'judge_id' => $judgeId,
+                    'judge' => $names[$judgeId] ?? null,
+                    'code' => $d['code'],
+                    'value' => $d['value'],
+                ];
+            }
+        }
+
         return [
             'scheme' => $competition->judgingScheme(),
             'scores' => $scores,
+            'ignored_deductions' => $ignoredFlat,
             'avg_a' => $this->avgA === null ? null : (float) $this->avgA,
             'avg_b' => $this->avgB === null ? null : (float) $this->avgB,
             'auto' => $autoValue,
@@ -1057,6 +1120,7 @@ class SuperJudgePad extends Page
     protected function resetData($msg)
     {
         $this->statusMessage = $msg;
+        $this->abIgnoredDeductions = [];
         $this->athleteName = '';
         $this->athleteStyle = '';
         $this->athleteGroup = '';

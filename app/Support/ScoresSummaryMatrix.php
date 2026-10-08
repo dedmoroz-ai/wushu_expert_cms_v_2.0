@@ -21,6 +21,11 @@ use Illuminate\Support\Collection;
  * как на пультах; для старых данных без назначения — из самой оценки
  * (scores.panel). Оценка, выставленная не в своей функции, показывается,
  * но в расчёт не идёт (как и на пультах).
+ *
+ * Правило R-3.14 (уточнение заказчика 08.10): код сбавки, нажатый только одним
+ * судьёй панели A (даже дважды), в среднем A не учитывается (как и на пульте
+ * старшего судьи) — засчитываются только коды, замеченные несколькими судьями;
+ * в ячейках показываются сохранённые оценки судей.
  */
 class ScoresSummaryMatrix
 {
@@ -46,7 +51,7 @@ class ScoresSummaryMatrix
         $registrations = Registration::query()
             ->where('competition_id', $competition->id)
             ->where('is_completed', true)
-            ->with(['athlete', 'athlete.club', 'partner', 'style', 'ageGroup', 'scores.judge'])
+            ->with(['athlete', 'athlete.club', 'partner', 'style', 'ageGroup', 'scores.judge', 'scores.deductions'])
             ->join('styles', 'registrations.style_id', '=', 'styles.id')
             ->join('age_groups', 'registrations.age_group_id', '=', 'age_groups.id')
             ->join('athletes', 'registrations.athlete_id', '=', 'athletes.id')
@@ -104,13 +109,38 @@ class ScoresSummaryMatrix
                 }
             }
 
+            // Уточнение заказчика 08.10 (R-3.14): код сбавки, нажатый только одним
+            // судьёй панели A (даже дважды), не учитывается в вычете — код должен
+            // быть замечен несколькими судьями.
+            // В ячейках — сохранённые оценки судей, в среднем A — пересчитанные.
+            $effectiveA = [];
+            if ($isAb) {
+                $judgeScoresA = [];
+                foreach ($judgesByGroup[Competition::PANEL_A] as $judge) {
+                    $jid = $judge->id;
+                    if (($cells[$jid] ?? null) !== null && ($counted[$jid] ?? false)) {
+                        $sc = $reg->scores->firstWhere('judge_id', $jid);
+                        $judgeScoresA[$jid] = [
+                            'score' => $cells[$jid],
+                            'deductions' => $sc->deductions->map(fn ($d) => ['code' => (string) $d->code, 'value' => (float) $d->value])->values()->all(),
+                        ];
+                    }
+                }
+
+                if ($judgeScoresA !== []) {
+                    $effectiveA = JudgingCalculator::confirmedPanelScores($judgeScoresA)['scores'];
+                }
+            }
+
             $groups = [];
             foreach ($groupsOrder as $group) {
                 $values = [];
                 foreach ($judgesByGroup[$group] as $judge) {
                     $jid = $judge->id;
                     if (($cells[$jid] ?? null) !== null && ($counted[$jid] ?? false)) {
-                        $values[$jid] = $cells[$jid];
+                        $values[$jid] = $group === Competition::PANEL_A && isset($effectiveA[$jid])
+                            ? $effectiveA[$jid]
+                            : $cells[$jid];
                     }
                 }
                 $groups[$group] = self::groupStats($values, ! $isAb);
@@ -146,13 +176,14 @@ class ScoresSummaryMatrix
 
     /**
      * Панель каждого судьи (только для A/B): назначение в бригаде, иначе —
-     * функция из его оценок, иначе группа «без функции».
+     * функция из его оценок, иначе группа «без функции». Используется также
+     * в CompetitionAnalyticsBuilder (авто-расчёт A/B).
      *
      * @param  array<int, \App\Models\User>  $judgesById
      * @param  Collection<int, Registration>  $registrations
      * @return array<int, string>
      */
-    private static function resolveJudgePanels(Competition $competition, array $judgesById, Collection $registrations, bool $isAb): array
+    public static function resolveJudgePanels(Competition $competition, array $judgesById, Collection $registrations, bool $isAb): array
     {
         $panels = [];
 

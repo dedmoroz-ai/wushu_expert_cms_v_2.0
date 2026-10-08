@@ -120,8 +120,8 @@
         }
 
         .seal-img {
-            width: 190px;
-            height: auto;
+            width: 40mm;
+            height: 40mm;
             opacity: 0.9;
         }
 
@@ -147,10 +147,7 @@
         $secSignPath = public_path('storage/' . $competition->chief_secretary_signature);
     }
 
-    $stampPath = null;
-    if(!empty($competition->organization_stamp) && file_exists(public_path('storage/' . $competition->organization_stamp))) {
-        $stampPath = public_path('storage/' . $competition->organization_stamp);
-    }
+    $stampPath = \App\Support\StampImage::toBase64($competition->organization_stamp);
 @endphp
 
 @foreach($winners as $item)

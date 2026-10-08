@@ -99,7 +99,9 @@ class AbJudgingFlowTest extends TestCase
         $this->assertSame('B', Score::where('judge_id', $judges['b1']->id)->value('panel'));
 
         // Старший судья (функция B) ставит 4.100.
-        // A: [4.5, 4.7] → 4.600; B: [4.2, 3.8, 4.1] → по всем оценкам → 4.033 (R-4.19); итог 8.633.
+        // 11 нажал только A1 (дважды) → не учитывается (R-3.14, уточнение 08.10);
+        // 22 заметили оба судьи → учитывается: A: (4.700 + 4.700) / 2 = 4.700;
+        // B: [4.2, 3.8, 4.1] → по всем оценкам → 4.033 (R-4.19); итог 8.733.
         $this->actingAs($head);
         Livewire::test(SuperJudgePad::class)
             ->assertSet('myPanel', 'B')
@@ -111,23 +113,23 @@ class AbJudgingFlowTest extends TestCase
             ->call('addNumber', '.')
             ->call('addNumber', '1')
             ->call('submitMyScore')
-            ->assertSet('avgA', '4.600')
+            ->assertSet('avgA', '4.700')
             ->assertSet('avgB', '4.033')
-            ->assertSet('calculatedAvg', '8.633')
+            ->assertSet('calculatedAvg', '8.733')
             ->assertSet('canFinalize', true)
             ->call('finalizeProtocol');
 
         $reg->refresh();
         $this->assertTrue((bool) $reg->is_completed);
-        $this->assertSame(8.633, (float) $reg->final_score);
-        $this->assertSame(4.6, (float) $reg->score_a);
+        $this->assertSame(8.733, (float) $reg->final_score);
+        $this->assertSame(4.7, (float) $reg->score_a);
         $this->assertSame(4.033, (float) $reg->score_b);
 
         $log = JudgingLog::where('action', JudgingLog::ACTION_PROTOCOL_FINALIZED)->first();
         $this->assertNotNull($log);
         $this->assertSame('ab', $log->details['scheme']);
         $this->assertCount(5, $log->details['scores']);
-        $this->assertSame(4.6, (float) $log->details['avg_a']);
+        $this->assertSame(4.7, (float) $log->details['avg_a']);
     }
 
     public function test_judge_without_panel_is_blocked_in_ab(): void
@@ -253,6 +255,131 @@ class AbJudgingFlowTest extends TestCase
         Livewire::test(JudgePad::class)
             ->assertSet('panel', 'B')
             ->assertSee('Диапазон: 3.000 – 3.500', false);
+    }
+
+    /**
+     * Уточнение заказчика 28.09 (R-3.13, R-3.14): код сбавки, нажатый ровно одним
+     * судьёй панели A, не учитывается в вычете, но остаётся в снимке сбавок
+     * для аудита.
+     */
+    public function test_code_pressed_by_single_judge_is_not_counted_in_protocol(): void
+    {
+        [, $reg, $judges, $head] = $this->makeAbTournament();
+
+        $c11 = DeductionCode::create(['code' => '11', 'label' => 'Руки', 'value' => 0.1, 'sort_order' => 1]);
+        $c22 = DeductionCode::create(['code' => '22', 'label' => 'Падение', 'value' => 0.3, 'sort_order' => 2]);
+
+        // Судья A1: 11 один раз → сохранённая оценка 4.900.
+        $this->actingAs($judges['a1']);
+        Livewire::test(JudgePad::class)
+            ->call('pressCode', $c11->id)
+            ->call('submitScore');
+
+        // Судья A2: 22 один раз → сохранённая оценка 4.700.
+        $this->actingAs($judges['a2']);
+        Livewire::test(JudgePad::class)
+            ->call('pressCode', $c22->id)
+            ->call('submitScore');
+
+        // Судьи B: 4.200 и 3.800.
+        $this->actingAs($judges['b1']);
+        Livewire::test(JudgePad::class)
+            ->call('addNumber', '4')->call('addNumber', '.')->call('addNumber', '2')
+            ->call('submitScore');
+
+        $this->actingAs($judges['b2']);
+        Livewire::test(JudgePad::class)
+            ->call('addNumber', '3')->call('addNumber', '.')->call('addNumber', '8')
+            ->call('submitScore');
+
+        // Оба кода нажаты по одному разу — не подтверждены, в вычет не идут:
+        // A = (5.000 + 5.000) / 2 = 5.000; B = 4.033; итог 9.033.
+        $this->actingAs($head);
+        Livewire::test(SuperJudgePad::class)
+            ->call('addNumber', '4')->call('addNumber', '.')->call('addNumber', '1')
+            ->call('submitMyScore')
+            ->assertSet('avgA', '5.000')
+            ->assertSet('avgB', '4.033')
+            ->assertSet('calculatedAvg', '9.033')
+            ->call('finalizeProtocol');
+
+        // Сохранённые оценки судей A не переписываются (снимок для аудита).
+        $this->assertSame(4.9, (float) Score::where('judge_id', $judges['a1']->id)->value('score'));
+        $this->assertSame(4.7, (float) Score::where('judge_id', $judges['a2']->id)->value('score'));
+        $this->assertSame(1, Score::where('judge_id', $judges['a1']->id)->first()->deductions()->count());
+
+        $reg->refresh();
+        $this->assertSame(5.0, (float) $reg->score_a);
+        $this->assertSame(9.033, (float) $reg->final_score);
+
+        // Аудит: неучтённые нажатия видны в журнале.
+        $log = JudgingLog::where('action', JudgingLog::ACTION_PROTOCOL_FINALIZED)->first();
+        $ignored = collect($log->details['ignored_deductions']);
+        $this->assertCount(2, $ignored);
+        $this->assertSame(['11', '22'], $ignored->pluck('code')->sort()->values()->all());
+    }
+
+    /**
+     * Уточнение заказчика 28.09: код, нажатый 2+ раза суммарно по судьям A, учитывается полностью
+     * у каждого судьи, а одиночные коды — нет.
+     */
+    public function test_only_codes_seen_by_several_judges_are_counted(): void
+    {
+        [, $reg, $judges, $head] = $this->makeAbTournament();
+
+        $c11 = DeductionCode::create(['code' => '11', 'label' => 'Руки', 'value' => 0.1, 'sort_order' => 1]);
+        $c22 = DeductionCode::create(['code' => '22', 'label' => 'Падение', 'value' => 0.3, 'sort_order' => 2]);
+        $c33 = DeductionCode::create(['code' => '33', 'label' => 'Вираж', 'value' => 0.5, 'sort_order' => 3]);
+
+        // Судья A1: 11, 11, 22 → 5 − 0.5 = 4.500.
+        $this->actingAs($judges['a1']);
+        Livewire::test(JudgePad::class)
+            ->call('pressCode', $c11->id)
+            ->call('pressCode', $c11->id)
+            ->call('pressCode', $c22->id)
+            ->call('submitScore');
+
+        // Судья A2: 22, 33 → 5 − 0.8 = 4.200.
+        $this->actingAs($judges['a2']);
+        Livewire::test(JudgePad::class)
+            ->call('pressCode', $c22->id)
+            ->call('pressCode', $c33->id)
+            ->call('submitScore');
+
+        $this->actingAs($judges['b1']);
+        Livewire::test(JudgePad::class)
+            ->call('addNumber', '4')->call('addNumber', '.')->call('addNumber', '2')
+            ->call('submitScore');
+
+        $this->actingAs($judges['b2']);
+        Livewire::test(JudgePad::class)
+            ->call('addNumber', '3')->call('addNumber', '.')->call('addNumber', '8')
+            ->call('submitScore');
+
+        // 11 нажал только A1 (хотя и дважды) → не учитывается;
+        // 22 заметили оба судьи → учитывается полностью;
+        // 33 нажал только A2 → не учитывается.
+        // A = ((4.500 + 0.200) + (4.200 + 0.500)) / 2 = 4.700; B = 4.033; итог 8.733.
+        $this->actingAs($head);
+        Livewire::test(SuperJudgePad::class)
+            ->call('addNumber', '4')->call('addNumber', '.')->call('addNumber', '1')
+            ->call('submitMyScore')
+            ->assertSet('avgA', '4.700')
+            ->assertSet('calculatedAvg', '8.733')
+            ->call('finalizeProtocol');
+
+        // Снимки сбавок не переписываются: у A1 остаются 11, 11, 22.
+        $this->assertSame(4.5, (float) Score::where('judge_id', $judges['a1']->id)->value('score'));
+        $this->assertSame(3, Score::where('judge_id', $judges['a1']->id)->first()->deductions()->count());
+
+        $reg->refresh();
+        $this->assertSame(4.7, (float) $reg->score_a);
+
+        // Аудит: 11 (×2, только судья A1) и 33 (только судья A2) — неучтённые.
+        $log = JudgingLog::where('action', JudgingLog::ACTION_PROTOCOL_FINALIZED)->first();
+        $ignored = collect($log->details['ignored_deductions']);
+        $this->assertCount(3, $ignored);
+        $this->assertSame(['11', '11', '33'], $ignored->pluck('code')->sort()->values()->all());
     }
 
     /**

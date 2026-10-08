@@ -40,7 +40,7 @@
         .line { border-top: 1px solid black; width: 90%; margin: 5px auto 0; }
         .name { font-size: 14px; font-style: italic; margin-top: 3px; }
         .sign-img { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); max-height: 60px; z-index: 1; }
-        .stamp-img { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); max-width: 190px; opacity: 0.9; z-index: 2; }
+        .stamp-img { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 40mm; height: 40mm; opacity: 0.9; z-index: 2; }
 
         /* Титульный блок */
         .title-page { text-align: center; padding-top: 10px; }

@@ -13,6 +13,9 @@ use Illuminate\Support\Collection;
  * Все числа считаются здесь, без LLM; текст дайджеста пишет модель по этим
  * числам. Методика совпадает со «Сводной таблицей оценок»:
  *  - простая схема: итог строки = trimmedMean (R-4.6, JudgingCalculator);
+ *  - сценарий A/B (R-4.18–R-4.20): итог строки = среднее A + среднее B,
+ *    крайние оценки не отбрасываются (R-4.19), коды сбавок подтверждаются
+ *    несколькими судьями (R-3.14); отсечения R-4.6 не считаются;
  *  - Δ судьи = среднее (оценка судьи − итог строки) — систематическая
  *    строгость/щедрость относительно коллег;
  *  - разброс выступления = максимум − минимум оценок судей;
@@ -49,7 +52,8 @@ class CompetitionAnalyticsBuilder
             return null;
         }
 
-        [$registrations, $scoresByReg, $judgeNames] = self::load($competition);
+        [$registrations, $scoresByReg, $judgeNames, $extrasByReg] = self::load($competition);
+        $isAb = $competition->isAbScheme();
 
         $rows = [];
         $judgeScores = [];
@@ -59,7 +63,7 @@ class CompetitionAnalyticsBuilder
 
         foreach ($registrations as $reg) {
             $values = $scoresByReg[$reg->id] ?? [];
-            $auto = $values === [] ? null : JudgingCalculator::trimmedMean(array_values($values))['avg'];
+            $auto = self::autoScore($isAb, $values, $extrasByReg[$reg->id] ?? []);
 
 
             $spread = null;
@@ -67,7 +71,9 @@ class CompetitionAnalyticsBuilder
                 $spread = round(max($values) - min($values), ScoreRange::PRECISION);
             }
 
-            if ($values !== [] && count($values) >= 3) {
+            // Отсечения R-4.6 есть только в простой схеме: в A/B крайние
+            // оценки не отбрасываются, отсечений не бывает.
+            if (! $isAb && $values !== [] && count($values) >= 3) {
                 $min = min($values);
                 $max = max($values);
                 foreach ($values as $code => $value) {
@@ -100,7 +106,8 @@ class CompetitionAnalyticsBuilder
         $judges = self::judgesSection($judgeNames, $judgeScores, $judgeDelta, $judgeDropMin, $judgeDropMax);
         [$spreadStats, $topSpreads] = self::spreadsSection($rows, $judgeNames);
         $pools = self::poolsSection($rows, $judgeNames);
-        $flips = self::flipsSection($pools);
+        // Влияние R-4.6 на топ-3 — только простая схема; в A/B правила другие.
+        $flips = $isAb ? [] : self::flipsSection($pools);
         $mismatches = self::mismatchesSection($rows);
 
         return [
@@ -130,16 +137,23 @@ class CompetitionAnalyticsBuilder
 
     /**
      * Данные турнира: завершённые заявки (как в ScoresSummaryMatrix), оценки
-     * по судьям (judge_id => оценка) и имена судей (код => имя).
+     * по судьям (код => оценка), имена судей (код => имя) и доп. данные оценок
+     * (код => панель судьи, засчитывается ли оценка, снимок сбавок) для
+     * авто-расчёта в сценарии A/B.
      *
-     * @return array{0: Collection<int, Registration>, 1: array<int, array<int, float>>, 2: array<int, string>}
+     * @return array{
+     *     0: Collection<int, Registration>,
+     *     1: array<int, array<string, float>>,
+     *     2: array<string, string>,
+     *     3: array<int, array<string, array{panel: string, counted: bool, deductions: array<int, array{code: string, value: float}>}>>,
+     * }
      */
     private static function load(Competition $competition): array
     {
         $registrations = Registration::query()
             ->where('competition_id', $competition->id)
             ->where('is_completed', true)
-            ->with(['athlete', 'athlete.club', 'partner', 'style', 'ageGroup', 'scores.judge'])
+            ->with(['athlete', 'athlete.club', 'partner', 'style', 'ageGroup', 'scores.judge', 'scores.deductions'])
             ->join('styles', 'registrations.style_id', '=', 'styles.id')
             ->join('age_groups', 'registrations.age_group_id', '=', 'age_groups.id')
             ->join('athletes', 'registrations.athlete_id', '=', 'athletes.id')
@@ -180,19 +194,101 @@ class CompetitionAnalyticsBuilder
             $nameByCode[$code] = $name ?? ('Судья #'.$jid);
         }
 
-        // Оценки: judge_id => значение перенумеровываем в код => значение.
-        $scoresByReg = [];
+        // Панель каждого судьи (A/B) — как в ScoresSummaryMatrix: назначение
+        // в бригаде, иначе — функция из его оценок.
+        $judgesById = [];
         foreach ($registrations as $reg) {
-            $values = [];
             foreach ($reg->scores as $score) {
-                $values[$codes[$score->judge_id]] = (float) $score->score;
-            }
-            if ($values !== []) {
-                $scoresByReg[$reg->id] = $values;
+                if ($score->judge && ! isset($judgesById[$score->judge_id])) {
+                    $judgesById[$score->judge_id] = $score->judge;
+                }
             }
         }
 
-        return [$registrations, $scoresByReg, $nameByCode];
+        $isAb = $competition->isAbScheme();
+        $judgePanels = ScoresSummaryMatrix::resolveJudgePanels($competition, $judgesById, $registrations, $isAb);
+
+        // Оценки: judge_id => значение перенумеровываем в код => значение.
+        $scoresByReg = [];
+        $extrasByReg = [];
+        foreach ($registrations as $reg) {
+            $values = [];
+            $extras = [];
+            foreach ($reg->scores as $score) {
+                $code = $codes[$score->judge_id];
+                $values[$code] = (float) $score->score;
+
+                $panel = $isAb
+                    ? ($judgePanels[$score->judge_id] ?? ScoresSummaryMatrix::GROUP_NONE)
+                    : ScoresSummaryMatrix::GROUP_NONE;
+                $scorePanel = $score->panel;
+
+                $extras[$code] = [
+                    'panel' => $panel,
+                    // Правило R-4.18: в A/B засчитывается оценка, выставленная
+                    // в своей функции (scores.panel совпадает с назначением).
+                    'counted' => ! $isAb || $scorePanel === null || $scorePanel === $panel,
+                    'deductions' => $score->deductions
+                        ->map(fn ($d) => ['code' => (string) $d->code, 'value' => (float) $d->value])
+                        ->values()
+                        ->all(),
+                ];
+            }
+            if ($values !== []) {
+                $scoresByReg[$reg->id] = $values;
+                $extrasByReg[$reg->id] = $extras;
+            }
+        }
+
+        return [$registrations, $scoresByReg, $nameByCode, $extrasByReg];
+    }
+
+    /**
+     * Авто-расчёт итога строки по сценарию турнира.
+     *
+     *  - простая схема: trimmedMean (R-4.6);
+     *  - A/B: среднее A (оценки с подтверждением кодов сбавок R-3.14) +
+     *    среднее B (R-4.20), крайние не отбрасываются (R-4.19).
+     *
+     * Оценки, выставленные не в своей функции, в авто-расчёт не идут (R-4.18),
+     * как и в «Сводной таблице оценок».
+     *
+     * @param  array<string, float>  $values  код судьи => оценка
+     * @param  array<string, array{panel: string, counted: bool, deductions: array<int, array{code: string, value: float}>}>  $extras
+     */
+    private static function autoScore(bool $isAb, array $values, array $extras): ?float
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        if (! $isAb) {
+            return JudgingCalculator::trimmedMean(array_values($values))['avg'];
+        }
+
+        $judgeScoresA = [];
+        $valuesB = [];
+
+        foreach ($values as $code => $value) {
+            $extra = $extras[$code] ?? null;
+            if ($extra === null || ! $extra['counted']) {
+                continue;
+            }
+            if ($extra['panel'] === Competition::PANEL_A) {
+                $judgeScoresA[$code] = ['score' => $value, 'deductions' => $extra['deductions']];
+            } elseif ($extra['panel'] === Competition::PANEL_B) {
+                $valuesB[] = $value;
+            }
+        }
+
+        $avgA = $judgeScoresA === []
+            ? null
+            : JudgingCalculator::panelMean(JudgingCalculator::confirmedPanelScores($judgeScoresA)['scores'])['avg'];
+        $avgB = JudgingCalculator::panelMean($valuesB)['avg'];
+
+        return ($avgA !== null && $avgB !== null)
+            ? JudgingCalculator::abTotal($avgA, $avgB)
+            : null;
     }
 
     /**
@@ -419,7 +515,8 @@ class CompetitionAnalyticsBuilder
     }
 
     /**
-     * Влияние правила R-4.6: пулы с N ≥ POOL_MIN_N, где подиум (топ-3) при
+     * Влияние правила R-4.6 (только простая схема; в A/B отсечения крайних
+     * нет — раздел вызывается только когда $isAb = false): пулы с N ≥ POOL_MIN_N, где подиум (топ-3) при
      * среднем по всем оценкам отличался бы от итогового по trimmedMean.
      *
      * @param  array<int, array<string, mixed>>  $pools
@@ -465,7 +562,8 @@ class CompetitionAnalyticsBuilder
 
     /**
      * Выступления, где официальный итог заметно отличается от авто-расчёта
-     * R-4.6 (переписан старшим судьёй или сохранён с нестандартной точностью).
+     * по правилам схемы турнира (R-4.6 для простой, среднее A + среднее B для
+     * A/B): переписан старшим судьёй или сохранён с нестандартной точностью.
      *
      * @param  array<int, array<string, mixed>>  $rows
      * @return array<int, array<string, mixed>>

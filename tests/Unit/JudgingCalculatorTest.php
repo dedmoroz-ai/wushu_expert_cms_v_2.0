@@ -105,4 +105,114 @@ class JudgingCalculatorTest extends TestCase
         $this->assertSame(8.667, JudgingCalculator::abTotal(4.567, 4.1));
         $this->assertSame(10.0, JudgingCalculator::abTotal(5.0, 5.0));
     }
+
+    // --- Подтверждение кода сбавки (R-3.13, R-3.14, уточнение заказчика 08.10) ---
+
+    public function test_code_pressed_by_single_judge_is_not_counted(): void
+    {
+        $res = JudgingCalculator::confirmedPanelScores([
+            1 => ['score' => 4.9, 'deductions' => [['code' => '11', 'value' => 0.1]]],
+            2 => ['score' => 5.0, 'deductions' => []],
+        ]);
+
+        // Код 11 нажат суммарно ровно один раз — сбавка не учитывается.
+        $this->assertSame(5.0, $res['scores'][1]);
+        $this->assertSame(5.0, $res['scores'][2]);
+        $this->assertSame([['code' => '11', 'value' => 0.1]], $res['ignored'][1]);
+        $this->assertArrayNotHasKey(2, $res['ignored']);
+        $this->assertSame(['11' => 1], $res['totals']);
+        $this->assertSame(['11' => 1], $res['judges']);
+    }
+
+    public function test_code_pressed_by_two_judges_counts_for_both(): void
+    {
+        // Судья 1 — 1 раз, судья 2 — 1 раз → у каждого по одной сбавке.
+        $res = JudgingCalculator::confirmedPanelScores([
+            1 => ['score' => 4.9, 'deductions' => [['code' => '11', 'value' => 0.1]]],
+            2 => ['score' => 4.9, 'deductions' => [['code' => '11', 'value' => 0.1]]],
+        ]);
+
+        $this->assertSame(4.9, $res['scores'][1]);
+        $this->assertSame(4.9, $res['scores'][2]);
+        $this->assertSame([], $res['ignored']);
+        $this->assertSame(['11' => 2], $res['totals']);
+        $this->assertSame(['11' => 2], $res['judges']);
+    }
+
+    public function test_code_pressed_twice_by_single_judge_is_not_counted(): void
+    {
+        // Судья 1 — 2 раза, судья 2 — 0: код заметил только один судья —
+        // не считается, неважно сколько раз нажал (уточнение 08.10).
+        $res = JudgingCalculator::confirmedPanelScores([
+            1 => ['score' => 4.8, 'deductions' => [
+                ['code' => '11', 'value' => 0.1],
+                ['code' => '11', 'value' => 0.1],
+            ]],
+            2 => ['score' => 5.0, 'deductions' => []],
+        ]);
+
+        $this->assertSame(5.0, $res['scores'][1]);
+        $this->assertSame([
+            1 => [
+                ['code' => '11', 'value' => 0.1],
+                ['code' => '11', 'value' => 0.1],
+            ],
+        ], $res['ignored']);
+        $this->assertSame(['11' => 2], $res['totals']);
+        $this->assertSame(['11' => 1], $res['judges']);
+    }
+
+    public function test_code_with_repeats_by_two_judges_counts_fully(): void
+    {
+        // Судья 1 — 2 раза, судья 2 — 1 раз: код заметили два судьи —
+        // учитывается каждое нажатие каждого судьи.
+        $res = JudgingCalculator::confirmedPanelScores([
+            1 => ['score' => 4.8, 'deductions' => [
+                ['code' => '11', 'value' => 0.1],
+                ['code' => '11', 'value' => 0.1],
+            ]],
+            2 => ['score' => 4.9, 'deductions' => [
+                ['code' => '11', 'value' => 0.1],
+            ]],
+        ]);
+
+        $this->assertSame(4.8, $res['scores'][1]);
+        $this->assertSame(4.9, $res['scores'][2]);
+        $this->assertSame([], $res['ignored']);
+        $this->assertSame(['11' => 3], $res['totals']);
+        $this->assertSame(['11' => 2], $res['judges']);
+    }
+
+    public function test_confirmation_filter_is_applied_per_code(): void
+    {
+        // 22 подтверждён (2 нажатия), 33 — одиночный и не учитывается.
+        $res = JudgingCalculator::confirmedPanelScores([
+            1 => ['score' => 4.2, 'deductions' => [
+                ['code' => '22', 'value' => 0.3],
+                ['code' => '33', 'value' => 0.5],
+            ]],
+            2 => ['score' => 4.7, 'deductions' => [
+                ['code' => '22', 'value' => 0.3],
+            ]],
+        ]);
+
+        // Судья 1: 4.200 + 0.5 = 4.700; судья 2: 4.700 без изменений.
+        $this->assertSame(4.7, $res['scores'][1]);
+        $this->assertSame(4.7, $res['scores'][2]);
+        $this->assertSame([1 => [['code' => '33', 'value' => 0.5]]], $res['ignored']);
+        $this->assertSame(['22' => 2, '33' => 1], $res['totals']);
+    }
+
+    public function test_score_without_deduction_snapshot_is_kept(): void
+    {
+        // Оценки без снимка сбавок (простая схема, старые данные) не пересчитываются.
+        $res = JudgingCalculator::confirmedPanelScores([
+            1 => ['score' => 4.5, 'deductions' => []],
+            2 => ['score' => 4.7, 'deductions' => []],
+        ]);
+
+        $this->assertSame(4.5, $res['scores'][1]);
+        $this->assertSame(4.7, $res['scores'][2]);
+        $this->assertSame([], $res['ignored']);
+    }
 }

@@ -8,6 +8,7 @@ use App\Models\Club;
 use App\Models\Competition;
 use App\Models\Registration;
 use App\Models\Score;
+use App\Models\ScoreDeduction;
 use App\Models\Style;
 use App\Models\User;
 use App\Support\CompetitionAnalyticsBuilder;
@@ -239,14 +240,69 @@ class CompetitionAnalyticsBuilderTest extends TestCase
         $this->assertNull($metrics['spread']['mean']);
     }
 
-    private function makeCompetition(): Competition
+    /**
+     * Сценарий A/B: авто-расчёт строки = среднее A + среднее B без отбрасывания
+     * крайних (R-4.18–R-4.20); код сбавки, нажатый только одним судьёй (даже
+     * дважды), не считается (R-3.14). Правило R-4.6 (trimmedMean, отсечения,
+     * flips) в A/B не применяется.
+     */
+    public function test_ab_scheme_uses_panel_sum_without_r46(): void
+    {
+        $competition = $this->makeCompetition(Competition::SCHEME_AB);
+        [$reg, $judges] = $this->makeRegistration($competition, 'Таолу', 'Юноши', 'Иващенко Лев');
+
+        // Судьи 0,1 — панель A; 2,3 — панель B (функция — из самой оценки).
+        $s1 = Score::create(['registration_id' => $reg->id, 'judge_id' => $judges[0]->id, 'score' => 4.2, 'panel' => Competition::PANEL_A]);
+        $s2 = Score::create(['registration_id' => $reg->id, 'judge_id' => $judges[1]->id, 'score' => 4.5, 'panel' => Competition::PANEL_A]);
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges[2]->id, 'score' => 3.1, 'panel' => Competition::PANEL_B]);
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges[3]->id, 'score' => 3.5, 'panel' => Competition::PANEL_B]);
+
+        // Судья A1: 5 − (0.2+0.3+0.1+0.1+0.1) = 4.200.
+        foreach ([['82', 0.2], ['75', 0.3], ['06', 0.1], ['03', 0.1], ['03', 0.1]] as [$code, $value]) {
+            ScoreDeduction::create(['score_id' => $s1->id, 'code' => $code, 'label' => 'Код '.$code, 'value' => $value]);
+        }
+        // Судья A2: 5 − 5×0.1 = 4.500.
+        foreach (['01', '02', '03', '04', '05'] as $code) {
+            ScoreDeduction::create(['score_id' => $s2->id, 'code' => $code, 'label' => 'Код '.$code, 'value' => 0.1]);
+        }
+
+        // Код 03 заметили оба судьи A (у A1 — дважды) → считается; остальные
+        // коды нажал только один судья → не считаются:
+        // A = ((4.200 + 0.600) + (4.500 + 0.400)) / 2 = 4.850; B = 3.300; авто 8.150.
+        $reg->update(['final_score' => 8.15]);
+
+        $metrics = CompetitionAnalyticsBuilder::build($competition->fresh());
+
+        $row = $metrics['pools'][0]['athletes'][0];
+        $this->assertSame(8.15, $row['auto']);
+        $this->assertSame([], $metrics['mismatches']);
+        $this->assertSame([], $metrics['flips']);
+
+        // Отсечения R-4.6 в A/B не считаются.
+        foreach ($metrics['judges'] as $judge) {
+            $this->assertSame(0, $judge['drop_min']);
+            $this->assertSame(0, $judge['drop_max']);
+        }
+
+        // Переписанный вручную итог попадает в mismatches с авто-расчётом A/B.
+        $reg->update(['final_score' => 7.65]);
+        $metrics = CompetitionAnalyticsBuilder::build($competition->fresh());
+
+        $this->assertCount(1, $metrics['mismatches']);
+        $mismatch = $metrics['mismatches'][0];
+        $this->assertSame(8.15, $mismatch['auto']);
+        $this->assertSame(7.65, $mismatch['final']);
+        $this->assertSame(-0.5, $mismatch['diff']);
+    }
+
+    private function makeCompetition(string $scheme = Competition::SCHEME_SIMPLE): Competition
     {
         $competition = Competition::create([
             'name' => 'AI-аналитика турнир',
             'start_date' => '2026-03-01',
             'city' => 'Москва',
             'status_code' => 3,
-            'judging_scheme' => Competition::SCHEME_SIMPLE,
+            'judging_scheme' => $scheme,
         ]);
 
         // Бригада общая для турнира (как на сервере — 6 судей на все выступления).

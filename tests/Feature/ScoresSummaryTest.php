@@ -9,6 +9,7 @@ use App\Models\Club;
 use App\Models\Competition;
 use App\Models\Registration;
 use App\Models\Score;
+use App\Models\ScoreDeduction;
 use App\Models\Style;
 use App\Models\User;
 use App\Support\ScoresSummaryMatrix;
@@ -267,6 +268,41 @@ class ScoresSummaryTest extends TestCase
         $this->actingAs($stranger)
             ->get(route('competition.scores-summary', $competition))
             ->assertForbidden();
+    }
+
+    /**
+     * Уточнение заказчика 28.09 (R-3.14): среднее A считается с фильтром
+     * подтверждения кодов: код, нажатый суммарно ровно одним
+     * судьёй, не учитывается; в ячейках — сохранённые оценки судей.
+     */
+    public function test_ab_matrix_ignores_single_judge_code_in_average(): void
+    {
+        [$competition, $reg, $judges] = $this->makeTournament(Competition::SCHEME_AB);
+
+        // Код 11 нажат обоими судьями — учитывается; код 22 — только у j3, нет.
+        $s1 = Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j1']->id, 'score' => 4.9, 'panel' => 'A']);
+        $s2 = Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j2']->id, 'score' => 4.9, 'panel' => 'A']);
+        $s3 = Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j3']->id, 'score' => 4.6, 'panel' => 'A']);
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j4']->id, 'score' => 4.0, 'panel' => 'B']);
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges['j5']->id, 'score' => 4.2, 'panel' => 'B']);
+
+        foreach ([[$s1, '11', 0.1], [$s2, '11', 0.1], [$s3, '22', 0.3]] as [$sc, $code, $val]) {
+            ScoreDeduction::create([
+                'score_id' => $sc->id,
+                'code' => $code,
+                'label' => 'Код '.$code,
+                'value' => $val,
+            ]);
+        }
+
+        $row = ScoresSummaryMatrix::build($competition->fresh())['rows'][0];
+
+        // Ячейки — сохранённые оценки, среднее A — с учётом фильтра
+        // (j3: 4.600 + 0.3 = 4.900): (4.9 + 4.9 + 4.9) / 3 = 4.900; B = 4.100; итог 9.000.
+        $this->assertSame(4.6, $row['cells'][$judges['j3']->id]);
+        $this->assertSame(4.9, $row['groups'][Competition::PANEL_A]['avg']);
+        $this->assertSame(4.1, $row['groups'][Competition::PANEL_B]['avg']);
+        $this->assertSame(9.0, $row['avg']);
     }
 
     /**
