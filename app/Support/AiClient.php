@@ -53,7 +53,9 @@ class AiClient
         $timeout = (int) ($options['timeout'] ?? config('services.ai.timeout', env('AI_TIMEOUT', self::DEFAULT_TIMEOUT)));
 
         // reasoning-модель: include_reasoning не запрашиваем (нужен только
-        // финальный текст), max_tokens щедрый, таймаут — до 3 минут.
+        // финальный текст), но reasoning-токены входят в max_tokens — при
+        // 12000 модель отдавала обрезанный JSON (finish_reason=length,
+        // reasoning ~9.6k токенов). Запас: reasoning + полный JSON-дайджест.
         $response = Http::baseUrl($base)
             ->withToken($apiKey)
             ->acceptJson()
@@ -62,7 +64,7 @@ class AiClient
             ->post('/chat/completions', [
                 'model' => $model,
                 'temperature' => $options['temperature'] ?? 0.4,
-                'max_tokens' => $options['max_tokens'] ?? 12000,
+                'max_tokens' => $options['max_tokens'] ?? 24000,
                 'response_format' => ['type' => 'json_object'],
                 'messages' => [
                     ['role' => 'system', 'content' => $system],
