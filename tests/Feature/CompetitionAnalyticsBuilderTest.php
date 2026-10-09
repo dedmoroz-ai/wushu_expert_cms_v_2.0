@@ -6,6 +6,7 @@ use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Competition;
+use App\Models\JudgingLog;
 use App\Models\Registration;
 use App\Models\Score;
 use App\Models\ScoreDeduction;
@@ -293,6 +294,150 @@ class CompetitionAnalyticsBuilderTest extends TestCase
         $this->assertSame(8.15, $mismatch['auto']);
         $this->assertSame(7.65, $mismatch['final']);
         $this->assertSame(-0.5, $mismatch['diff']);
+    }
+
+    /**
+     * «Журнал судейства» в метриках: распределение действий, ручные
+     * корректировки итогов (коды спортсменов + ФИО для blade), правки оценок.
+     */
+    public function test_audit_section_summarizes_judging_log(): void
+    {
+        $competition = $this->makeCompetition();
+        [$reg, $judges] = $this->makeRegistration($competition, 'Чанцюань', 'Юноши', 'Иванов Иван');
+
+        $this->fillScores($reg, $judges, [8.0, 8.2, 8.4]);
+        $reg->update(['final_score' => 8.2]);
+
+        JudgingLog::create([
+            'competition_id' => $competition->id,
+            'registration_id' => $reg->id,
+            'judge_id' => $judges[0]->id,
+            'action' => JudgingLog::ACTION_SCORE_CREATED,
+            'new_value' => 8.0,
+        ]);
+        JudgingLog::create([
+            'competition_id' => $competition->id,
+            'registration_id' => $reg->id,
+            'judge_id' => $judges[1]->id,
+            'action' => JudgingLog::ACTION_SCORE_UPDATED,
+            'old_value' => 8.2,
+            'new_value' => 8.4,
+            'reason' => 'Исправление оценки',
+        ]);
+        JudgingLog::create([
+            'competition_id' => $competition->id,
+            'registration_id' => $reg->id,
+            'action' => JudgingLog::ACTION_FINAL_SCORE_CHANGED,
+            'old_value' => 8.2,
+            'new_value' => 8.5,
+            'reason' => 'Ручная корректировка итога',
+        ]);
+        JudgingLog::create([
+            'competition_id' => $competition->id,
+            'registration_id' => $reg->id,
+            'action' => JudgingLog::ACTION_PROTOCOL_FINALIZED,
+            'new_value' => 8.5,
+        ]);
+
+        $metrics = CompetitionAnalyticsBuilder::build($competition->fresh());
+        $audit = $metrics['audit'];
+
+        $this->assertSame(4, $audit['total']);
+        $this->assertSame(1, $audit['actions'][JudgingLog::ACTION_SCORE_CREATED]);
+        $this->assertSame(1, $audit['actions'][JudgingLog::ACTION_SCORE_UPDATED]);
+        $this->assertSame(1, $audit['actions'][JudgingLog::ACTION_FINAL_SCORE_CHANGED]);
+        $this->assertSame(1, $audit['actions'][JudgingLog::ACTION_PROTOCOL_FINALIZED]);
+
+        // Ручная корректировка итога: код A1, значения, причина, ФИО (для blade).
+        $this->assertCount(1, $audit['final_changes']);
+        $change = $audit['final_changes'][0];
+        $this->assertSame('A1', $change['athlete_code']);
+        $this->assertSame('Иванов Иван', $change['athlete']);
+        $this->assertSame(8.2, $change['old']);
+        $this->assertSame(8.5, $change['new']);
+        $this->assertSame('Ручная корректировка итога', $change['reason']);
+
+        // Правки/снятия оценок: 2 события (создание + обновление).
+        $this->assertCount(2, $audit['score_actions']);
+    }
+
+    /**
+     * Коды сбавок (панель A): R-3.14 — код, нажатый одним судьёй (даже дважды),
+     * не подтверждён; код, нажатый двумя судьями, подтверждён.
+     */
+    public function test_deduction_codes_respect_r314_confirmation(): void
+    {
+        $competition = $this->makeCompetition(Competition::SCHEME_AB);
+        [$reg, $judges] = $this->makeRegistration($competition, 'Таолу', 'Юноши', 'Иващенко Лев');
+
+        $s1 = Score::create(['registration_id' => $reg->id, 'judge_id' => $judges[0]->id, 'score' => 4.6, 'panel' => Competition::PANEL_A]);
+        $s2 = Score::create(['registration_id' => $reg->id, 'judge_id' => $judges[1]->id, 'score' => 4.7, 'panel' => Competition::PANEL_A]);
+        Score::create(['registration_id' => $reg->id, 'judge_id' => $judges[2]->id, 'score' => 3.3, 'panel' => Competition::PANEL_B]);
+
+        // Код 11 нажали оба судьи A → подтверждён; код 23 нажал один судья
+        // дважды → не подтверждён (R-3.14).
+        ScoreDeduction::create(['score_id' => $s1->id, 'code' => '11', 'label' => 'Ошибка 11', 'value' => 0.1]);
+        ScoreDeduction::create(['score_id' => $s2->id, 'code' => '11', 'label' => 'Ошибка 11', 'value' => 0.1]);
+        ScoreDeduction::create(['score_id' => $s1->id, 'code' => '23', 'label' => 'Ошибка 23', 'value' => 0.1]);
+        ScoreDeduction::create(['score_id' => $s1->id, 'code' => '23', 'label' => 'Ошибка 23', 'value' => 0.1]);
+
+        $reg->update(['final_score' => 8.45]);
+
+        $metrics = CompetitionAnalyticsBuilder::build($competition->fresh());
+        $codes = collect($metrics['deductions']['codes'])->keyBy('code');
+
+        $this->assertTrue($codes['11']['confirmed']);
+        $this->assertSame(2, $codes['11']['judges']);
+        $this->assertSame(2, $codes['11']['presses']);
+
+        $this->assertFalse($codes['23']['confirmed']);
+        $this->assertSame(1, $codes['23']['judges']);
+        $this->assertSame(2, $codes['23']['presses']);
+    }
+
+    /**
+     * LLM-дайджест содержит «Сводку оценок» (оценки по судьям + авто-расчёт)
+     * и «Журнал судейства» (audit), ФИО из audit вырезаны.
+     */
+    public function test_llm_digest_includes_scores_audit_and_deductions(): void
+    {
+        $competition = $this->makeCompetition();
+        [$reg, $judges] = $this->makeRegistration($competition, 'Чанцюань', 'Юноши', 'Иванов Иван');
+
+        $this->fillScores($reg, $judges, [8.0, 8.2, 8.4]);
+        $reg->update(['final_score' => 8.2]);
+
+        JudgingLog::create([
+            'competition_id' => $competition->id,
+            'registration_id' => $reg->id,
+            'action' => JudgingLog::ACTION_FINAL_SCORE_CHANGED,
+            'old_value' => 8.2,
+            'new_value' => 8.5,
+            'reason' => 'Ручная корректировка итога',
+        ]);
+
+        $metrics = CompetitionAnalyticsBuilder::build($competition->fresh());
+        $payload = CompetitionAnalyticsBuilder::llmDigest($metrics);
+
+        // «Сводка оценок»: по-судейские оценки и авто-расчёт в каждом выступлении.
+        $athlete = $payload['pools'][0]['athletes'][0];
+        $this->assertSame(['S1' => 8.0, 'S2' => 8.2, 'S3' => 8.4], $athlete['scores']);
+        $this->assertSame(8.2, $athlete['auto']);
+
+        // «Журнал судейства» в дайджесте, без ФИО.
+        $this->assertSame(1, $payload['audit']['total']);
+        $this->assertCount(1, $payload['audit']['final_changes']);
+        $change = $payload['audit']['final_changes'][0];
+        $this->assertSame('A1', $change['athlete_code']);
+        $this->assertArrayNotHasKey('athlete', $change);
+        $this->assertSame('Ручная корректировка итога', $change['reason']);
+
+        // Секция кодов сбавок присутствует в дайджесте.
+        $this->assertArrayHasKey('codes', $payload['deductions']);
+
+        // ФИО не утекают в JSON дайджеста.
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $this->assertStringNotContainsString('Иванов Иван', $json);
     }
 
     private function makeCompetition(string $scheme = Competition::SCHEME_SIMPLE): Competition

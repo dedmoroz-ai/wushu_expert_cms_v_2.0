@@ -6,6 +6,7 @@ use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Competition;
+use App\Models\JudgingLog;
 use App\Models\Registration;
 use App\Models\Score;
 use App\Models\Style;
@@ -46,7 +47,7 @@ class AiReportGeneratorTest extends TestCase
 
         config()->set('services.ai.key', 'test-key');
         config()->set('services.ai.base_url', 'https://polza.test/api/v1');
-        config()->set('services.ai.model', 'xiaomi/mimo-v2.6-pro');
+        config()->set('services.ai.model', 'anthropic/claude-haiku-5.5');
     }
 
     protected function tearDown(): void
@@ -98,7 +99,7 @@ class AiReportGeneratorTest extends TestCase
 
         Http::assertSent(function ($request) {
             return str_contains($request->url(), '/chat/completions')
-                && $request['model'] === 'xiaomi/mimo-v2.6-pro'
+                && $request['model'] === 'anthropic/claude-haiku-5.5'
                 && $request['response_format'] === ['type' => 'json_object'];
         });
     }
@@ -155,6 +156,60 @@ class AiReportGeneratorTest extends TestCase
                 && ! str_contains($user, 'Спортсмен Первый')
                 && ! str_contains($user, 'Судья А');
         });
+    }
+
+    /**
+     * Промпт задаёт методику (simple/A/B) и оба источника:
+     * «Сводка оценок» (scores) и «Журнал судейства» (audit).
+     */
+    public function test_prompt_describes_sources_and_methodology(): void
+    {
+        Http::fake(['polza.test/*' => Http::response($this->llmResponse(), 200)]);
+
+        $competition = $this->makeCompetitionWithScores();
+        app(AiReportGenerator::class)->generate($competition);
+
+        Http::assertSent(function ($request) {
+            $system = $request['messages'][0]['content'];
+            $user = $request['messages'][1]['content'];
+
+            return str_contains($system, 'Сводка оценок')
+                && str_contains($system, 'Журнал судейства')
+                && str_contains($system, 'trimmedMean')
+                && str_contains($system, 'среднее A +')
+                && str_contains($system, 'R-3.14')
+                && str_contains($user, '"audit"')
+                && str_contains($user, '"scores"');
+        });
+    }
+
+    /** Отчёт содержит раздел «Журнал судейства и коды сбавок» с LLM-разбором. */
+    public function test_report_shows_judging_log_section(): void
+    {
+        Http::fake(['polza.test/*' => Http::response($this->llmResponse(), 200)]);
+
+        $competition = $this->makeCompetitionWithScores();
+
+        // Событие журнала: ручная корректировка итогового балла.
+        $reg = $competition->registrations()->first();
+        JudgingLog::create([
+            'competition_id' => $competition->id,
+            'registration_id' => $reg->id,
+            'action' => JudgingLog::ACTION_FINAL_SCORE_CHANGED,
+            'old_value' => 8.5,
+            'new_value' => 8.7,
+            'reason' => 'Решение старшего судьи',
+        ]);
+
+        $result = app(AiReportGenerator::class)->generate($competition);
+        $html = File::get($result['path']);
+
+        $this->assertStringContainsString('Журнал судейства и коды сбавок', $html);
+        $this->assertStringContainsString('Всего записей в журнале действий: 1', $html);
+        $this->assertStringContainsString('Ручные корректировки итогового балла', $html);
+        $this->assertStringContainsString('Решение старшего судьи', $html);
+        // LLM-разбор журнала из llmResponse().
+        $this->assertStringContainsString('протоколы утверждены без правок', $html);
     }
 
     /** Ответ в ```json-блоке (без response_format) тоже разбирается. */
@@ -221,7 +276,7 @@ class AiReportGeneratorTest extends TestCase
     private function llmResponse(): array
     {
         return [
-            'model' => 'xiaomi/mimo-v2.6-pro',
+            'model' => 'anthropic/claude-haiku-5.5',
             'choices' => [[
                 'message' => [
                     'content' => json_encode([
@@ -232,6 +287,8 @@ class AiReportGeneratorTest extends TestCase
                         'focus_pools' => [
                             ['key' => 'Чанцюань | Юноши', 'comment' => 'Разброс оценок высокий.'],
                         ],
+                        'audit' => 'Журнал действий: ручных корректировок итогов нет, протоколы утверждены без правок.',
+                        'deductions' => 'Коды сбавок подтверждены коллегиально, расхождений нет.',
                         'conclusions' => ['Калибровка бригады требуется.'],
                         'recommendations' => ['Калибровка бригады: совместный просмотр эталонов.'],
                     ], JSON_UNESCAPED_UNICODE),

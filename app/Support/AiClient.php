@@ -10,21 +10,21 @@ use RuntimeException;
  * Клиент LLM для AI-аналитики (docs/ANALYTICS.md).
  *
  * OpenAI-совместимый API polza.ai (POST /chat/completions, Bearer-ключ).
- * Модель по умолчанию — xiaomi/mimo-v2.6-pro (reasoning): не запрашиваем
- * include_reasoning, отдаём достаточно max_tokens, таймаут щедрый (модель
- * думает до минут). Ответ просим в JSON (response_format json_object),
- * но терпимо парсим и ```json-блок — провайдеры различаются.
+ * Модель по умолчанию — anthropic/claude-haiku-5.5 (быстрая и точная),
+ * отдаём достаточно max_tokens и щедрый таймаут. Ответ просим в JSON
+ * (response_format json_object), но терпимо парсим и ```json-блок —
+ * провайдеры различаются.
  *
  * Переменные окружения:
  *  - AI_BASE_URL (по умолчанию https://polza.ai/api/v1)
  *  - AI_API_KEY  (Bearer; без него вызов завершается понятной ошибкой)
- *  - AI_MODEL    (по умолчанию xiaomi/mimo-v2.6-pro)
+ *  - AI_MODEL    (по умолчанию anthropic/claude-haiku-5.5)
  *  - AI_TIMEOUT  (секунды; по умолчанию 180)
  */
 class AiClient
 {
     /** Дефолтная модель polza.ai для аналитики. */
-    public const DEFAULT_MODEL = 'xiaomi/mimo-v2.6-pro';
+    public const DEFAULT_MODEL = 'anthropic/claude-haiku-5.5';
 
     /** Таймаут по умолчанию, секунды (reasoning-модель думает долго). */
     public const DEFAULT_TIMEOUT = 180;
@@ -130,14 +130,17 @@ class AiClient
                 $ch = $trimmed[$i];
                 if ($escape) {
                     $escape = false;
+
                     continue;
                 }
                 if ($ch === '\\') {
                     $escape = true;
+
                     continue;
                 }
                 if ($ch === '"') {
                     $inString = ! $inString;
+
                     continue;
                 }
                 if ($inString) {

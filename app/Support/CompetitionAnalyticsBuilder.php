@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Competition;
+use App\Models\JudgingLog;
 use App\Models\Registration;
 use Illuminate\Support\Collection;
 
@@ -43,6 +44,8 @@ class CompetitionAnalyticsBuilder
      *     pools: array<int, array<string, mixed>>,
      *     flips: array<int, array<string, mixed>>,
      *     mismatches: array<int, array<string, mixed>>,
+     *     audit: array<string, mixed>,
+     *     deductions: array{codes: array<int, array<string, mixed>>},
      *     focusKeys: array<int, string>,
      * }|null
      */
@@ -64,7 +67,6 @@ class CompetitionAnalyticsBuilder
         foreach ($registrations as $reg) {
             $values = $scoresByReg[$reg->id] ?? [];
             $auto = self::autoScore($isAb, $values, $extrasByReg[$reg->id] ?? []);
-
 
             $spread = null;
             if (count($values) >= 2) {
@@ -109,6 +111,10 @@ class CompetitionAnalyticsBuilder
         // Влияние R-4.6 на топ-3 — только простая схема; в A/B правила другие.
         $flips = $isAb ? [] : self::flipsSection($pools);
         $mismatches = self::mismatchesSection($rows);
+        // Журнал судейства (аудит) и снимок кодов сбавок — источники
+        // «Журнал судейства» и «Сводка оценок» для аналитики.
+        $audit = self::auditSection($competition, $rows);
+        $deductions = self::deductionsSection($rows);
 
         return [
             'competition' => [
@@ -131,6 +137,8 @@ class CompetitionAnalyticsBuilder
             'pools' => $pools,
             'flips' => $flips,
             'mismatches' => $mismatches,
+            'audit' => $audit,
+            'deductions' => $deductions,
             'focusKeys' => self::focusKeys($pools),
         ];
     }
@@ -599,11 +607,157 @@ class CompetitionAnalyticsBuilder
     }
 
     /**
+     * Журнал судейства (правило 8.9 / R-6.13): сводка действий и значимые
+     * события для аналитики. Полные таблицы рендерит blade; в LLM уходит
+     * кодированный дайджест (llmDigest) без ФИО.
+     *
+     * Учитываются:
+     *  - распределение действий (score_created/updated/deleted,
+     *    final_score_changed, protocol_finalized);
+     *  - ручные корректировки итогового балла (final_score_changed) с
+     *    причинами и кодами спортсменов;
+     *  - правки и снятия оценок (score_updated/updated, score_deleted) —
+     *    признак нестабильности ввода и перевыставлений.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<string, mixed>
+     */
+    private static function auditSection(Competition $competition, array $rows): array
+    {
+        // Коды спортсменов по registration_id (коды стабильны между запусками).
+        $codeByReg = [];
+        $styleByReg = [];
+        $groupByReg = [];
+        foreach ($rows as $row) {
+            $reg = $row['reg'];
+            $codeByReg[$reg->id] = $row['code'];
+            $styleByReg[$reg->id] = (string) ($reg->style?->name ?? '—');
+            $groupByReg[$reg->id] = (string) ($reg->ageGroup?->name ?? '—');
+        }
+
+        $logs = JudgingLog::query()
+            ->where('competition_id', $competition->id)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $actions = [];
+        $finalChanges = [];
+        $scoreActions = [];
+
+        foreach ($logs as $log) {
+            $action = (string) $log->action;
+            $actions[$action] = ($actions[$action] ?? 0) + 1;
+
+            if ($action === JudgingLog::ACTION_FINAL_SCORE_CHANGED) {
+                $code = $codeByReg[$log->registration_id] ?? null;
+                $finalChanges[] = [
+                    'athlete_code' => $code,
+                    // ФИО — только для blade-таблицы; в LLM-дайджест не попадает
+                    // (llmDigest удаляет ключ 'athlete').
+                    'athlete' => $code === null ? null : self::athleteNameByReg($rows, $log->registration_id),
+                    'style' => $code === null ? null : $styleByReg[$log->registration_id],
+                    'age_group' => $code === null ? null : $groupByReg[$log->registration_id],
+                    'old' => $log->old_value === null ? null : (float) $log->old_value,
+                    'new' => $log->new_value === null ? null : (float) $log->new_value,
+                    'reason' => $log->reason !== null ? trim((string) $log->reason) : null,
+                    'at' => $log->created_at?->format('d.m.Y H:i'),
+                ];
+            }
+
+            if (in_array($action, [
+                JudgingLog::ACTION_SCORE_CREATED,
+                JudgingLog::ACTION_SCORE_UPDATED,
+                JudgingLog::ACTION_SCORE_DELETED,
+            ], true)) {
+                $scoreActions[] = [
+                    'action' => $action,
+                    'athlete_code' => $codeByReg[$log->registration_id] ?? null,
+                    'old' => $log->old_value === null ? null : (float) $log->old_value,
+                    'new' => $log->new_value === null ? null : (float) $log->new_value,
+                    'reason' => $log->reason !== null ? trim((string) $log->reason) : null,
+                ];
+            }
+        }
+
+        return [
+            'total' => $logs->count(),
+            'actions' => $actions,
+            'final_changes' => $finalChanges,
+            'score_actions' => $scoreActions,
+        ];
+    }
+
+    /**
+     * ФИО спортсмена по registration_id (для blade-таблиц журнала).
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private static function athleteNameByReg(array $rows, ?int $registrationId): ?string
+    {
+        foreach ($rows as $row) {
+            if ($row['reg']->id === $registrationId) {
+                return self::athleteName($row['reg']);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Снимок кодов сбавок панели A (правила R-3.12 / R-3.14) для
+     * «Сводки оценок» и LLM-дайджеста.
+     *
+     * Код, нажатый только одним судьёй (даже дважды), в вычет не идёт
+     * (R-3.14, MIN_CODE_JUDGES = 2) — такие коды помечены confirmed = false;
+     * их сумма видна как разница value_sum учтённых и неучтённых кодов.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{codes: array<int, array<string, mixed>>}
+     */
+    private static function deductionsSection(array $rows): array
+    {
+        // code => [presses, value_sum, label, judges[judge_id => true]]
+        $byCode = [];
+
+        foreach ($rows as $row) {
+            foreach ($row['reg']->scores as $score) {
+                foreach ($score->deductions as $deduction) {
+                    $code = (string) $deduction->code;
+                    $byCode[$code]['presses'] = ($byCode[$code]['presses'] ?? 0) + 1;
+                    $byCode[$code]['value_sum'] = ($byCode[$code]['value_sum'] ?? 0.0) + (float) $deduction->value;
+                    $byCode[$code]['label'] = (string) $deduction->label;
+                    $byCode[$code]['judges'][$score->judge_id] = true;
+                }
+            }
+        }
+
+        $codes = [];
+        foreach ($byCode as $code => $stat) {
+            $judges = count($stat['judges']);
+            $codes[] = [
+                'code' => $code,
+                'label' => $stat['label'],
+                'presses' => $stat['presses'],
+                'judges' => $judges,
+                'value_sum' => self::round3($stat['value_sum']),
+                'confirmed' => $judges >= JudgingCalculator::MIN_CODE_JUDGES,
+            ];
+        }
+
+        usort($codes, fn (array $a, array $b) => ($b['presses'] <=> $a['presses'])
+            ?: ($b['judges'] <=> $a['judges'])
+            ?: strcmp($a['code'], $b['code']));
+
+        return ['codes' => $codes];
+    }
+
+    /**
      * Фокусные пулы для LLM-дайджеста: содержательные (N ≥ POOL_MIN_N),
      * сначала самые «спорные» (по среднему разбросу судей), до FOCUS_POOLS.
      *
      * @param  array<int, array<string, mixed>>  $pools
-     * @return array<int, string>  ключи пулов
+     * @return array<int, string> ключи пулов
      */
     public static function focusKeys(array $pools): array
     {
@@ -621,6 +775,13 @@ class CompetitionAnalyticsBuilder
      * Дайджест для LLM: все спортсмены — кодами A1…, судьи — кодами S1….
      * ФИО разрешены только призёрам фокусных пулов (полные таблицы
      * рендерит blade без ограничений — они в LLM не уходят).
+     *
+     * Источники в дайджесте (как требует заказчик):
+     *  - «Сводка оценок» — по-судейские оценки каждого выступления
+     *    (scores: код судьи → оценка) и авто-расчёт (auto);
+     *  - «Журнал судейства» — audit: ручные корректировки итогов, правки
+     *    и снятия оценок, распределение действий;
+     *  - коды сбавок панели A — deductions с проверкой R-3.14 (confirmed).
      *
      * @param  array<string, mixed>  $metrics  результат build()
      * @return array<string, mixed>
@@ -646,6 +807,8 @@ class CompetitionAnalyticsBuilder
                     'code' => $athlete['athlete_code'],
                     'place' => $athlete['place'],
                     'final' => $athlete['final'],
+                    'auto' => $athlete['auto'],
+                    'scores' => $athlete['scores'],
                     'spread' => $athlete['spread'],
                     'min_judge' => $judgeCode($athlete['min_judge']),
                     'max_judge' => $judgeCode($athlete['max_judge']),
@@ -687,11 +850,15 @@ class CompetitionAnalyticsBuilder
             'judges' => array_map(
                 fn (array $judge) => [
                     'code' => $judge['code'],
+                    'n' => $judge['n'],
                     'mean' => $judge['mean'],
+                    'std' => $judge['std'],
                     'delta' => $judge['delta'],
                     'delta_std' => $judge['delta_std'],
                     'drop_min' => $judge['drop_min'],
                     'drop_max' => $judge['drop_max'],
+                    'min' => $judge['min'],
+                    'max' => $judge['max'],
                 ],
                 $metrics['judges'],
             ),
@@ -713,6 +880,21 @@ class CompetitionAnalyticsBuilder
                 ],
                 $metrics['mismatches'],
             ),
+            // Журнал судейства: действия, ручные корректировки итогов (коды A…),
+            // правки/снятия оценок. ФИО в события не попадают: ключ 'athlete'
+            // (ФИО для blade) здесь вырезается, остаются только коды.
+            'audit' => [
+                'total' => $metrics['audit']['total'],
+                'actions' => $metrics['audit']['actions'],
+                'final_changes' => array_map(
+                    fn (array $row) => array_diff_key($row, ['athlete' => true]),
+                    $metrics['audit']['final_changes'],
+                ),
+                'score_actions' => $metrics['audit']['score_actions'],
+            ],
+            // Коды сбавок панели A с проверкой R-3.14 (confirmed — код заметили
+            // ≥2 судей, только такие идут в вычет).
+            'deductions' => $metrics['deductions'],
         ];
     }
 }

@@ -269,7 +269,123 @@
     <p>Официальные итоги совпадают с авто-расчётом по всем выступлениям.</p>
 @endif
 
-<h2>6. Выводы и рекомендации</h2>
+<h2>6. Журнал судейства и коды сбавок</h2>
+
+<p>
+  Всего записей в журнале действий: {{ $metrics['audit']['total'] }}.
+  @if($metrics['audit']['total'] > 0)
+    Действия:
+    @foreach($metrics['audit']['actions'] as $action => $count)
+      {{ \App\Models\JudgingLog::actionLabels()[$action] ?? $action }} — {{ $count }}@if(!$loop->last), @endif
+    @endforeach.
+  @endif
+</p>
+
+@if(!empty($summary['audit']))
+    <blockquote>{{ $summary['audit'] }}</blockquote>
+@endif
+
+@php $scoreActions = collect($metrics['audit']['score_actions']); @endphp
+@if($scoreActions->isNotEmpty())
+    <h3>6.1. Правки и снятия оценок</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Действие</th>
+          <th class="center">Код</th>
+          <th class="center">Было</th>
+          <th class="center">Стало</th>
+          <th>Причина</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach($scoreActions->take(30) as $row)
+          <tr>
+            <td>{{ \App\Models\JudgingLog::actionLabels()[$row['action']] ?? $row['action'] }}</td>
+            <td class="center">{{ $row['athlete_code'] ?? '—' }}</td>
+            <td class="center">{{ $fmt($row['old']) }}</td>
+            <td class="center">{{ $fmt($row['new']) }}</td>
+            <td>{{ $row['reason'] ?? '—' }}</td>
+          </tr>
+        @endforeach
+      </tbody>
+    </table>
+    @if($scoreActions->count() > 30)
+        <p>Показаны первые 30 из {{ $scoreActions->count() }} событий правок/снятий оценок.</p>
+    @endif
+@endif
+
+@php $finalChanges = collect($metrics['audit']['final_changes']); @endphp
+@if($finalChanges->isNotEmpty())
+    <h3>6.2. Ручные корректировки итогового балла</h3>
+    <table>
+      <thead>
+        <tr>
+          <th class="center">Код</th>
+          <th>Спортсмен</th>
+          <th>Пул</th>
+          <th class="center">Было</th>
+          <th class="center">Стало</th>
+          <th>Причина</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach($finalChanges as $row)
+          <tr>
+            <td class="center">{{ $row['athlete_code'] ?? '—' }}</td>
+            <td>{{ $row['athlete'] ?? '—' }}</td>
+            <td>{{ $row['style'] ?? '—' }} — {{ $row['age_group'] ?? '—' }}</td>
+            <td class="center">{{ $fmt($row['old']) }}</td>
+            <td class="center">{{ $fmt($row['new']) }}</td>
+            <td>{{ $row['reason'] ?? '—' }}</td>
+          </tr>
+        @endforeach
+      </tbody>
+    </table>
+@endif
+
+@php $codes = collect($metrics['deductions']['codes'] ?? []); @endphp
+@if($codes->isNotEmpty())
+    <h3>6.3. Коды сбавок (панель A)</h3>
+    @if(!empty($summary['deductions']))
+        <blockquote>{{ $summary['deductions'] }}</blockquote>
+    @endif
+    <p>
+      Подтверждение кода (R-3.14): сбавка засчитывается, только если код заметили
+      не менее двух разных судей панели A; код, нажатый одним судьёй (даже дважды),
+      в вычет не идёт (в таблице помечен как «нет»).
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th class="center">Код</th>
+          <th>Наименование</th>
+          <th class="center">Нажатий</th>
+          <th class="center">Судей</th>
+          <th class="center">Сумма, балл</th>
+          <th class="center">Подтверждён</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach($codes as $row)
+          <tr @if(!$row['confirmed'])class="highlight"@endif>
+            <td class="center">{{ $row['code'] }}</td>
+            <td>{{ $row['label'] }}</td>
+            <td class="center">{{ $row['presses'] }}</td>
+            <td class="center">{{ $row['judges'] }}</td>
+            <td class="center">{{ $fmt($row['value_sum']) }}</td>
+            <td class="center">{{ $row['confirmed'] ? 'да' : 'нет' }}</td>
+          </tr>
+        @endforeach
+      </tbody>
+    </table>
+@endif
+
+@if($metrics['audit']['total'] === 0 && $codes->isEmpty())
+    <p>По турниру нет записей журнала судейства и кодов сбавок — раздел не заполнялся.</p>
+@endif
+
+<h2>7. Выводы и рекомендации</h2>
 
 @if(count($summary['conclusions']) > 0)
     <h3>Выводы</h3>

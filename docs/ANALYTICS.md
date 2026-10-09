@@ -34,7 +34,7 @@ php artisan analytics:generate 4 --model=... --timeout=240
 |---|---|---|
 | `AI_BASE_URL` | `https://polza.ai/api/v1` | OpenAI-совместимый API polza.ai |
 | `AI_API_KEY` | — | Bearer-ключ; без него генерация падает с понятной ошибкой |
-| `AI_MODEL` | `xiaomi/mimo-v2.6-pro` | reasoning-модель polza.ai |
+| `AI_MODEL` | `anthropic/claude-haiku-5.5` | Модель polza.ai (проверена в списке моделей API) |
 | `AI_TIMEOUT` | `180` | таймаут запроса, сек |
 
 На сервере ключ добавляется в `.env` **вручную** (не через git). После правки — `php artisan config:clear`.
@@ -43,7 +43,7 @@ php artisan analytics:generate 4 --model=... --timeout=240
 
 | Компонент | Роль |
 |---|---|
-| `App\Support\CompetitionAnalyticsBuilder` | Детерминированные метрики: судьи (Δ, СКО, отсечения), разбросы, пулы (дисциплина × возрастная группа), «флипы» R-4.6, расхождения итогов. Плюс `llmDigest()` — кодированный дайджест для LLM |
+| `App\Support\CompetitionAnalyticsBuilder` | Детерминированные метрики: судьи (Δ, СКО, отсечения), разбросы, пулы (дисциплина × возрастная группа), «флипы» R-4.6, расхождения итогов, аудит журнала судейства (`audit`: действия, ручные корректировки итогов, правки/снятия оценок) и коды сбавок (`deductions` с проверкой R-3.14). Плюс `llmDigest()` — кодированный дайджест для LLM |
 | `App\Support\AiClient` | HTTP к polza.ai (`/chat/completions`), `response_format: json_object`, терпимый парсинг JSON (```json-блок, сбалансированный объект) |
 | `App\Support\AiReportGenerator` | Цикл: метрики → промпт → LLM → `resources/views/reports/analytics-report.blade.php` → HTML в `storage/app/public/reports/` |
 | `App\Support\AiReportRunner` | Фоновый запуск `analytics:generate {id}` (шелл `nohup … &`, вывод в `storage/logs/ai-report.log`) и статус генерации в cache (`ai-report:state:{id}`: running/done/error, url, TTL 1 ч; running старше 10 мин = «прервано») |
@@ -63,7 +63,8 @@ php artisan analytics:generate 4 --model=... --timeout=240
 (`CompetitionAnalyticsBuilder::llmDigest()`):
 
 - спортсмены — кодами `A1…`; ФИО — только призёры (места 1–3) фокусных пулов
-  (до 3 самых «спорных» пулов с N ≥ 3);
+  (до 3 самых «спорных» пулов с N ≥ 3); ФИО из журнала (ручные корректировки)
+  в LLM вырезаются — остаются коды `A1…`;
 - судьи — кодами `S1…`, ФИО не уходят вообще;
 - полные таблицы с ФИО рендерит **blade** — эти данные в LLM не попадают и в
   отчёте есть всегда, даже если LLM недоступен.
@@ -78,7 +79,12 @@ php artisan analytics:generate 4 --model=... --timeout=240
    в A/B отсечение крайних не применяется); расхождения официального итога
    с авто-расчётом по правилам схемы турнира (R-4.6 или среднее A + среднее B;
    итог утверждает старший судья — в 145/146 случаев совпадает).
-6. Выводы и рекомендации (LLM).
+6. Журнал судейства и коды сбавок (раздел 09.10): распределение действий
+   журнала, правки/снятия оценок, ручные корректировки итогового балла
+   (таблицы blade + LLM-разбор `audit`); коды сбавок панели A с проверкой
+   R-3.14 (код подтверждён, если его заметили ≥2 судей) и LLM-разбором
+   `deductions`.
+7. Выводы и рекомендации (LLM).
 
 Оформление страницы отчёта — как на всех страницах продукта: светлая шапка
 с логотипом `images/logo.png` слева (как в админке и в отчёте 02.05) и футер

@@ -50,7 +50,7 @@ class AiReportRunnerTest extends TestCase
 
         config()->set('services.ai.key', 'test-key');
         config()->set('services.ai.base_url', 'https://polza.test/api/v1');
-        config()->set('services.ai.model', 'xiaomi/mimo-v2.6-pro');
+        config()->set('services.ai.model', 'anthropic/claude-haiku-5.5');
     }
 
     protected function tearDown(): void
@@ -191,7 +191,7 @@ class AiReportRunnerTest extends TestCase
     private function llmResponse(): array
     {
         return [
-            'model' => 'xiaomi/mimo-v2.6-pro',
+            'model' => 'anthropic/claude-haiku-5.5',
             'choices' => [[
                 'message' => [
                     'content' => json_encode([
