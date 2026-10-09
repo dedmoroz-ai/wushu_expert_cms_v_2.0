@@ -21,8 +21,10 @@ use Tests\TestCase;
 
 /**
  * Модалка «Подробно» журнала судейства: коды сбавок, нажатые только одним
- * судьёй панели A (не засчитанные в вычет, R-3.13–R-3.14, уточнение 08.10),
- * выделяются цветом; в простой схеме отметок нет.
+ * судьёй панели A (не засчитанные в вычет, R-3.13–R-3.14), выделяются цветом
+ * ТОЛЬКО у записей «Протокол утверждён» (решение заказчика 10.10: в личную
+ * оценку судьи засчитаны все её сбавки, поэтому у строк «Оценка выставлена/
+ * изменена» зачёркиваний нет). В простой схеме отметок нет.
  */
 class JudgingLogDetailsTest extends TestCase
 {
@@ -46,7 +48,7 @@ class JudgingLogDetailsTest extends TestCase
         parent::setUp();
     }
 
-    public function test_single_judge_codes_are_highlighted_in_finalized_log(): void
+    public function test_single_judge_codes_are_highlighted_only_in_finalized_log(): void
     {
         [, $reg, $judges, $head] = $this->makeAbTournament();
 
@@ -97,32 +99,30 @@ class JudgingLogDetailsTest extends TestCase
         $this->assertStringContainsString('33 −0.500', $ignoredText);
         $this->assertStringNotContainsString('22 −0.300', $ignoredText);
 
-        // Запись «Оценка выставлена» судьи A1: его 11 — неучтённые, 22 — учтён.
+        // Запись «Оценка выставлена» судьи A1: в личную оценку засчитаны все
+        // сбавки (R-3.12) — зачёркиваний нет (решение заказчика 10.10).
         $createLog = JudgingLog::where('action', JudgingLog::ACTION_SCORE_CREATED)
             ->where('judge_id', $judges['a1']->id)
             ->firstOrFail();
-        $this->assertSame(['22'], JudgingLogResource::countedCodes($createLog));
+        $this->assertNull(JudgingLogResource::countedCodes($createLog));
 
-        $lines = JudgingLogResource::detailLines($createLog->details ?? [], JudgingLogResource::countedCodes($createLog));
-        $ignoredText = $this->ignoredText($lines);
-
-        $this->assertStringContainsString('11', $ignoredText);
-        $this->assertStringNotContainsString('22', $ignoredText);
-        $this->assertSame(2, substr_count($ignoredText, '11'));
+        $createLines = JudgingLogResource::detailLines($createLog->details ?? [], null);
+        $this->assertSame('', $this->ignoredText($createLines));
 
         // Модалка рендерится с цветовой подсветкой и легендой.
         $html = view('filament.resources.judging-log-details', [
             'record' => $finalLog,
-            'lines' => JudgingLogResource::detailLines($finalLog->details ?? [], JudgingLogResource::countedCodes($finalLog)),
+            'lines' => JudgingLogResource::detailLines($finalLog->details ?? [], $counted),
         ])->render();
 
         $this->assertStringContainsString('line-through', $html);
         $this->assertStringContainsString('не учтены в вычете', $html);
     }
 
-    public function test_score_line_parts_mark_only_single_judge_codes(): void
+    public function test_finalized_snapshot_marks_only_single_judge_codes(): void
     {
         $record = JudgingLog::make([
+            'action' => JudgingLog::ACTION_PROTOCOL_FINALIZED,
             'details' => [
                 'scheme' => Competition::SCHEME_AB,
                 'scores' => [
@@ -172,6 +172,40 @@ class JudgingLogDetailsTest extends TestCase
         $this->assertFalse($a1Line[2]['ignored']);
         $this->assertSame('22 −0.300', $a1Line[3]['text']);
         $this->assertFalse($a1Line[3]['ignored']);
+    }
+
+    public function test_score_created_snapshot_is_never_marked(): void
+    {
+        // Снимок «Оценка выставлена»: судья A1 нажал 11 и 22; 11 не подтверждён
+        // вторым судьёй — но в личную оценку A1 засчитаны обе сбавки (R-3.12),
+        // поэтому строка не зачёркивается (решение заказчика 10.10).
+        $record = JudgingLog::make([
+            'action' => JudgingLog::ACTION_SCORE_CREATED,
+            'details' => [
+                'scheme' => Competition::SCHEME_AB,
+                'panel' => Competition::PANEL_A,
+                'start' => 5.0,
+                'deductions' => [
+                    ['code' => '11', 'label' => 'Руки', 'value' => 0.1],
+                    ['code' => '22', 'label' => 'Падение', 'value' => 0.3],
+                ],
+                'deductions_total' => 0.4,
+            ],
+        ]);
+
+        $this->assertNull(JudgingLogResource::countedCodes($record));
+
+        $lines = JudgingLogResource::detailLines($record->details, JudgingLogResource::countedCodes($record));
+
+        $this->assertSame('', $this->ignoredText($lines));
+
+        $html = view('filament.resources.judging-log-details', [
+            'record' => $record,
+            'lines' => $lines,
+        ])->render();
+
+        $this->assertStringNotContainsString('line-through', $html);
+        $this->assertStringNotContainsString('не учтены в вычете', $html);
     }
 
     public function test_simple_scheme_marks_nothing_as_ignored(): void

@@ -5,8 +5,6 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\JudgingLogResource\Pages;
 use App\Models\Competition;
 use App\Models\JudgingLog;
-use App\Models\Score;
-use App\Support\JudgingCalculator;
 use App\Support\ScoreRange;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -230,7 +228,8 @@ class JudgingLogResource extends Resource
      * Каждая строка — набор частей ['text' => string, 'ignored' => bool]:
      * части с `ignored` — коды сбавок, нажатые только одним судьёй панели A
      * (R-3.13–R-3.14, уточнение 08.10) — они не засчитаны в вычет и в модалке
-     * выделяются цветом.
+     * выделяются цветом. По решению заказчика 10.10 показываются только
+     * у записей «Протокол утверждён» (см. countedCodes()).
      *
      * @return array<int, array<int, array{text: string, ignored: bool}>>
      */
@@ -329,100 +328,70 @@ class JudgingLogResource extends Resource
 
     /**
      * Коды сбавок панели A, засчитанные в вычет (замечены двумя и более судьями,
-     * R-3.13–R-3.14, уточнение 08.10). Код, которого нет в списке, — неучтённый
-     * (нажат только одним судьёй) и в модалке выделяется цветом.
+     * R-3.13–R-3.14, уточнение 08.10), — для цветовых отметок модалки «Подробно».
+     * Код, которого нет в списке, — неучтённый (нажат только одним судьёй)
+     * и в модалке выделяется цветом.
      *
-     * Источник истины — снимки на момент действия: для записи «Протокол
-     * утверждён» это details.ignored_deductions/details.scores, для записей
-     * «Оценка выставлена/изменена» — текущие score_deductions регистрации
-     * (снимок R-3.12 не переписывается, поэтому они отражают состояние на момент
-     * действия; позднейшие правки снимков делают отметки приблизительными).
+     * По решению заказчика 10.10 отметки показываются ТОЛЬКО у записей
+     * «Протокол утверждён»: их снимок details.scores + details.ignored_deductions
+     * самодостаточен и точно отражает, что засчитано в итоговый расчёт A.
+     * Для остальных действий («Оценка выставлена/изменена» и т.п.)
+     * возвращается null: в личную оценку судьи засчитаны все её сбавки (R-3.12),
+     * поэтому отметки о «неучтённых» кодах в таких строках противоречили
+     * их собственному расчёту (5.000 − сумма всех сбавок).
      *
-     * null — отметки неприменимы (запись без снимка сбавок или простая схема:
-     * там правила подтверждения не действуют, засчитываются все нажатия).
+     * null — отметки неприменимы: не «Протокол утверждён», простая схема
+     * (правила подтверждения не действуют), запись без снимка сбавок или без
+     * ignored_deductions (старые записи: по правилам на момент утверждения
+     * засчитывались все нажатия).
      *
      * @return array<int, string>|null
      */
     public static function countedCodes(JudgingLog $record): ?array
     {
+        if ($record->action !== JudgingLog::ACTION_PROTOCOL_FINALIZED) {
+            return null;
+        }
+
         $details = $record->details ?? [];
 
         if (($details['scheme'] ?? Competition::SCHEME_SIMPLE) !== Competition::SCHEME_AB) {
             return null;
         }
 
-        // Итоговая запись: полный снимок всех оценок A и неучтённых нажатий.
-        if (! empty($details['scores'])) {
-            $ignoredCounts = [];
+        if (empty($details['scores']) || ! array_key_exists('ignored_deductions', $details)) {
+            return null;
+        }
 
-            foreach ($details['ignored_deductions'] ?? [] as $ignored) {
-                $key = $ignored['judge_id'].'|'.$ignored['code'];
-                $ignoredCounts[$key] = ($ignoredCounts[$key] ?? 0) + 1;
+        $ignoredCounts = [];
+
+        foreach ($details['ignored_deductions'] as $ignored) {
+            $key = $ignored['judge_id'].'|'.$ignored['code'];
+            $ignoredCounts[$key] = ($ignoredCounts[$key] ?? 0) + 1;
+        }
+
+        $judgesByCode = [];
+
+        foreach ($details['scores'] as $s) {
+            if (($s['panel'] ?? null) !== Competition::PANEL_A) {
+                continue;
             }
 
-            $judgesByCode = [];
+            foreach ($s['deductions'] ?? [] as $d) {
+                $key = $s['judge_id'].'|'.$d['code'];
 
-            foreach ($details['scores'] as $s) {
-                if (($s['panel'] ?? null) !== Competition::PANEL_A) {
+                // Неучтённые нажатия остаются в снимке — их вычитаем.
+                if (($ignoredCounts[$key] ?? 0) > 0) {
+                    $ignoredCounts[$key]--;
+
                     continue;
                 }
 
-                foreach ($s['deductions'] ?? [] as $d) {
-                    $key = $s['judge_id'].'|'.$d['code'];
-
-                    // Неучтённые нажатия остаются в снимке — их вычитаем.
-                    if (($ignoredCounts[$key] ?? 0) > 0) {
-                        $ignoredCounts[$key]--;
-
-                        continue;
-                    }
-
-                    $judgesByCode[$d['code']] = true;
-                }
+                $judgesByCode[$d['code']] = true;
             }
-
-            return array_map('strval', array_keys($judgesByCode));
         }
 
-        // Запись выставления/изменения оценки: пересчёт по текущим снимкам панели.
-        if (array_key_exists('deductions', $details) && $record->registration_id) {
-            $scores = Score::where('registration_id', $record->registration_id)
-                ->with('deductions')
-                ->get();
-
-            $judgeScores = [];
-
-            foreach ($scores as $score) {
-                if ($score->panel !== Competition::PANEL_A) {
-                    continue;
-                }
-
-                $judgeScores[$score->judge_id] = [
-                    'score' => (float) $score->score,
-                    'deductions' => $score->deductions
-                        ->map(fn ($d) => ['code' => (string) $d->code, 'value' => (float) $d->value])
-                        ->values()
-                        ->all(),
-                ];
-            }
-
-            if ($judgeScores === []) {
-                return null;
-            }
-
-            $confirmed = JudgingCalculator::confirmedPanelScores($judgeScores);
-
-            // judges — сколько судей нажали код; засчитан только код,
-            // замеченный MIN_CODE_JUDGES и более судьями.
-            $counted = array_keys(array_filter(
-                $confirmed['judges'],
-                fn (int $count) => $count >= JudgingCalculator::MIN_CODE_JUDGES,
-            ));
-
-            return array_map('strval', $counted);
-        }
-
-        return null;
+        return array_map('strval', array_keys($judgesByCode));
     }
 
     public static function getPages(): array
