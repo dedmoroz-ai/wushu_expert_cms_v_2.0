@@ -178,6 +178,8 @@ class AiReportGeneratorTest extends TestCase
                 && str_contains($system, 'trimmedMean')
                 && str_contains($system, 'среднее A +')
                 && str_contains($system, 'R-3.14')
+                && str_contains($system, 'внутри одной панели')
+                && str_contains($system, 'spread_panels')
                 && str_contains($user, '"audit"')
                 && str_contains($user, '"scores"');
         });
@@ -210,6 +212,85 @@ class AiReportGeneratorTest extends TestCase
         $this->assertStringContainsString('Решение старшего судьи', $html);
         // LLM-разбор журнала из llmResponse().
         $this->assertStringContainsString('протоколы утверждены без правок', $html);
+    }
+
+    /**
+     * В A/B отчёт сравнивает судей только внутри панели: раздельные колонки
+     * «Разброс A»/«Разброс B», min/max внутри панели, Δ — от среднего панели.
+     */
+    public function test_report_renders_ab_panels_separately(): void
+    {
+        Http::fake(['polza.test/*' => Http::response($this->llmResponse(), 200)]);
+
+        $competition = Competition::create([
+            'name' => 'AI-генерация турнир',
+            'start_date' => '2026-03-01',
+            'city' => 'Москва',
+            'status_code' => 3,
+            'judging_scheme' => Competition::SCHEME_AB,
+        ]);
+
+        $group = AgeGroup::create(['name' => 'Юноши', 'gender' => 'male', 'min_age' => 12, 'max_age' => 14]);
+        $style = Style::create(['name' => 'Чанцюань', 'sort_order' => 1]);
+        $club = Club::create(['name' => 'Клуб генерации']);
+        $athlete = Athlete::create([
+            'club_id' => $club->id,
+            'name' => 'Спортсмен Первый',
+            'birth_date' => '2013-05-01',
+            'gender' => 'male',
+        ]);
+
+        $reg = Registration::create([
+            'competition_id' => $competition->id,
+            'athlete_id' => $athlete->id,
+            'style_id' => $style->id,
+            'age_group_id' => $group->id,
+            'sort_order' => 1,
+            'is_completed' => true,
+            'final_score' => 6.55,
+        ]);
+
+        // Панель A: сбавки от 5.000; панель B: диапазон возрастной группы.
+        foreach ([
+            ['Судья А', 4.2, Competition::PANEL_A],
+            ['Судья Б', 4.6, Competition::PANEL_A],
+            ['Судья В', 2.0, Competition::PANEL_B],
+            ['Судья Г', 2.3, Competition::PANEL_B],
+        ] as [$name, $value, $panel]) {
+            $judge = User::create([
+                'name' => $name,
+                'email' => str()->random(8).'@test.local',
+                'password' => Hash::make('secret'),
+                'role' => 'judge',
+                'is_active_judge' => true,
+            ]);
+            $competition->judges()->attach($judge->id, ['panel' => $panel]);
+            Score::create([
+                'registration_id' => $reg->id,
+                'judge_id' => $judge->id,
+                'score' => $value,
+                'panel' => $panel,
+            ]);
+        }
+
+        $result = app(AiReportGenerator::class)->generate($competition->fresh());
+        $html = File::get($result['path']);
+
+        // Раздельные колонки панелей и пояснение методики.
+        $this->assertStringContainsString('Разброс A', $html);
+        $this->assertStringContainsString('Разброс B', $html);
+        $this->assertStringContainsString('A: минимум — максимум', $html);
+        $this->assertStringContainsString('B: минимум — максимум', $html);
+        $this->assertStringContainsString('Ср. разброс A', $html);
+        $this->assertStringContainsString('Ср. разброс B', $html);
+        $this->assertStringContainsString('Δ от среднего панели', $html);
+        $this->assertStringContainsString('панели несопоставимы', $html);
+
+        // Min/max внутри панели: у A — 4.2 … 4.6, у B — 2.0 … 2.3.
+        $this->assertStringContainsString('4,200 (Судья А)', $html);
+        $this->assertStringContainsString('4,600 (Судья Б)', $html);
+        $this->assertStringContainsString('2,000 (Судья В)', $html);
+        $this->assertStringContainsString('2,300 (Судья Г)', $html);
     }
 
     /** Ответ в ```json-блоке (без response_format) тоже разбирается. */

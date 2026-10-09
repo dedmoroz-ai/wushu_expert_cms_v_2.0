@@ -75,8 +75,9 @@
     <tr>
       <th class="center">Код</th>
       <th>Судья</th>
+      @if($competition->isAbScheme())<th class="center">Панель</th>@endif
       <th class="center">Средний балл</th>
-      <th class="center">Δ от среднего по строке</th>
+      <th class="center">Δ от среднего {{ $competition->isAbScheme() ? 'панели' : 'по строке' }}</th>
       <th class="center">СКО Δ</th>
       <th class="center">Отброшено макс. / мин.</th>
       <th>Комментарий аналитика</th>
@@ -88,6 +89,7 @@
       <tr @if($loop->first)class="highlight"@endif>
         <td class="center">{{ $judge['code'] }}</td>
         <td>{{ $judge['name'] }}</td>
+        @if($competition->isAbScheme())<td class="center">{{ $judge['panel'] === 'none' ? '—' : $judge['panel'] }}</td>@endif
         <td class="center">{{ $fmt($judge['mean']) }}</td>
         <td class="center">{{ $sign($judge['delta']) }}</td>
         <td class="center">{{ $fmt($judge['delta_std']) }}</td>
@@ -101,8 +103,9 @@
 <p>
   @if($competition->isAbScheme())
     Методика (A/B): Δ — среднее отклонение оценки судьи от среднего его панели (итог строки = среднее A + среднее B,
-    крайние оценки не отбрасываются); СКО Δ — непоследовательность судьи; отсечений нет —
-    правило R-4.6 в сценарии A/B не применяется.
+    крайние оценки не отбрасываются); судьи сравниваются только внутри своей панели — панели несопоставимы
+    (A ставит сбавки от 5.000, B оценивает в диапазоне из настроек возрастной группы). СКО Δ — непоследовательность
+    судьи; отсечений нет — правило R-4.6 в сценарии A/B не применяется.
   @else
     Методика: Δ — среднее отклонение оценки судьи от итогового среднего строки (trimmedMean R-4.6:
     при 3+ оценках отбрасываются одна минимальная и одна максимальная); СКО Δ — непоследовательность судьи;
@@ -114,11 +117,37 @@
 
 <h2>2. Разброс оценок в выступлениях</h2>
 
-<p>
-  Средний разброс (максимум − минимум оценок) — {{ $fmt($metrics['spread']['mean']) }},
-  медиана — {{ $fmt($metrics['spread']['median']) }}, максимум — {{ $fmt($metrics['spread']['max']) }}.
-  Выступлений с разбросом ≥ 0,7: {{ $metrics['spread']['ge_07'] }} из {{ $metrics['totals']['completed'] }}.
-</p>
+@php
+    // «Минимум — максимум» внутри одной группы судей (панели).
+    $minMax = function (?array $block) use ($fmt) {
+        if ($block === null || $block['min_score'] === null) {
+            return '—';
+        }
+
+        return $fmt($block['min_score']).' ('.$block['min_judge'].') — '.$fmt($block['max_score']).' ('.$block['max_judge'].')';
+    };
+@endphp
+
+@if($competition->isAbScheme())
+  <p>
+    Разбросы считаются внутри панели (A отдельно, B отдельно — панели несопоставимы: A ставит сбавки от 5.000,
+    B оценивает в диапазоне из настроек возрастной группы).
+    Панель A: средний разброс — {{ $fmt($metrics['spread_panels']['A']['mean'] ?? null) }},
+    медиана — {{ $fmt($metrics['spread_panels']['A']['median'] ?? null) }}, максимум — {{ $fmt($metrics['spread_panels']['A']['max'] ?? null) }}.
+    Панель B: средний разброс — {{ $fmt($metrics['spread_panels']['B']['mean'] ?? null) }},
+    медиана — {{ $fmt($metrics['spread_panels']['B']['median'] ?? null) }}, максимум — {{ $fmt($metrics['spread_panels']['B']['max'] ?? null) }}.
+    Выступлений с разбросом ≥ 0,7: по панели A — {{ $metrics['spread_panels']['A']['ge_07'] ?? 0 }},
+    по панели B — {{ $metrics['spread_panels']['B']['ge_07'] ?? 0 }} из {{ $metrics['totals']['completed'] }}.
+    «Спорность» выступления = max(разброс A, разброс B) — только для порядка в таблице, сами разбросы панелей
+    между собой не сравниваются.
+  </p>
+@else
+  <p>
+    Средний разброс (максимум − минимум оценок) — {{ $fmt($metrics['spread']['mean']) }},
+    медиана — {{ $fmt($metrics['spread']['median']) }}, максимум — {{ $fmt($metrics['spread']['max']) }}.
+    Выступлений с разбросом ≥ 0,7: {{ $metrics['spread']['ge_07'] }} из {{ $metrics['totals']['completed'] }}.
+  </p>
+@endif
 
 <h3>Таблица 2. Наиболее спорные выступления</h3>
 <table>
@@ -128,9 +157,16 @@
       <th>Спортсмен</th>
       <th>Дисциплина</th>
       <th>Возрастная группа</th>
-      <th class="center">Разброс</th>
-      <th class="center">Минимум</th>
-      <th class="center">Максимум</th>
+      @if($competition->isAbScheme())
+        <th class="center">Разброс A</th>
+        <th class="center">A: минимум — максимум</th>
+        <th class="center">Разброс B</th>
+        <th class="center">B: минимум — максимум</th>
+      @else
+        <th class="center">Разброс</th>
+        <th class="center">Минимум</th>
+        <th class="center">Максимум</th>
+      @endif
       <th class="center">Итог</th>
     </tr>
   </thead>
@@ -141,9 +177,17 @@
         <td>{{ $row['athlete'] }}</td>
         <td>{{ $row['style'] }}</td>
         <td>{{ $row['age_group'] }}</td>
-        <td class="center">{{ $fmt($row['spread']) }}</td>
-        <td class="center">{{ $fmt($row['min_score']) }} ({{ $row['min_judge'] }})</td>
-        <td class="center">{{ $fmt($row['max_score']) }} ({{ $row['max_judge'] }})</td>
+        @if($competition->isAbScheme())
+          <td class="center">{{ $fmt($row['panels']['A']['spread'] ?? null) }}</td>
+          <td class="center">{{ $minMax($row['panels']['A'] ?? null) }}</td>
+          <td class="center">{{ $fmt($row['panels']['B']['spread'] ?? null) }}</td>
+          <td class="center">{{ $minMax($row['panels']['B'] ?? null) }}</td>
+        @else
+          @php $block = $row['panels']['none'] ?? null; @endphp
+          <td class="center">{{ $fmt($row['spread']) }}</td>
+          <td class="center">{{ $fmt($block['min_score'] ?? null) }} ({{ $block['min_judge'] ?? '—' }})</td>
+          <td class="center">{{ $fmt($block['max_score'] ?? null) }} ({{ $block['max_judge'] ?? '—' }})</td>
+        @endif
         <td class="center">{{ $fmt($row['final']) }}</td>
       </tr>
     @endforeach
@@ -154,7 +198,12 @@
 
 <p>
   Содержательных пулов (3 и более выступления): {{ count(array_filter($metrics['pools'], fn ($p) => $p['n'] >= 3)) }}.
-  Места присуждены по официальному итоговому баллу протокола; «ср. разброс» — средний разброс судей внутри выступлений пула.
+  Места присуждены по официальному итоговому баллу протокола;
+  «ср. разброс» — средний разброс судей внутри выступлений пула
+  @if($competition->isAbScheme())
+    (отдельно по каждой панели — A и B между собой не сравниваются)
+  @endif
+  .
 </p>
 
 <h3>Таблица 3. Сводка по пулам</h3>
@@ -164,7 +213,12 @@
       <th>Пул</th>
       <th class="center">N</th>
       <th class="center">Итоги (ср. ± СКО)</th>
-      <th class="center">Ср. разброс судей</th>
+      @if($competition->isAbScheme())
+        <th class="center">Ср. разброс A</th>
+        <th class="center">Ср. разброс B</th>
+      @else
+        <th class="center">Ср. разброс судей</th>
+      @endif
       <th class="center">Отрыв 1-го от 2-го</th>
     </tr>
   </thead>
@@ -174,7 +228,12 @@
         <td>{{ $pool['key'] }}</td>
         <td class="center">{{ $pool['n'] }}</td>
         <td class="center">{{ $fmt($pool['mean_final']) }} ± {{ $fmt($pool['std_final']) }}</td>
-        <td class="center">{{ $fmt($pool['mean_spread']) }}</td>
+        @if($competition->isAbScheme())
+          <td class="center">{{ $fmt($pool['mean_spread_panels']['A'] ?? null) }}</td>
+          <td class="center">{{ $fmt($pool['mean_spread_panels']['B'] ?? null) }}</td>
+        @else
+          <td class="center">{{ $fmt($pool['mean_spread']) }}</td>
+        @endif
         <td class="center">{{ $fmt($pool['gap']) }}</td>
       </tr>
     @endforeach
@@ -183,7 +242,11 @@
 
 <h2>4. Разбор фокусных пулов</h2>
 
-<p>Фокусные пулы — самые «спорные» по судейству (по среднему разбросу оценок) среди содержательных. Комментарии — аналитика LLM.</p>
+<p>Фокусные пулы — самые «спорные» по судейству (по среднему разбросу оценок
+@if($competition->isAbScheme())
+  , в A/B — по max(разброс A, разброс B); панели между собой не сравниваются
+@endif
+) среди содержательных. Комментарии — аналитика LLM.</p>
 
 @php $focusComment = collect($summary['focus_pools']); @endphp
 @foreach($metrics['pools'] as $pool)
@@ -198,9 +261,16 @@
               <th class="center">Код</th>
               <th>Спортсмен</th>
               <th class="center">Итог</th>
-              <th class="center">Разброс</th>
-              <th class="center">Минимум</th>
-              <th class="center">Максимум</th>
+              @if($competition->isAbScheme())
+                <th class="center">Разброс A</th>
+                <th class="center">A: минимум — максимум</th>
+                <th class="center">Разброс B</th>
+                <th class="center">B: минимум — максимум</th>
+              @else
+                <th class="center">Разброс</th>
+                <th class="center">Минимум</th>
+                <th class="center">Максимум</th>
+              @endif
             </tr>
           </thead>
           <tbody>
@@ -210,9 +280,17 @@
                 <td class="center">{{ $athlete['athlete_code'] }}</td>
                 <td>{{ $athlete['athlete'] }}</td>
                 <td class="center">{{ $fmt($athlete['final']) }}</td>
-                <td class="center">{{ $fmt($athlete['spread']) }}</td>
-                <td class="center">{{ $fmt($athlete['min_score']) }} ({{ $athlete['min_judge'] }})</td>
-                <td class="center">{{ $fmt($athlete['max_score']) }} ({{ $athlete['max_judge'] }})</td>
+                @if($competition->isAbScheme())
+                  <td class="center">{{ $fmt($athlete['panels']['A']['spread'] ?? null) }}</td>
+                  <td class="center">{{ $minMax($athlete['panels']['A'] ?? null) }}</td>
+                  <td class="center">{{ $fmt($athlete['panels']['B']['spread'] ?? null) }}</td>
+                  <td class="center">{{ $minMax($athlete['panels']['B'] ?? null) }}</td>
+                @else
+                  @php $block = $athlete['panels']['none'] ?? null; @endphp
+                  <td class="center">{{ $fmt($athlete['spread']) }}</td>
+                  <td class="center">{{ $fmt($block['min_score'] ?? null) }} ({{ $block['min_judge'] ?? '—' }})</td>
+                  <td class="center">{{ $fmt($block['max_score'] ?? null) }} ({{ $block['max_judge'] ?? '—' }})</td>
+                @endif
               </tr>
             @endforeach
           </tbody>

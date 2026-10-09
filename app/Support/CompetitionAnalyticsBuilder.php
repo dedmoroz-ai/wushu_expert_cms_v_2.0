@@ -17,9 +17,14 @@ use Illuminate\Support\Collection;
  *  - сценарий A/B (R-4.18–R-4.20): итог строки = среднее A + среднее B,
  *    крайние оценки не отбрасываются (R-4.19), коды сбавок подтверждаются
  *    несколькими судьями (R-3.14); отсечения R-4.6 не считаются;
- *  - Δ судьи = среднее (оценка судьи − итог строки) — систематическая
- *    строгость/щедрость относительно коллег;
- *  - разброс выступления = максимум − минимум оценок судей;
+ *  - Δ судьи = среднее (оценка судьи − среднее группы судьи) — систематическая
+ *    строгость/щедрость: в простой схеме группа = все судьи (итог строки),
+ *    в A/B — только панель судьи (панели несопоставимы: A ставит сбавки
+ *    от 5.000, B оценивает в диапазоне из настроек возрастной группы,
+ *    например 2.000–2.500);
+ *  - разброс выступления = максимум − минимум оценок внутри группы судей:
+ *    в A/B — отдельно по каждой панели (A отдельно, B отдельно), «спорность»
+ *    строки = max(разброс A, разброс B); в простой — по всем судьям;
  *  - пул = дисциплина × возрастная группа.
  *
  * Персональные данные минимизируются: в LLM-дайджест спортсмены попадают
@@ -40,6 +45,7 @@ class CompetitionAnalyticsBuilder
      *     totals: array<string, int>,
      *     judges: array<int, array<string, mixed>>,
      *     spread: array<string, float|null>,
+     *     spread_panels: array<string, array<string, float|int|null>>,
      *     topSpreads: array<int, array<string, mixed>>,
      *     pools: array<int, array<string, mixed>>,
      *     flips: array<int, array<string, mixed>>,
@@ -60,18 +66,20 @@ class CompetitionAnalyticsBuilder
 
         $rows = [];
         $judgeScores = [];
+        $judgePanel = [];
         $judgeDelta = [];
         $judgeDropMin = [];
         $judgeDropMax = [];
 
         foreach ($registrations as $reg) {
             $values = $scoresByReg[$reg->id] ?? [];
-            $auto = self::autoScore($isAb, $values, $extrasByReg[$reg->id] ?? []);
+            $extras = $extrasByReg[$reg->id] ?? [];
+            $panels = self::rowPanels($isAb, $values, $extras);
+            $auto = self::rowTotal($isAb, $panels);
 
-            $spread = null;
-            if (count($values) >= 2) {
-                $spread = round(max($values) - min($values), ScoreRange::PRECISION);
-            }
+            // «Спорность» строки: в A/B — max(разброс A, разброс B); панели
+            // между собой не сравниваются (разные шкалы).
+            $spread = self::rowSpread($panels);
 
             // Отсечения R-4.6 есть только в простой схеме: в A/B крайние
             // оценки не отбрасываются, отсечений не бывает.
@@ -90,8 +98,16 @@ class CompetitionAnalyticsBuilder
 
             foreach ($values as $code => $value) {
                 $judgeScores[$code][] = $value;
-                if ($auto !== null) {
-                    $judgeDelta[$code][] = $value - $auto;
+                $judgePanel[$code] ??= $extras[$code]['panel'] ?? ScoresSummaryMatrix::GROUP_NONE;
+
+                // Δ — от среднего группы судьи: в простой от итога строки
+                // (trimmedMean = среднее группы «none»), в A/B — от среднего
+                // его панели и только по «своим» оценкам (R-4.18). Оценки без
+                // своей панели в A/B в сравнения не входят.
+                $groupKey = $isAb ? ($extras[$code]['panel'] ?? null) : ScoresSummaryMatrix::GROUP_NONE;
+                $avg = $groupKey === null ? null : ($panels[$groupKey]['avg'] ?? null);
+                if ($avg !== null && (! $isAb || ($extras[$code]['counted'] ?? false))) {
+                    $judgeDelta[$code][] = $value - $avg;
                 }
             }
 
@@ -102,11 +118,12 @@ class CompetitionAnalyticsBuilder
                 'auto' => $auto,
                 'final' => $reg->final_score !== null ? (float) $reg->final_score : null,
                 'spread' => $spread,
+                'panels' => $panels,
             ];
         }
 
-        $judges = self::judgesSection($judgeNames, $judgeScores, $judgeDelta, $judgeDropMin, $judgeDropMax);
-        [$spreadStats, $topSpreads] = self::spreadsSection($rows, $judgeNames);
+        $judges = self::judgesSection($judgeNames, $judgePanel, $judgeScores, $judgeDelta, $judgeDropMin, $judgeDropMax);
+        [$spreadStats, $spreadPanelStats, $topSpreads] = self::spreadsSection($rows, $judgeNames);
         $pools = self::poolsSection($rows, $judgeNames);
         // Влияние R-4.6 на топ-3 — только простая схема; в A/B правила другие.
         $flips = $isAb ? [] : self::flipsSection($pools);
@@ -133,6 +150,7 @@ class CompetitionAnalyticsBuilder
             ],
             'judges' => $judges,
             'spread' => $spreadStats,
+            'spread_panels' => $spreadPanelStats,
             'topSpreads' => $topSpreads,
             'pools' => $pools,
             'flips' => $flips,
@@ -252,28 +270,36 @@ class CompetitionAnalyticsBuilder
     }
 
     /**
-     * Авто-расчёт итога строки по сценарию турнира.
+     * Судейские сравнения внутри группы (панели).
      *
-     *  - простая схема: trimmedMean (R-4.6);
-     *  - A/B: среднее A (оценки с подтверждением кодов сбавок R-3.14) +
-     *    среднее B (R-4.20), крайние не отбрасываются (R-4.19).
+     * В A/B панель A (сбавки от 5.000) и панель B (диапазон из настроек
+     * возрастной группы, например 2.000–2.500) — разные шкалы, поэтому
+     * разброс, минимум/максимум и база Δ считаются только среди судей одной
+     * панели: A отдельно, B отдельно. В простой схеме все судьи в одной
+     * группе «none».
      *
-     * Оценки, выставленные не в своей функции, в авто-расчёт не идут (R-4.18),
-     * как и в «Сводной таблице оценок».
+     * Разброс/мин/макс — по сохранённым оценкам судей (как в ячейках
+     * «Сводной таблицы оценок»); база Δ — «среднее группы» той же сводки:
+     * A — среднее A с подтверждением кодов сбавок (R-3.14), B — среднее B
+     * (R-4.19), простой — trimmedMean (R-4.6).
+     *
+     * Оценки, выставленные не в своей функции (R-4.18), и оценки судей без
+     * панели в сравнения не входят.
      *
      * @param  array<string, float>  $values  код судьи => оценка
      * @param  array<string, array{panel: string, counted: bool, deductions: array<int, array{code: string, value: float}>}>  $extras
+     * @return array<string, array{key: string, spread: float|null, min_code: string|null, min_score: float|null, max_code: string|null, max_score: float|null, avg: float|null}>
      */
-    private static function autoScore(bool $isAb, array $values, array $extras): ?float
+    private static function rowPanels(bool $isAb, array $values, array $extras): array
     {
-        if ($values === []) {
-            return null;
-        }
-
         if (! $isAb) {
-            return JudgingCalculator::trimmedMean(array_values($values))['avg'];
+            $avg = JudgingCalculator::trimmedMean(array_values($values))['avg'];
+
+            return [ScoresSummaryMatrix::GROUP_NONE => self::groupBlock(ScoresSummaryMatrix::GROUP_NONE, $values, $avg)];
         }
 
+        $storedA = [];
+        $storedB = [];
         $judgeScoresA = [];
         $valuesB = [];
 
@@ -283,8 +309,10 @@ class CompetitionAnalyticsBuilder
                 continue;
             }
             if ($extra['panel'] === Competition::PANEL_A) {
+                $storedA[$code] = $value;
                 $judgeScoresA[$code] = ['score' => $value, 'deductions' => $extra['deductions']];
             } elseif ($extra['panel'] === Competition::PANEL_B) {
+                $storedB[$code] = $value;
                 $valuesB[] = $value;
             }
         }
@@ -292,7 +320,56 @@ class CompetitionAnalyticsBuilder
         $avgA = $judgeScoresA === []
             ? null
             : JudgingCalculator::panelMean(JudgingCalculator::confirmedPanelScores($judgeScoresA)['scores'])['avg'];
-        $avgB = JudgingCalculator::panelMean($valuesB)['avg'];
+        $avgB = $valuesB === [] ? null : JudgingCalculator::panelMean($valuesB)['avg'];
+
+        return [
+            Competition::PANEL_A => self::groupBlock(Competition::PANEL_A, $storedA, $avgA),
+            Competition::PANEL_B => self::groupBlock(Competition::PANEL_B, $storedB, $avgB),
+        ];
+    }
+
+    /**
+     * Блок группы: разброс (max − min внутри группы), судьи минимума/максимума
+     * и среднее группы (база Δ).
+     *
+     * @param  array<string, float>  $values  код судьи => оценка
+     * @return array{key: string, spread: float|null, min_code: string|null, min_score: float|null, max_code: string|null, max_score: float|null, avg: float|null}
+     */
+    private static function groupBlock(string $key, array $values, ?float $avg): array
+    {
+        $minCode = $values === [] ? null : self::extremeJudge($values, 'min');
+        $maxCode = $values === [] ? null : self::extremeJudge($values, 'max');
+
+        return [
+            'key' => $key,
+            'spread' => count($values) >= 2
+                ? round(max($values) - min($values), ScoreRange::PRECISION)
+                : null,
+            'min_code' => $minCode,
+            'min_score' => $minCode === null ? null : $values[$minCode],
+            'max_code' => $maxCode,
+            'max_score' => $maxCode === null ? null : $values[$maxCode],
+            'avg' => $avg,
+        ];
+    }
+
+    /**
+     * Авто-расчёт итога строки по сценарию турнира.
+     *
+     *  - простая схема: trimmedMean (R-4.6);
+     *  - A/B: среднее A (оценки с подтверждением кодов сбавок R-3.14) +
+     *    среднее B (R-4.20), крайние не отбрасываются (R-4.19).
+     *
+     * @param  array<string, array{key: string, spread: float|null, min_code: string|null, min_score: float|null, max_code: string|null, max_score: float|null, avg: float|null}>  $panels
+     */
+    private static function rowTotal(bool $isAb, array $panels): ?float
+    {
+        if (! $isAb) {
+            return $panels[ScoresSummaryMatrix::GROUP_NONE]['avg'] ?? null;
+        }
+
+        $avgA = $panels[Competition::PANEL_A]['avg'] ?? null;
+        $avgB = $panels[Competition::PANEL_B]['avg'] ?? null;
 
         return ($avgA !== null && $avgB !== null)
             ? JudgingCalculator::abTotal($avgA, $avgB)
@@ -300,10 +377,31 @@ class CompetitionAnalyticsBuilder
     }
 
     /**
+     * «Спорность» строки: в простой — разброс по всем судьям; в A/B —
+     * max(разброс A, разброс B) — только для упорядочивания спорных
+     * выступлений, сами разбросы панелей между собой не сравниваются.
+     *
+     * @param  array<string, array{spread: float|null}>  $panels
+     */
+    private static function rowSpread(array $panels): ?float
+    {
+        $spreads = array_values(array_filter(
+            array_map(fn (array $block) => $block['spread'], $panels),
+            fn ($value) => $value !== null,
+        ));
+
+        return $spreads === [] ? null : round(max($spreads), ScoreRange::PRECISION);
+    }
+
+    /**
      * Секция по судьям: средний балл, Δ, СКО Δ, отсечения, диапазон.
-     * Сортировка — по Δ (сначала «щедрые»).
+     *
+     * Сортировка: сначала по панели (A, B, без функции), внутри — по Δ
+     * (сначала «щедрые»): в A/B строгость судей сравнивается только внутри
+     * панели (шкалы A и B несопоставимы), в простой схеме — по Δ среди всех.
      *
      * @param  array<string, string>  $judgeNames  код => ФИО
+     * @param  array<string, string>  $judgePanel  код => панель (A/B/none)
      * @param  array<string, array<int, float>>  $judgeScores
      * @param  array<string, array<int, float>>  $judgeDelta
      * @param  array<string, int>  $judgeDropMin
@@ -312,6 +410,7 @@ class CompetitionAnalyticsBuilder
      */
     private static function judgesSection(
         array $judgeNames,
+        array $judgePanel,
         array $judgeScores,
         array $judgeDelta,
         array $judgeDropMin,
@@ -322,6 +421,7 @@ class CompetitionAnalyticsBuilder
             $judges[] = [
                 'code' => $code,
                 'name' => $judgeNames[$code],
+                'panel' => $judgePanel[$code] ?? ScoresSummaryMatrix::GROUP_NONE,
                 'n' => count($values),
                 'mean' => self::round3(self::mean($values)),
                 'std' => self::round3(self::std($values)),
@@ -334,7 +434,14 @@ class CompetitionAnalyticsBuilder
             ];
         }
 
-        usort($judges, fn (array $a, array $b) => $b['delta'] <=> $a['delta']);
+        $order = [
+            Competition::PANEL_A => 0,
+            Competition::PANEL_B => 1,
+            ScoresSummaryMatrix::GROUP_NONE => 2,
+        ];
+
+        usort($judges, fn (array $a, array $b) => ($order[$a['panel']] ?? 9) <=> ($order[$b['panel']] ?? 9)
+            ?: $b['delta'] <=> $a['delta']);
 
         return $judges;
     }
@@ -369,9 +476,14 @@ class CompetitionAnalyticsBuilder
     /**
      * Разбросы оценок: сводка + топ-15 «спорных» выступлений (коды спортсменов).
      *
+     * В A/B разбросы считаются внутри панели (A отдельно, B отдельно — шкалы
+     * несопоставимы), поэтому сводка считается и по каждой панели
+     * (spread_panels), а топ упорядочен по max(разброс A, разброс B);
+     * минимум/максимум в строках — всегда внутри одной панели.
+     *
      * @param  array<int, array<string, mixed>>  $rows
      * @param  array<string, string>  $judgeNames  код => ФИО
-     * @return array{0: array<string, float|int|null>, 1: array<int, array<string, mixed>>}
+     * @return array{0: array<string, float|int|null>, 1: array<string, array<string, float|int|null>>, 2: array<int, array<string, mixed>>}
      */
     private static function spreadsSection(array $rows, array $judgeNames): array
     {
@@ -384,38 +496,82 @@ class CompetitionAnalyticsBuilder
 
         usort($spreads, fn (array $a, array $b) => $b['spread'] <=> $a['spread']);
 
-        $values = array_column($spreads, 'spread');
-        $sorted = $values;
-        sort($sorted);
+        $stats = self::spreadStats(array_column($spreads, 'spread'));
 
-        $stats = [
-            'mean' => self::round3(self::mean($values)),
-            'median' => $sorted === [] ? null : self::round3($sorted[(int) floor((count($sorted) - 1) / 2)]),
-            'max' => $values === [] ? null : max($values),
-            'ge_07' => count(array_filter($values, fn ($v) => $v >= 0.7)),
-        ];
+        // Сводка по каждой группе судей (панели A/B или все судьи в простой).
+        $panelStats = [];
+        $byPanel = [];
+        foreach ($rows as $row) {
+            foreach ($row['panels'] as $key => $block) {
+                if ($block['spread'] !== null) {
+                    $byPanel[$key][] = $block['spread'];
+                }
+            }
+        }
+        foreach ($byPanel as $key => $values) {
+            $panelStats[$key] = self::spreadStats($values);
+        }
 
         $top = [];
         foreach (array_slice($spreads, 0, 15) as $item) {
             $row = $rows[$item['idx']];
-            $scores = $row['scores'];
-            $minCode = self::extremeJudge($scores, 'min');
-            $maxCode = self::extremeJudge($scores, 'max');
             $top[] = [
                 'athlete_code' => $row['code'],
                 'athlete' => self::athleteName($row['reg']),
                 'style' => (string) ($row['reg']->style?->name ?? '—'),
                 'age_group' => (string) ($row['reg']->ageGroup?->name ?? '—'),
                 'spread' => $item['spread'],
-                'min_score' => $scores[$minCode] ?? null,
-                'min_judge' => $judgeNames[$minCode] ?? null,
-                'max_score' => $scores[$maxCode] ?? null,
-                'max_judge' => $judgeNames[$maxCode] ?? null,
+                'panels' => self::panelsForDisplay($row['panels'], $judgeNames),
                 'final' => $row['final'],
             ];
         }
 
-        return [$stats, $top];
+        return [$stats, $panelStats, $top];
+    }
+
+    /**
+     * Сводка по разбросам набора строк: среднее, медиана, максимум, сколько ≥ 0,7.
+     *
+     * @param  array<int, float>  $values
+     * @return array<string, float|int|null>
+     */
+    private static function spreadStats(array $values): array
+    {
+        $sorted = $values;
+        sort($sorted);
+
+        return [
+            'mean' => self::round3(self::mean($values)),
+            'median' => $sorted === [] ? null : self::round3($sorted[(int) floor((count($sorted) - 1) / 2)]),
+            'max' => $values === [] ? null : max($values),
+            'ge_07' => count(array_filter($values, fn ($v) => $v >= 0.7)),
+        ];
+    }
+
+    /**
+     * Блоки групп (панелей) для blade и LLM-дайджеста: коды судей → ФИО
+     * (в llmDigest ФИО обратно переносятся в коды S1…).
+     *
+     * @param  array<string, array<string, mixed>>  $panels  rowPanels()
+     * @param  array<string, string>  $judgeNames  код => ФИО
+     * @return array<string, array<string, mixed>>
+     */
+    private static function panelsForDisplay(array $panels, array $judgeNames): array
+    {
+        $display = [];
+        foreach ($panels as $key => $block) {
+            $display[$key] = [
+                'key' => $key,
+                'label' => $key === ScoresSummaryMatrix::GROUP_NONE ? '' : $key,
+                'spread' => $block['spread'],
+                'min_score' => $block['min_score'],
+                'min_judge' => $block['min_code'] === null ? null : ($judgeNames[$block['min_code']] ?? null),
+                'max_score' => $block['max_score'],
+                'max_judge' => $block['max_code'] === null ? null : ($judgeNames[$block['max_code']] ?? null),
+            ];
+        }
+
+        return $display;
     }
 
     /**
@@ -476,8 +632,6 @@ class CompetitionAnalyticsBuilder
                 $prevFinal = $row['final'];
 
                 $scores = $row['scores'];
-                $minCode = $scores === [] ? null : self::extremeJudge($scores, 'min');
-                $maxCode = $scores === [] ? null : self::extremeJudge($scores, 'max');
 
                 $athletes[] = [
                     'place' => $place,
@@ -486,16 +640,26 @@ class CompetitionAnalyticsBuilder
                     'final' => $row['final'],
                     'auto' => $row['auto'],
                     'spread' => $row['spread'],
-                    'min_score' => $minCode === null ? null : $scores[$minCode],
-                    'min_judge' => $minCode === null ? null : $judgeNames[$minCode],
-                    'max_score' => $maxCode === null ? null : $scores[$maxCode],
-                    'max_judge' => $maxCode === null ? null : $judgeNames[$maxCode],
+                    'panels' => self::panelsForDisplay($row['panels'], $judgeNames),
                     'scores' => $scores,
                 ];
             }
 
             $finals = array_values(array_filter(array_column($athletes, 'final'), fn ($v) => $v !== null));
             $spreads = array_values(array_filter(array_column($athletes, 'spread'), fn ($v) => $v !== null));
+
+            // Средний разброс по каждой группе судей (панели в A/B).
+            $meanSpreadPanels = [];
+            foreach (array_keys($athletes[0]['panels'] ?? []) as $panelKey) {
+                $values = [];
+                foreach ($athletes as $athlete) {
+                    $value = $athlete['panels'][$panelKey]['spread'] ?? null;
+                    if ($value !== null) {
+                        $values[] = $value;
+                    }
+                }
+                $meanSpreadPanels[$panelKey] = self::round3(self::mean($values));
+            }
 
             $gap = null;
             if (count($finals) >= 2) {
@@ -512,6 +676,7 @@ class CompetitionAnalyticsBuilder
                 'min_final' => $finals === [] ? null : min($finals),
                 'max_final' => $finals === [] ? null : max($finals),
                 'mean_spread' => self::round3(self::mean($spreads)),
+                'mean_spread_panels' => $meanSpreadPanels,
                 'gap' => $gap,
                 'athletes' => $athletes,
             ];
@@ -754,7 +919,8 @@ class CompetitionAnalyticsBuilder
 
     /**
      * Фокусные пулы для LLM-дайджеста: содержательные (N ≥ POOL_MIN_N),
-     * сначала самые «спорные» (по среднему разбросу судей), до FOCUS_POOLS.
+     * сначала самые «спорные» (по среднему разбросу: в A/B — по max(разброс A,
+     * разброс B), панели между собой не сравниваются), до FOCUS_POOLS.
      *
      * @param  array<int, array<string, mixed>>  $pools
      * @return array<int, string> ключи пулов
@@ -783,6 +949,10 @@ class CompetitionAnalyticsBuilder
      *    и снятия оценок, распределение действий;
      *  - коды сбавок панели A — deductions с проверкой R-3.14 (confirmed).
      *
+     * В A/B все судейские сравнения — внутри одной панели (panels: A отдельно,
+     * B отдельно, шкалы несопоставимы): min/max/разброс берутся из блока
+     * панели, Δ судьи — от среднего его панели (judges[].panel).
+     *
      * @param  array<string, mixed>  $metrics  результат build()
      * @return array<string, mixed>
      */
@@ -797,6 +967,24 @@ class CompetitionAnalyticsBuilder
         }
         $judgeCode = fn (?string $name) => $name === null ? null : ($codeByName[$name] ?? null);
 
+        // Блоки панелей с кодами судей (A/B: сравнения только внутри панели).
+        $panelsFor = function (array $displayPanels) use ($judgeCode): array {
+            $out = [];
+            foreach ($displayPanels as $key => $block) {
+                $out[$key] = [
+                    'key' => $block['key'],
+                    'label' => $block['label'],
+                    'spread' => $block['spread'],
+                    'min_score' => $block['min_score'],
+                    'min_judge' => $judgeCode($block['min_judge']),
+                    'max_score' => $block['max_score'],
+                    'max_judge' => $judgeCode($block['max_judge']),
+                ];
+            }
+
+            return $out;
+        };
+
         $pools = [];
         foreach ($metrics['pools'] as $pool) {
             $isFocus = in_array($pool['key'], $focusKeys, true);
@@ -810,8 +998,7 @@ class CompetitionAnalyticsBuilder
                     'auto' => $athlete['auto'],
                     'scores' => $athlete['scores'],
                     'spread' => $athlete['spread'],
-                    'min_judge' => $judgeCode($athlete['min_judge']),
-                    'max_judge' => $judgeCode($athlete['max_judge']),
+                    'panels' => $panelsFor($athlete['panels']),
                 ];
                 // ФИО — только призёрам (место ≤ 3) фокусных пулов.
                 if ($isFocus && $athlete['place'] <= 3) {
@@ -826,6 +1013,7 @@ class CompetitionAnalyticsBuilder
                 'mean_final' => $pool['mean_final'],
                 'std_final' => $pool['std_final'],
                 'mean_spread' => $pool['mean_spread'],
+                'mean_spread_panels' => $pool['mean_spread_panels'],
                 'gap' => $pool['gap'],
                 'athletes' => $athletes,
             ];
@@ -838,8 +1026,7 @@ class CompetitionAnalyticsBuilder
                 'style' => $row['style'],
                 'age_group' => $row['age_group'],
                 'spread' => $row['spread'],
-                'min_judge' => $judgeCode($row['min_judge']),
-                'max_judge' => $judgeCode($row['max_judge']),
+                'panels' => $panelsFor($row['panels']),
                 'final' => $row['final'],
             ];
         }
@@ -850,6 +1037,7 @@ class CompetitionAnalyticsBuilder
             'judges' => array_map(
                 fn (array $judge) => [
                     'code' => $judge['code'],
+                    'panel' => $judge['panel'],
                     'n' => $judge['n'],
                     'mean' => $judge['mean'],
                     'std' => $judge['std'],
@@ -863,6 +1051,7 @@ class CompetitionAnalyticsBuilder
                 $metrics['judges'],
             ),
             'spread' => $metrics['spread'],
+            'spread_panels' => $metrics['spread_panels'],
             'top_spreads' => $topSpreads,
             'pools' => $pools,
             'focus_pools' => array_values(array_filter(

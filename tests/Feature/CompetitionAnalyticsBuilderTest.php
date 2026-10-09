@@ -297,6 +297,82 @@ class CompetitionAnalyticsBuilderTest extends TestCase
     }
 
     /**
+     * В A/B судейские сравнения — только внутри своей панели: разброс A
+     * (сбавки от 5.000) и разброс B (диапазон возрастной группы, например
+     * 2.000–2.500) считаются отдельно, min/max — внутри панели, Δ судьи —
+     * от среднего его панели. Панели между собой не сравниваются: у судьи A
+     * сбавки от 5.000, у судьи B — ограниченный диапазон из настроек
+     * возрастной группы. «Спорность» строки = max(разброс A, разброс B).
+     */
+    public function test_ab_spreads_and_deltas_are_panel_scoped(): void
+    {
+        $competition = $this->makeCompetition(Competition::SCHEME_AB);
+        [$reg1, $judges] = $this->makeRegistration($competition, 'Таолу', 'Юноши', 'Первый Спортсмен');
+        [$reg2] = $this->makeRegistration($competition, 'Таолу', 'Юноши', 'Второй Спортсмен');
+
+        // Выступление 1: A = 4.2 / 4.6 (разброс A = 0.4), B = 2.0 / 2.3 (0.3).
+        // Между панелями «разброс» был бы 2.6 — в A/B он не считается.
+        Score::create(['registration_id' => $reg1->id, 'judge_id' => $judges[0]->id, 'score' => 4.2, 'panel' => Competition::PANEL_A]);
+        Score::create(['registration_id' => $reg1->id, 'judge_id' => $judges[1]->id, 'score' => 4.6, 'panel' => Competition::PANEL_A]);
+        Score::create(['registration_id' => $reg1->id, 'judge_id' => $judges[2]->id, 'score' => 2.0, 'panel' => Competition::PANEL_B]);
+        Score::create(['registration_id' => $reg1->id, 'judge_id' => $judges[3]->id, 'score' => 2.3, 'panel' => Competition::PANEL_B]);
+        // Среднее A 4.400 + среднее B 2.150 = 6.550.
+        $reg1->update(['final_score' => 6.55]);
+
+        // Выступление 2: A = 4.3 / 4.5 (0.2), B = 2.1 / 2.2 (0.1).
+        Score::create(['registration_id' => $reg2->id, 'judge_id' => $judges[0]->id, 'score' => 4.3, 'panel' => Competition::PANEL_A]);
+        Score::create(['registration_id' => $reg2->id, 'judge_id' => $judges[1]->id, 'score' => 4.5, 'panel' => Competition::PANEL_A]);
+        Score::create(['registration_id' => $reg2->id, 'judge_id' => $judges[2]->id, 'score' => 2.1, 'panel' => Competition::PANEL_B]);
+        Score::create(['registration_id' => $reg2->id, 'judge_id' => $judges[3]->id, 'score' => 2.2, 'panel' => Competition::PANEL_B]);
+        $reg2->update(['final_score' => 6.55]);
+
+        $metrics = CompetitionAnalyticsBuilder::build($competition->fresh());
+
+        // Спорность строки = max(разброс A, разброс B): A1 — 0.4, A2 — 0.2.
+        $first = collect($metrics['topSpreads'])->firstWhere('athlete_code', 'A1');
+        $this->assertSame(0.4, $first['spread']);
+        $this->assertSame(0.4, $first['panels']['A']['spread']);
+        $this->assertSame(0.3, $first['panels']['B']['spread']);
+
+        // Минимум/максимум — внутри панели (не 2.0 против 4.6):
+        // A: 4.2 (Судья А) … 4.6 (Судья Б); B: 2.0 (Судья В) … 2.3 (Судья Г).
+        $this->assertSame(4.2, $first['panels']['A']['min_score']);
+        $this->assertSame('Судья А', $first['panels']['A']['min_judge']);
+        $this->assertSame(4.6, $first['panels']['A']['max_score']);
+        $this->assertSame('Судья Б', $first['panels']['A']['max_judge']);
+        $this->assertSame(2.0, $first['panels']['B']['min_score']);
+        $this->assertSame('Судья В', $first['panels']['B']['min_judge']);
+        $this->assertSame(2.3, $first['panels']['B']['max_score']);
+        $this->assertSame('Судья Г', $first['panels']['B']['max_judge']);
+
+        // Δ судьи — от среднего его панели, а не от итога строки (~6.55):
+        // A (средние 4.400): Судья А −0.150, Судья Б +0.150;
+        // B (средние 2.150): Судья В −0.100, Судья Г +0.100.
+        $byName = collect($metrics['judges'])->keyBy('name');
+        $this->assertSame('A', $byName['Судья А']['panel']);
+        $this->assertSame('B', $byName['Судья В']['panel']);
+        $this->assertSame(-0.15, $byName['Судья А']['delta']);
+        $this->assertSame(0.15, $byName['Судья Б']['delta']);
+        $this->assertSame(-0.1, $byName['Судья В']['delta']);
+        $this->assertSame(0.1, $byName['Судья Г']['delta']);
+
+        // Сводка разбросов — по каждой панели отдельно.
+        $this->assertSame(0.3, $metrics['spread_panels']['A']['mean']);
+        $this->assertSame(0.4, $metrics['spread_panels']['A']['max']);
+        $this->assertSame(0.2, $metrics['spread_panels']['B']['mean']);
+        $this->assertSame(0.3, $metrics['spread_panels']['B']['max']);
+        $this->assertSame(0, $metrics['spread_panels']['A']['ge_07']);
+        $this->assertSame(0, $metrics['spread_panels']['B']['ge_07']);
+
+        // В LLM-дайджесте судьи мин/макс — кодами, внутри панели.
+        $payload = CompetitionAnalyticsBuilder::llmDigest($metrics);
+        $this->assertSame('S1', $payload['top_spreads'][0]['panels']['A']['min_judge']);
+        $this->assertSame('S2', $payload['top_spreads'][0]['panels']['A']['max_judge']);
+        $this->assertSame('S3', $payload['top_spreads'][0]['panels']['B']['min_judge']);
+        $this->assertSame('S4', $payload['top_spreads'][0]['panels']['B']['max_judge']);
+    }
+
+    /**
      * «Журнал судейства» в метриках: распределение действий, ручные
      * корректировки итогов (коды спортсменов + ФИО для blade), правки оценок.
      */
