@@ -3,7 +3,10 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\JudgingLogResource\Pages;
+use App\Models\Competition;
 use App\Models\JudgingLog;
+use App\Models\Score;
+use App\Support\JudgingCalculator;
 use App\Support\ScoreRange;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -215,7 +218,7 @@ class JudgingLogResource extends Resource
                     ->modalCancelActionLabel('Закрыть')
                     ->modalContent(fn (JudgingLog $record) => view('filament.resources.judging-log-details', [
                         'record' => $record,
-                        'lines' => self::detailLines($record->details ?? []),
+                        'lines' => self::detailLines($record->details ?? [], self::countedCodes($record)),
                     ])),
             ])
             ->bulkActions([]);
@@ -224,66 +227,202 @@ class JudgingLogResource extends Resource
     /**
      * Человекочитаемое представление judging_logs.details.
      *
-     * @return array<int, string>
+     * Каждая строка — набор частей ['text' => string, 'ignored' => bool]:
+     * части с `ignored` — коды сбавок, нажатые только одним судьёй панели A
+     * (R-3.13–R-3.14, уточнение 08.10) — они не засчитаны в вычет и в модалке
+     * выделяются цветом.
+     *
+     * @return array<int, array<int, array{text: string, ignored: bool}>>
      */
-    public static function detailLines(array $details): array
+    public static function detailLines(array $details, ?array $countedCodes = null): array
     {
         $fmt = fn ($v) => is_null($v) ? '—' : number_format((float) $v, ScoreRange::PRECISION, '.', '');
+        $plain = fn (string $text) => [['text' => $text, 'ignored' => false]];
         $lines = [];
 
         if (isset($details['scheme'])) {
-            $lines[] = 'Сценарий: '.($details['scheme'] === 'ab' ? 'A/B' : 'простой');
+            $lines[] = $plain('Сценарий: '.($details['scheme'] === 'ab' ? 'A/B' : 'простой'));
         }
 
         if (! empty($details['panel'])) {
-            $lines[] = 'Панель: '.$details['panel'];
+            $lines[] = $plain('Панель: '.$details['panel']);
         }
 
         if (array_key_exists('deductions', $details)) {
-            $lines[] = 'Старт: '.$fmt($details['start'] ?? 5);
+            $lines[] = $plain('Старт: '.$fmt($details['start'] ?? 5));
 
             foreach ($details['deductions'] as $d) {
-                $lines[] = '  • '.$d['code'].' — '.($d['label'] ?? '').': −'.$fmt($d['value']);
+                $lines[] = [[
+                    'text' => '  • '.$d['code'].' — '.($d['label'] ?? '').': −'.$fmt($d['value']),
+                    'ignored' => $countedCodes !== null && ! in_array((string) $d['code'], $countedCodes, true),
+                ]];
             }
 
-            $lines[] = 'Сумма сбавок: −'.$fmt($details['deductions_total'] ?? 0);
+            $lines[] = $plain('Сумма сбавок: −'.$fmt($details['deductions_total'] ?? 0));
         }
 
         if (! empty($details['old_deductions'])) {
-            $lines[] = 'Сбавки до изменения:';
+            $lines[] = $plain('Сбавки до изменения:');
             foreach ($details['old_deductions'] as $d) {
-                $lines[] = '  • '.$d['code'].': −'.$fmt($d['value']);
+                $lines[] = [[
+                    'text' => '  • '.$d['code'].': −'.$fmt($d['value']),
+                    'ignored' => $countedCodes !== null && ! in_array((string) $d['code'], $countedCodes, true),
+                ]];
             }
         }
 
         if (! empty($details['scores'])) {
-            $lines[] = 'Оценки судей:';
+            $lines[] = $plain('Оценки судей:');
             foreach ($details['scores'] as $s) {
-                $codes = collect($s['deductions'] ?? [])->map(fn ($d) => $d['code'].' −'.$fmt($d['value']))->implode(', ');
-                $lines[] = '  • '.($s['judge'] ?? ('#'.$s['judge_id']))
-                    .(! empty($s['panel']) ? ' ['.$s['panel'].']' : '')
-                    .': '.$fmt($s['score'])
-                    .($codes !== '' ? ' ('.$codes.')' : '');
+                $parts = [[
+                    'text' => '  • '.($s['judge'] ?? ('#'.$s['judge_id']))
+                        .(! empty($s['panel']) ? ' ['.$s['panel'].']' : '')
+                        .': '.$fmt($s['score']),
+                    'ignored' => false,
+                ]];
+
+                // Частичная подсветка: у одного судьи один код может быть учтён,
+                // а другой — нет (нажат только им).
+                $codes = collect($s['deductions'] ?? [])->map(fn ($d) => [
+                    'text' => $d['code'].' −'.$fmt($d['value']),
+                    'ignored' => $countedCodes !== null && ! in_array((string) $d['code'], $countedCodes, true),
+                ]);
+
+                if ($codes->isNotEmpty()) {
+                    $parts[0]['text'] .= ' (';
+                    $sep = '';
+
+                    foreach ($codes as $c) {
+                        if ($sep !== '') {
+                            $parts[] = ['text' => $sep, 'ignored' => false];
+                        }
+
+                        $parts[] = ['text' => $c['text'], 'ignored' => $c['ignored']];
+                        $sep = ', ';
+                    }
+
+                    $parts[] = ['text' => ')', 'ignored' => false];
+                }
+
+                $lines[] = $parts;
             }
         }
 
         if (array_key_exists('avg_a', $details) && ! is_null($details['avg_a'])) {
-            $lines[] = 'Среднее A: '.$fmt($details['avg_a']);
+            $lines[] = $plain('Среднее A: '.$fmt($details['avg_a']));
         }
 
         if (array_key_exists('avg_b', $details) && ! is_null($details['avg_b'])) {
-            $lines[] = 'Среднее B: '.$fmt($details['avg_b']);
+            $lines[] = $plain('Среднее B: '.$fmt($details['avg_b']));
         }
 
         if (array_key_exists('auto', $details)) {
-            $lines[] = 'Авто-расчёт: '.$fmt($details['auto']);
+            $lines[] = $plain('Авто-расчёт: '.$fmt($details['auto']));
         }
 
         if (! empty($details['formula'])) {
-            $lines[] = 'Формула: '.$details['formula'];
+            $lines[] = $plain('Формула: '.$details['formula']);
         }
 
         return $lines;
+    }
+
+    /**
+     * Коды сбавок панели A, засчитанные в вычет (замечены двумя и более судьями,
+     * R-3.13–R-3.14, уточнение 08.10). Код, которого нет в списке, — неучтённый
+     * (нажат только одним судьёй) и в модалке выделяется цветом.
+     *
+     * Источник истины — снимки на момент действия: для записи «Протокол
+     * утверждён» это details.ignored_deductions/details.scores, для записей
+     * «Оценка выставлена/изменена» — текущие score_deductions регистрации
+     * (снимок R-3.12 не переписывается, поэтому они отражают состояние на момент
+     * действия; позднейшие правки снимков делают отметки приблизительными).
+     *
+     * null — отметки неприменимы (запись без снимка сбавок или простая схема:
+     * там правила подтверждения не действуют, засчитываются все нажатия).
+     *
+     * @return array<int, string>|null
+     */
+    public static function countedCodes(JudgingLog $record): ?array
+    {
+        $details = $record->details ?? [];
+
+        if (($details['scheme'] ?? Competition::SCHEME_SIMPLE) !== Competition::SCHEME_AB) {
+            return null;
+        }
+
+        // Итоговая запись: полный снимок всех оценок A и неучтённых нажатий.
+        if (! empty($details['scores'])) {
+            $ignoredCounts = [];
+
+            foreach ($details['ignored_deductions'] ?? [] as $ignored) {
+                $key = $ignored['judge_id'].'|'.$ignored['code'];
+                $ignoredCounts[$key] = ($ignoredCounts[$key] ?? 0) + 1;
+            }
+
+            $judgesByCode = [];
+
+            foreach ($details['scores'] as $s) {
+                if (($s['panel'] ?? null) !== Competition::PANEL_A) {
+                    continue;
+                }
+
+                foreach ($s['deductions'] ?? [] as $d) {
+                    $key = $s['judge_id'].'|'.$d['code'];
+
+                    // Неучтённые нажатия остаются в снимке — их вычитаем.
+                    if (($ignoredCounts[$key] ?? 0) > 0) {
+                        $ignoredCounts[$key]--;
+
+                        continue;
+                    }
+
+                    $judgesByCode[$d['code']] = true;
+                }
+            }
+
+            return array_map('strval', array_keys($judgesByCode));
+        }
+
+        // Запись выставления/изменения оценки: пересчёт по текущим снимкам панели.
+        if (array_key_exists('deductions', $details) && $record->registration_id) {
+            $scores = Score::where('registration_id', $record->registration_id)
+                ->with('deductions')
+                ->get();
+
+            $judgeScores = [];
+
+            foreach ($scores as $score) {
+                if ($score->panel !== Competition::PANEL_A) {
+                    continue;
+                }
+
+                $judgeScores[$score->judge_id] = [
+                    'score' => (float) $score->score,
+                    'deductions' => $score->deductions
+                        ->map(fn ($d) => ['code' => (string) $d->code, 'value' => (float) $d->value])
+                        ->values()
+                        ->all(),
+                ];
+            }
+
+            if ($judgeScores === []) {
+                return null;
+            }
+
+            $confirmed = JudgingCalculator::confirmedPanelScores($judgeScores);
+
+            // judges — сколько судей нажали код; засчитан только код,
+            // замеченный MIN_CODE_JUDGES и более судьями.
+            $counted = array_keys(array_filter(
+                $confirmed['judges'],
+                fn (int $count) => $count >= JudgingCalculator::MIN_CODE_JUDGES,
+            ));
+
+            return array_map('strval', $counted);
+        }
+
+        return null;
     }
 
     public static function getPages(): array
