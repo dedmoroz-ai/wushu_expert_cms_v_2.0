@@ -4,11 +4,43 @@
         .fi-sidebar, .fi-topbar, footer, .fi-header { display: none !important; }
         .fi-main { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
         .fi-body { padding: 0 !important; }
+        .fi-page, .fi-page > section { padding: 0 !important; margin: 0 !important; gap: 0 !important; }
+        html, body { height: 100%; overflow: hidden; }
         
         /* 2. ФОН */
         body { background-color: #0e1422 !important; color: white !important; }
 
-        /* 3. КНОПКИ (СЕТКА) */
+        /* 3. ОБОЛОЧКА ПУЛЬТА (адаптив под телефоны):
+              flex-колонка на 100dvh: прокручивается только средняя часть,
+              нижняя кнопка — обычный блок и всегда в кадре. Не fixed:
+              на iOS fixed-bottom прячется за панелью браузера. */
+        .pad-shell {
+            display: flex !important;
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;   /* старые браузеры */
+            height: 100dvh;  /* динамическая высота: панель адреса не срезает кнопку */
+            position: relative;
+        }
+        .pad-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 16px 24px;
+        }
+        .pad-bottom {
+            flex: 0 0 auto;
+            padding: 16px 16px max(16px, env(safe-area-inset-bottom, 0px));
+            background-color: rgba(14, 20, 34, 0.95);
+            border-top: 1px solid #1e293b;
+        }
+
+        /* 4. КНОПКИ (СЕТКА) */
         .pad-grid {
             display: grid !important;
             grid-template-columns: repeat(3, 1fr) !important;
@@ -21,9 +53,9 @@
             color: white;
             border: 1px solid #0A92BA;
             border-radius: 12px;
-            font-size: 2rem;
+            font-size: clamp(1.4rem, 6.5vw, 2rem);
             font-weight: 700;
-            height: 70px; 
+            min-height: 70px; 
             display: flex;
             align-items: center;
             justify-content: center;
@@ -47,23 +79,32 @@
             background-color: #afafaf !important;
             color: #0c091f !important;
             border-radius: 16px;
-            height: 90px;
+            min-height: 90px;
+            padding: 4px 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 4rem;
+            font-size: clamp(2.5rem, 12vw, 4rem);
             font-weight: 900;
             border: 4px solid #0A92BA;
             margin-bottom: 20px;
         }
 
-        /* КНОПКА ВЫХОДА ИЗ ПУЛЬТА (сессия сохраняется) */
+        /* Угловые кнопки: «во весь экран» и «выход из пульта» (сессия сохраняется) */
+        .pad-corner {
+            position: absolute;
+            top: max(12px, env(safe-area-inset-top, 0px));
+            right: 12px;
+            z-index: 9999;
+            display: flex;
+            gap: 8px;
+        }
         .exit-btn-fixed {
-            position: fixed !important;
-            top: 15px !important;
-            right: 15px !important;
-            z-index: 9999 !important;
+            position: static !important;
             background: rgba(255, 255, 255, 0.1);
+            border: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
             border-radius: 50%;
             padding: 8px;
             cursor: pointer;
@@ -80,13 +121,37 @@
             .logo-container { display: none !important; }
             .spacer-block { height: 10px !important; min-height: 10px !important; }
             .gray-divider { display: none !important; } 
-            .score-display { height: 70px !important; font-size: 3rem !important; margin-bottom: 10px !important; }
-            .pad-btn { height: 55px !important; font-size: 1.5rem !important; }
+            .score-display { min-height: 64px !important; font-size: clamp(2rem, 10vw, 3rem) !important; margin-bottom: 10px !important; }
+            .pad-btn { min-height: 52px !important; font-size: 1.35rem !important; }
+        }
+        @media (max-height: 480px) {
+            .pad-btn { min-height: 44px !important; font-size: 1.15rem !important; }
+            .score-display { min-height: 52px !important; }
+        }
+        @media (max-width: 380px) {
+            .pad-grid, .deduction-grid { gap: 8px !important; }
+            .pad-scroll { padding: 12px 12px 16px !important; }
         }
     </style>
 
-    {{-- Убрал relative у контейнера, чтобы не мешал fixed --}}
-    <div wire:poll.3s="loadState" class="min-h-screen w-full flex flex-col items-center pt-4 px-4 pb-48 font-sans bg-[#0e1422] overflow-y-auto">
+    {{-- Оболочка пульта (адаптив): колонка на 100dvh, прокручивается только
+         средняя часть .pad-scroll, нижняя кнопка — обычный блок .pad-bottom --}}
+    <div wire:poll.3s="loadState" class="pad-shell font-sans text-white bg-[#0e1422]">
+        <div class="pad-corner">
+            <div wire:ignore>
+                <button type="button" id="pad-fullscreen-btn" class="exit-btn-fixed" title="Во весь экран"
+                        onclick="(function () { var d = document.documentElement; if (document.fullscreenElement) { document.exitFullscreen(); } else if (d.requestFullscreen) { d.requestFullscreen().catch(function () {}); } })()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                    </svg>
+                </button>
+                <script>
+                    (function () {
+                        var btn = document.getElementById('pad-fullscreen-btn');
+                        if (btn && !document.documentElement.requestFullscreen) { btn.style.display = 'none'; }
+                    })();
+                </script>
+            </div>
 
         {{-- === КНОПКА ВЫХОДА ИЗ ПУЛЬТА (не из аккаунта) === --}}
         <button wire:click="exitPad" 
@@ -97,7 +162,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12" />
             </svg>
         </button>
+        </div>
 
+        <div class="pad-scroll">
         {{-- ЛОГОТИП --}}
         <div class="logo-container flex-none">
             <img src="/images/logo.png" alt="Logo" class="h-16 w-auto object-contain mx-auto" 
@@ -219,7 +286,7 @@
                     @endforeach
 
                     <button wire:click="undoLastCode" @disabled(count($pressedCodes) === 0)
-                            class="pad-btn btn-red w-full mt-3" style="font-size:1.1rem; height:55px; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : '' }}">
+                            class="pad-btn btn-red w-full mt-3" style="font-size:1.1rem; min-height:55px; {{ count($pressedCodes) === 0 ? 'opacity:0.4;' : '' }}">
                         ОТМЕНИТЬ ПОСЛЕДНЮЮ
                     </button>
                 @else
@@ -279,12 +346,12 @@
                 </div>
             @endif
         @endif
-    </div>
+        </div>{{-- /pad-scroll --}}
 
-    {{-- НИЖНЯЯ КНОПКА --}}
-    @if($canVote)
-        <div class="fixed bottom-0 left-0 w-full p-4 z-50" style="background-color: rgba(14, 20, 34, 0.95); border-top: 1px solid #1e293b;">
-            <div class="max-w-md mx-auto">
+        {{-- НИЖНЯЯ КНОПКА: обычный блок оболочки (не fixed) — всегда в кадре --}}
+        @if($canVote)
+            <div class="pad-bottom">
+                <div class="max-w-md mx-auto">
                 {{-- Правило 8.2: кнопка активна, когда введено корректное число --}}
                 @if(is_numeric($score) || $inputMode === 'codes')
                     <button wire:click="submitScore" 
@@ -306,7 +373,8 @@
                         Отмена
                     </button>
                 @endif
+                </div>
             </div>
-        </div>
-    @endif
+        @endif
+    </div>{{-- /pad-shell --}}
 </x-filament-panels::page>
