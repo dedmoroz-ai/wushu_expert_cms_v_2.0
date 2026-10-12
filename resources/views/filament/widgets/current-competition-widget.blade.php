@@ -67,6 +67,15 @@
                         <x-filament::badge :color="$competition->registrationSessionStatusColor()">
                             {{ $competition->registrationSessionStatusLabel() }}
                         </x-filament::badge>
+
+                        {{-- Замечание заказчика (12.10): под статусом «Идёт регистрация» —
+                             дедлайн приёма заявок из настроек соревнования
+                             («до дд.мм.гггг чч:мм»). В остальных статусах подписи нет. --}}
+                        @if ($competition->registrationDeadlineLabel())
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ $competition->registrationDeadlineLabel() }}
+                            </p>
+                        @endif
                     @endif
                 </div>
             </div>

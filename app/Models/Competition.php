@@ -296,6 +296,24 @@ class Competition extends Model
     }
 
     /**
+     * Замечание заказчика (12.10): подпись «до дд.мм.гггг чч:мм» под статусом
+     * «Идёт регистрация» на плашке «Актуальное соревнование» — дедлайн приёма
+     * заявок из настроек соревнования (поле «Закрытие подачи заявок» секции
+     * «Сессия регистрации заявок»).
+     *
+     * Показывается только пока регистрация открыта; в статусах «Ожидает
+     * открытия», «Регистрация завершена» и «Не задано» подписи нет.
+     */
+    public function registrationDeadlineLabel(): ?string
+    {
+        if ($this->registrationSessionStatus() !== self::REG_SESSION_OPEN || ! $this->registration_closes_at) {
+            return null;
+        }
+
+        return 'до '.$this->registration_closes_at->format('d.m.Y H:i');
+    }
+
+    /**
      * Цвет бейджа статуса (цвета badge: gray / warning / success / danger).
      */
     public function registrationSessionStatusColor(): string

@@ -362,6 +362,71 @@ class CurrentCompetitionWidgetTest extends TestCase
         ];
     }
 
+    /**
+     * Замечание заказчика (12.10): под статусом «Идёт регистрация» на плашке
+     * показывается дедлайн приёма заявок из настроек соревнования —
+     * подпись «до дд.мм.гггг чч:мм».
+     */
+    public function test_open_registration_shows_deadline_caption(): void
+    {
+        $closesAt = now()->addDays(2)->startOfMinute();
+
+        $competition = $this->makeCompetition([
+            'registration_opens_at' => now()->subDay(),
+            'registration_closes_at' => $closesAt,
+        ]);
+
+        $this->assertSame('до '.$closesAt->format('d.m.Y H:i'), $competition->registrationDeadlineLabel());
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        Livewire::actingAs($this->makeUser('deadline@test.local', 'admin'))
+            ->test(CurrentCompetitionWidget::class)
+            ->assertSee('Идёт регистрация')
+            ->assertSee('до '.$closesAt->format('d.m.Y H:i'));
+    }
+
+    /**
+     * Подпись с дедлайном — только пока идёт регистрация: в статусах «Ожидает
+     * открытия» и «Регистрация завершена», а также без заданной даты закрытия
+     * её нет.
+     */
+    #[DataProvider('deadlineCaptionHiddenProvider')]
+    public function test_deadline_caption_is_hidden_outside_open_registration(
+        ?string $opensIn,
+        ?string $closesIn,
+    ): void {
+        $closesAt = $closesIn ? now()->modify($closesIn)->startOfMinute() : null;
+
+        $competition = $this->makeCompetition([
+            'registration_opens_at' => $opensIn ? now()->modify($opensIn)->startOfMinute() : null,
+            'registration_closes_at' => $closesAt,
+        ]);
+
+        $this->assertNull($competition->registrationDeadlineLabel());
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        $component = Livewire::actingAs($this->makeUser('deadline-hidden@test.local', 'admin'))
+            ->test(CurrentCompetitionWidget::class);
+
+        if ($closesAt) {
+            $component->assertDontSee('до '.$closesAt->format('d.m.Y H:i'));
+        }
+
+        $component->assertDontSee('до ');
+    }
+
+    /** Статусы сессии, в которых подпись с дедлайном не показывается. */
+    public static function deadlineCaptionHiddenProvider(): array
+    {
+        return [
+            'ожидает открытия' => ['+1 day', '+2 days'],
+            'регистрация завершена' => ['-2 days', '-1 day'],
+            'дата закрытия не задана' => ['-1 day', null],
+        ];
+    }
+
     /** Актуально идущее соревнование важнее ближайшего по дате. */
     public function test_actual_competition_prefers_running_one(): void
     {
