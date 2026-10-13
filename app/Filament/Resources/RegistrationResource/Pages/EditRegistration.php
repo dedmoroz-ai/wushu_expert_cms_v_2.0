@@ -12,7 +12,9 @@ use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Exceptions\Halt;
 
 /**
  * Замечание заказчика (01.10.2026): кнопка «Изменить» в «Заявках» работала
@@ -130,6 +132,28 @@ class EditRegistration extends EditRecord
                             ->default(false),
                     ])->columns(2),
             ]);
+    }
+
+    /**
+     * Замечание заказчика (13.10): после завершения сессии подачи заявок
+     * тренер не может редактировать заявки (администратор — может). Клик по
+     * кнопке «Изменить» перехватывается модальным предупреждением раньше, но
+     * страница может быть открыта и напрямую — дублируем проверку на сервере.
+     */
+    protected function beforeSave(): void
+    {
+        if (! RegistrationResource::registrationSessionClosedFor($this->record->competition)) {
+            return;
+        }
+
+        Notification::make()
+            ->title('Приём заявок завершён')
+            ->body($this->record->competition->registrationClosedMessage())
+            ->danger()
+            ->persistent()
+            ->send();
+
+        throw new Halt();
     }
 
     protected function mutateFormDataBeforeSave(array $data): array

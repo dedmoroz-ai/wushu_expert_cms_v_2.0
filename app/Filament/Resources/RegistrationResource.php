@@ -15,6 +15,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
 
 class RegistrationResource extends Resource
 {
@@ -49,6 +50,30 @@ class RegistrationResource extends Resource
         }
 
         return $query;
+    }
+
+    /**
+     * Замечание заказчика (13.10): контроль сессии подачи заявок действует
+     * только для тренеров. Администратор создаёт и редактирует заявки от
+     * любых клубов всегда — независимо от окна подачи заявок.
+     */
+    public static function enforcesRegistrationSession(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && ! $user->isAdmin();
+    }
+
+    /**
+     * Закрыта ли сессия подачи заявок этого соревнования для текущего
+     * пользователя (тренера): создание и редактирование заявок запрещены —
+     * вместо формы показывается модальное предупреждение.
+     */
+    public static function registrationSessionClosedFor(?Competition $competition): bool
+    {
+        return $competition !== null
+            && static::enforcesRegistrationSession()
+            && $competition->isRegistrationSessionClosed();
     }
 
     public static function form(Form $form): Form
@@ -364,7 +389,29 @@ class RegistrationResource extends Resource
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                // Замечание заказчика (13.10): после завершения сессии подачи
+                // заявок тренер не может создавать и редактировать заявки —
+                // клик по «Изменить» открывает модальное предупреждение
+                // вместо формы. Администратор работает без ограничений.
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (Registration $record): bool => ! self::registrationSessionClosedFor($record->competition)),
+
+                Tables\Actions\Action::make('editSessionClosed')
+                    ->label('Изменить')
+                    ->icon('heroicon-m-pencil-square')
+                    ->color('primary')
+                    ->visible(fn (Registration $record): bool => self::registrationSessionClosedFor($record->competition))
+                    ->requiresConfirmation()
+                    ->modalHeading('Приём заявок завершён')
+                    ->modalIcon('heroicon-m-exclamation-triangle')
+                    ->modalIconColor('warning')
+                    ->modalDescription(
+                        fn (Registration $record) => new HtmlString(nl2br(e($record->competition->registrationClosedMessage())))
+                    )
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Понятно')
+                    ->action(fn () => null),
+
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

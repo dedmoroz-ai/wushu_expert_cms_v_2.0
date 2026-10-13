@@ -314,6 +314,28 @@ class Competition extends Model
     }
 
     /**
+     * Замечание заказчика (13.10): сессия подачи заявок завершена — тренер
+     * не может создавать и редактировать заявки (администратор — может).
+     */
+    public function isRegistrationSessionClosed(): bool
+    {
+        return $this->registrationSessionStatus() === self::REG_SESSION_CLOSED;
+    }
+
+    /**
+     * Замечание заказчика (13.10): текст предупреждения в модальном окне при
+     * попытке тренера создать или отредактировать заявку после завершения
+     * сессии подачи заявок.
+     */
+    public function registrationClosedMessage(): string
+    {
+        $date = $this->registration_closes_at?->format('d.m.Y') ?? '—';
+
+        return 'Вы пытаетесь создать или отредактировать заявку, но сессия подачи заявок на «'.$this->name.'» завершена ('.$date.').'."\n"
+            .'Администратор уже знает. Администратор не удивлён...)';
+    }
+
+    /**
      * Цвет бейджа статуса (цвета badge: gray / warning / success / danger).
      */
     public function registrationSessionStatusColor(): string

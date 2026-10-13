@@ -9,6 +9,7 @@ use App\Models\Style;
 use App\Support\AgeGroupResolver;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 
 class CreateRegistration extends CreateRecord
@@ -17,6 +18,24 @@ class CreateRegistration extends CreateRecord
 
     protected function handleRecordCreation(array $data): Model
     {
+        // --- ЗАМЕЧАНИЕ ЗАКАЗЧИКА (13.10): ПРИЁМ ЗАЯВОК ЗАВЕРШЁН ---
+        // После завершения сессии подачи заявок тренер не может создавать
+        // заявки (администратор — может). Клик по кнопке «Создать»
+        // перехватывается модальным предупреждением раньше, но форма может
+        // быть отправлена и напрямую — дублируем проверку на сервере.
+        $competition = Competition::find($data['competition_id'] ?? null);
+
+        if (RegistrationResource::registrationSessionClosedFor($competition)) {
+            Notification::make()
+                ->title('Приём заявок завершён')
+                ->body($competition->registrationClosedMessage())
+                ->danger()
+                ->persistent()
+                ->send();
+
+            throw new Halt();
+        }
+
         // 1. Сборка массива стилей
         $taolu = $data['events_taolu_virtual'] ?? [];
         $trad = $data['events_trad_virtual'] ?? [];
