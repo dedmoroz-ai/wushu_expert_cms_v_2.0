@@ -63,7 +63,7 @@
     <!-- ФОН -->
     <div class="fixed inset-0 z-0">
         <img src="{{ asset('images/9878.png') }}" 
-             class="w-full h-full object-cover opacity-60" 
+             class="w-full h-full object-cover object-top opacity-60" 
              alt="Background">
         <div class="absolute inset-0 bg-gradient-to-r from-gray-950 via-gray-900/80 to-gray-950/90"></div>
     </div>
