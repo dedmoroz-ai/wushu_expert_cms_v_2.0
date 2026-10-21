@@ -122,34 +122,51 @@ class CompetitionResource extends Resource
 
                         Forms\Components\Group::make()->columnSpanFull()->extraAttributes(['class' => 'border-t my-4']), // Разделитель
 
-                        // РЯД 2: Главный судья
+                        // РЯД 2 (замечание 21.10): официальные лица — две колонки,
+                        // слева Главный судья, справа Главный секретарь; у каждого —
+                        // графа судейской квалификации для листа «Состав судейской
+                        // коллегии» итогового протокола.
                         Forms\Components\Grid::make(2)
                             ->schema([
-                                Forms\Components\TextInput::make('chief_judge_name')
-                                    ->label('ФИО Главного судьи')
-                                    ->placeholder('Иванов И.И.')
-                                    ->required(),
+                                Forms\Components\Fieldset::make('Главный судья')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('chief_judge_name')
+                                            ->label('ФИО')
+                                            ->placeholder('Иванов И.И.')
+                                            ->required(),
 
-                                Forms\Components\FileUpload::make('chief_judge_signature')
-                                    ->label('Факсимиле Главного судьи')
-                                    ->image()
-                                    ->directory('competitions/signatures')
-                                    ->imagePreviewHeight('60'),
-                            ]),
+                                        Forms\Components\TextInput::make('chief_judge_qualification')
+                                            ->label('Судейская квалификация')
+                                            ->placeholder('ССМК')
+                                            ->helperText('Печатается на листе «Состав судейской коллегии» итогового протокола. В подписях не показывается.'),
 
-                        // РЯД 3: Главный секретарь
-                        Forms\Components\Grid::make(2)
-                            ->schema([
-                                Forms\Components\TextInput::make('chief_secretary_name')
-                                    ->label('ФИО Главного секретаря')
-                                    ->placeholder('Петрова А.А.')
-                                    ->required(),
+                                        Forms\Components\FileUpload::make('chief_judge_signature')
+                                            ->label('Факсимиле')
+                                            ->image()
+                                            ->directory('competitions/signatures')
+                                            ->imagePreviewHeight('60'),
+                                    ])
+                                    ->columns(1),
 
-                                Forms\Components\FileUpload::make('chief_secretary_signature')
-                                    ->label('Факсимиле Главного секретаря')
-                                    ->image()
-                                    ->directory('competitions/signatures')
-                                    ->imagePreviewHeight('60'),
+                                Forms\Components\Fieldset::make('Главный секретарь')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('chief_secretary_name')
+                                            ->label('ФИО')
+                                            ->placeholder('Петрова А.А.')
+                                            ->required(),
+
+                                        Forms\Components\TextInput::make('chief_secretary_qualification')
+                                            ->label('Судейская квалификация')
+                                            ->placeholder('ССМК')
+                                            ->helperText('Печатается на листе «Состав судейской коллегии» итогового протокола. В подписях не показывается.'),
+
+                                        Forms\Components\FileUpload::make('chief_secretary_signature')
+                                            ->label('Факсимиле')
+                                            ->image()
+                                            ->directory('competitions/signatures')
+                                            ->imagePreviewHeight('60'),
+                                    ])
+                                    ->columns(1),
                             ]),
                     ])
                     ->collapsible()

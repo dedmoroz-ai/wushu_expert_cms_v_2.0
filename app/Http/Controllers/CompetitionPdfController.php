@@ -213,6 +213,11 @@ class CompetitionPdfController extends Controller
         $chiefJudgeName = $competition->chief_judge_name;
         $chiefSecretaryName = $competition->chief_secretary_name;
 
+        // Замечание заказчика (21.10): судейская квалификация официальных лиц —
+        // только лист «Состав судейской коллегии», в подписях подвала не пишется.
+        $chiefJudgeQualification = $competition->chief_judge_qualification;
+        $chiefSecretaryQualification = $competition->chief_secretary_qualification;
+
         // ХОТФИКС 8.4/8.5: в листе «СОСТАВ СУДЕЙСКОЙ КОЛЛЕГИИ» — только бригада
         // ЭТОГО турнира (competition_user), а не все активные судьи системы.
         // Судьи вне бригады остаются в системе, но в протокол не попадают.
@@ -235,7 +240,9 @@ class CompetitionPdfController extends Controller
             'logoBase64', 'judgeSignBase64', 'secSignBase64', 'stampBase64',
             'judgeName', 'secName',
             'teams', 'totalAthletes', 'totalClubs',
-            'chiefJudgeName', 'chiefSecretaryName', 'headJudges', 'lineJudges'
+            'chiefJudgeName', 'chiefSecretaryName',
+            'chiefJudgeQualification', 'chiefSecretaryQualification',
+            'headJudges', 'lineJudges'
         ))->stream('final-results.pdf');
     }
 

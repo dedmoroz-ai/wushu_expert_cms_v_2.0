@@ -14,14 +14,15 @@
         <tbody>
             @php $n = 1; @endphp
 
-            {{-- Главный судья --}}
+            {{-- Главный судья (замечание 21.10: в колонке «Категория» печатается
+                 судейская квалификация из настроек турнира) --}}
             @if($chiefJudgeName)
                 <tr>
                     <td><b>{{ $n++ }}</b></td>
                     <td class="text-left"><b>Главный судья</b></td>
                     <td class="text-left">{{ $chiefJudgeName }}</td>
                     <td class="text-left">—</td>
-                    <td>—</td>
+                    <td>{{ ($chiefJudgeQualification ?? null) ?: '—' }}</td>
                 </tr>
             @endif
 
@@ -32,7 +33,7 @@
                     <td class="text-left"><b>Главный секретарь</b></td>
                     <td class="text-left">{{ $chiefSecretaryName }}</td>
                     <td class="text-left">—</td>
-                    <td>—</td>
+                    <td>{{ ($chiefSecretaryQualification ?? null) ?: '—' }}</td>
                 </tr>
             @endif
 
