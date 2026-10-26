@@ -16,6 +16,10 @@ COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr
 # IPv6 на сервере недоступен: apt выбирает AAAA deb.debian.org и падает — принудительно IPv4.
 RUN printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
 
+# deb.debian.org (Fastly) с этого сервера отдаёт ~30 КБ/с и рвёт соединения —
+# пакеты ставим с зеркала Яндекса (проверено: ~50 МБ/с, debian + debian-security).
+RUN sed -i 's|deb.debian.org|mirror.yandex.ru|g' /etc/apt/sources.list.d/debian.sources
+
 RUN install-php-extensions intl gd
 
 COPY . .
