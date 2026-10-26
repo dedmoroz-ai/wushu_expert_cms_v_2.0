@@ -95,8 +95,8 @@
         .text-left { text-align: left; }
         
         .group-head { 
-            background: #444444; 
-            color: white; padding: 6px; 
+            background: rgb(211, 211, 211); 
+            color: black; padding: 6px; 
             font-weight: bold; font-size: 12px; 
             text-align: center; border: 1px solid black; border-bottom: none; 
         }
