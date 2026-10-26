@@ -13,6 +13,9 @@ ENV PHP_MAX_EXECUTION_TIME=300
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
 # ДОБАВИЛ 'gd' СЮДА (для работы с картинками и PDF)
+# IPv6 на сервере недоступен: apt выбирает AAAA deb.debian.org и падает — принудительно IPv4.
+RUN printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
+
 RUN install-php-extensions intl gd
 
 COPY . .
