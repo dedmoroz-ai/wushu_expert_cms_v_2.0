@@ -79,12 +79,13 @@ class PreliminaryStartListTest extends TestCase
                 ->assertOk()
                 ->assertSee('Предварительный стартовый протокол')
                 ->assertSee($competition->name)
-                ->assertSee('Заявки по возрастным группам');
+                // Решение заказчика: сводный блок «Заявки по возрастным группам» убран.
+                ->assertDontSee('Заявки по возрастным группам');
         }
     }
 
-    /** Смоук с заявками: номинации группируются (как в PDF start-list), сводка по группам на месте. */
-    public function test_protocol_shows_grouped_registrations_and_counts(): void
+    /** Смоук с заявками: номинации группируются (как в PDF start-list), без сводки по группам. */
+    public function test_protocol_shows_grouped_registrations(): void
     {
         $competition = $this->makeCompetition();
 

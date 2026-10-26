@@ -70,24 +70,8 @@ class PreliminaryStartList extends Component
                 return ProtocolGroups::title($styleName, $groupName, $ageStr, (bool) $reg->is_special);
             });
 
-        // Сводка: количество заявок по каждой возрастной группе и полу.
-        $counts = $registrations
-            ->groupBy(fn ($reg) => ($reg->ageGroup?->name ?? 'Без возрастной группы').'|'.($reg->athlete?->gender ?? ''))
-            ->map(function ($regs, string $key) {
-                [$ageGroup, $gender] = explode('|', $key, 2);
-
-                return [
-                    'age_group' => $ageGroup,
-                    'gender' => $gender,
-                    'count' => $regs->count(),
-                ];
-            })
-            ->sortBy([['age_group', 'asc'], ['gender', 'asc']])
-            ->values();
-
         return view('livewire.preliminary-start-list', [
             'grouped' => $grouped,
-            'counts' => $counts,
             'generatedAt' => Carbon::now()->translatedFormat('d.m.Y H:i'),
         ])->layout('components.layouts.public', ['title' => 'Предварительный стартовый протокол']);
     }

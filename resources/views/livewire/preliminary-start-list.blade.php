@@ -71,38 +71,6 @@
             </div>
         </div>
 
-        {{-- СВОДКА: ЗАЯВКИ ПО ВОЗРАСТНЫМ ГРУППАМ И ПОЛУ --}}
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-4 sm:mb-6">
-            <div class="px-4 sm:px-6 py-3 bg-gray-800 text-white font-bold uppercase text-sm sm:text-base">
-                Заявки по возрастным группам
-            </div>
-
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Возрастная группа</th>
-                        <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Пол</th>
-                        <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Заявок</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse($counts as $c)
-                        <tr>
-                            <td class="px-3 sm:px-6 py-2 sm:py-3 text-sm text-gray-900">{{ $c['age_group'] }}</td>
-                            <td class="px-3 sm:px-6 py-2 sm:py-3 text-sm text-gray-900">
-                                {{ ['male' => 'Муж.', 'female' => 'Жен.'][$c['gender']] ?? ($c['gender'] ?: '—') }}
-                            </td>
-                            <td class="px-3 sm:px-6 py-2 sm:py-3 text-sm font-bold text-gray-900">{{ $c['count'] }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="3" class="px-3 sm:px-6 py-3 text-sm text-gray-500">Заявок пока нет.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
         {{-- НОМИНАЦИИ (ЗАЯВКИ В ИСХОДНОМ ПОРЯДКЕ — ПО sort_order ЗАЯВКИ) --}}
         @if($grouped->count() > 0)
             @foreach($grouped as $groupName => $items)
